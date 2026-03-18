@@ -26,6 +26,8 @@ app.get("/api/languages", (_req, res) => {
   res.json({
     defaultSourceLanguage: "en",
     defaultTargetLanguage: "ja",
+    defaultTranslateProvider: "Google Translate",
+    translateProviders: ["Google Translate", "DeepSeek r1"],
     languages: [
       { code: "auto", label: "Auto detect" },
       { code: "en", label: "English" },
@@ -44,6 +46,7 @@ app.post("/api/translate-document", upload.single("file"), async (req, res) => {
   try {
     const sourceLanguage = String(req.body.sourceLanguage ?? "en");
     const targetLanguage = String(req.body.targetLanguage ?? "ja");
+    const providerName = String(req.body.providerName ?? "Google Translate");
     const file = req.file;
 
     if (!file) {
@@ -56,6 +59,7 @@ app.post("/api/translate-document", upload.single("file"), async (req, res) => {
       extractedDocument.segments.map((segment) => segment.text),
       sourceLanguage === "auto" ? "auto" : sourceLanguage,
       targetLanguage,
+      providerName,
     );
 
     const outputBuffer = await extractedDocument.replaceSegments(translatedSegments);
@@ -65,6 +69,7 @@ app.post("/api/translate-document", upload.single("file"), async (req, res) => {
       requestId: randomUUID(),
       sourceLanguage,
       targetLanguage,
+      providerName,
       documentType: extractedDocument.documentType,
       originalFileName: file.originalname,
       outputFileName,

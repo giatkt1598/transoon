@@ -10,12 +10,15 @@ type LanguageOption = {
 type LanguagesResponse = {
   defaultSourceLanguage: string
   defaultTargetLanguage: string
+  defaultTranslateProvider: string
+  translateProviders: string[]
   languages: LanguageOption[]
 }
 
 type TranslationResponse = {
   sourceLanguage: string
   targetLanguage: string
+  providerName: string
   documentType: 'docx' | 'txt'
   originalFileName: string
   outputFileName: string
@@ -31,6 +34,8 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
 const fallbackLanguages: LanguagesResponse = {
   defaultSourceLanguage: 'en',
   defaultTargetLanguage: 'ja',
+  defaultTranslateProvider: 'Google Translate',
+  translateProviders: ['Google Translate', 'DeepSeek r1'],
   languages: [
     { code: 'auto', label: 'Auto detect' },
     { code: 'en', label: 'English' },
@@ -49,6 +54,7 @@ function App() {
   const [file, setFile] = useState<File | null>(null)
   const [sourceLanguage, setSourceLanguage] = useState(fallbackLanguages.defaultSourceLanguage)
   const [targetLanguage, setTargetLanguage] = useState(fallbackLanguages.defaultTargetLanguage)
+  const [providerName, setProviderName] = useState(fallbackLanguages.defaultTranslateProvider)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<TranslationResponse | null>(null)
@@ -69,6 +75,7 @@ function App() {
         setLanguagesData(data)
         setSourceLanguage(data.defaultSourceLanguage)
         setTargetLanguage(data.defaultTargetLanguage)
+        setProviderName(data.defaultTranslateProvider)
       } catch {
         setLanguagesData(fallbackLanguages)
       }
@@ -95,6 +102,7 @@ function App() {
       formData.append('file', file)
       formData.append('sourceLanguage', sourceLanguage)
       formData.append('targetLanguage', targetLanguage)
+      formData.append('providerName', providerName)
 
       const response = await fetch(`${apiBaseUrl}/api/translate-document`, {
         method: 'POST',
@@ -179,10 +187,24 @@ function App() {
                     <option key={language.code} value={language.code}>
                       {language.label}
                     </option>
-                  ))}
+                ))}
               </select>
             </label>
           </div>
+
+          <label className="field">
+            <span>Translate provider</span>
+            <select
+              value={providerName}
+              onChange={(event) => setProviderName(event.target.value)}
+            >
+              {languagesData.translateProviders.map((provider) => (
+                <option key={provider} value={provider}>
+                  {provider}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <div className="selection-summary">
             <div>
@@ -194,6 +216,10 @@ function App() {
               <strong>
                 {sourceLanguage} {'->'} {targetLanguage}
               </strong>
+            </div>
+            <div>
+              <span>Translate provider</span>
+              <strong>{providerName}</strong>
             </div>
           </div>
 
