@@ -12,6 +12,7 @@ export async function translateSegments(
   sourceLanguage: string,
   targetLanguage: string,
   providerName = "Google Translate",
+  onProgress?: Parameters<TranslateProvider["translate"]>[0]["onProgress"],
 ): Promise<TranslationResult> {
   const normalizedSegments = segments.map((segment) => segment ?? "");
 
@@ -28,6 +29,7 @@ export async function translateSegments(
       segments: normalizedSegments,
       sourceLanguage,
       targetLanguage,
+      onProgress,
     });
   } catch (error) {
     const message =

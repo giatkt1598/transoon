@@ -15,10 +15,22 @@ type ParsedTranslation = {
   translatedSegments?: Array<{ index: number; text: string }>;
 };
 
+type ValidParsedTranslation = {
+  translatedSegments: Array<{ index: number; text: string }>;
+};
+
 export abstract class AITranslateProvider extends TranslateProvider {
   protected readonly endpoint =
     process.env.OLLAMA_API_URL ?? "http://127.0.0.1:11434/api/chat";
-  protected readonly timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS ?? 180000);
+  protected readonly timeoutMs = Number(
+    process.env.OLLAMA_TIMEOUT_MS ?? 180000,
+  );
+  protected readonly maxRetries = Number(
+    process.env.AI_TRANSLATE_MAX_RETRIES ?? 2,
+  );
+  protected readonly retryDelayMs = Number(
+    process.env.AI_TRANSLATE_RETRY_DELAY_MS ?? 1000,
+  );
   protected readonly systemPrompt =
     "You are a translation engine. Return JSON only. Do not add explanations. Keep the same number of items and preserve placeholders, whitespace, and line breaks as closely as possible.";
 
@@ -36,9 +48,14 @@ export abstract class AITranslateProvider extends TranslateProvider {
     });
 
     const normalizedSegments = request.segments.map((segment) => segment ?? "");
-    const nonEmptySegments = normalizedSegments.filter((segment) => segment.trim().length > 0);
+    const nonEmptySegments = normalizedSegments.filter(
+      (segment) => segment.trim().length > 0,
+    );
 
-    if (request.sourceLanguage === request.targetLanguage || nonEmptySegments.length === 0) {
+    if (
+      request.sourceLanguage === request.targetLanguage ||
+      nonEmptySegments.length === 0
+    ) {
       return {
         translatedSegments: normalizedSegments,
         warnings: [],
@@ -49,52 +66,43 @@ export abstract class AITranslateProvider extends TranslateProvider {
     const translatedMap = new Map<number, string>();
     const chunks = this.buildChunks(normalizedSegments);
 
+    await request.onProgress?.({
+      phase: "translating",
+      totalChunks: chunks.length,
+      completedChunks: 0,
+      progressPercent: chunks.length === 0 ? 100 : 0,
+      message:
+        chunks.length === 0
+          ? "No non-empty text chunks to translate."
+          : `Translating chunk 1 of ${chunks.length}.`,
+    });
+
     for (const [chunkIndex, chunk] of chunks.entries()) {
       const payload = chunk.map((item) => ({
         index: item.index,
         text: item.text,
       }));
-      const messages = this.buildMessages(
+      const parsed = await this.translateChunkWithRetry(
+        logger,
+        chunkIndex,
         payload,
         request.sourceLanguage,
         request.targetLanguage,
       );
 
-      await logger.information("Sending translation prompt to {provider}", {
-        chunkIndex,
-        messages,
-        payload,
-      });
-
-      const response = await this.requestOllama(messages);
-
-      if (!response.ok) {
-        throw new Error(`${this.name} request failed with status ${response.status}.`);
-      }
-
-      const data = await response.json();
-      await logger.information("Received raw response from {provider}", {
-        chunkIndex,
-        response: data,
-      });
-
-      const content = this.extractContent(data);
-      if (!content) {
-        throw new Error(`${this.name} returned an empty completion.`);
-      }
-
-      const parsed = this.parseTranslatedSegments(content);
-      if (!parsed.translatedSegments || parsed.translatedSegments.length === 0) {
-        throw new Error(`${this.name} did not return any translated segments.`);
-      }
-      if (parsed.translatedSegments.length !== payload.length) {
-        throw new Error(
-          `${this.name} returned ${parsed.translatedSegments.length} translated segments, expected ${payload.length}.`,
-        );
-      }
-
       parsed.translatedSegments.forEach((item) => {
         translatedMap.set(item.index, item.text);
+      });
+
+      await request.onProgress?.({
+        phase: "translating",
+        totalChunks: chunks.length,
+        completedChunks: chunkIndex + 1,
+        progressPercent: Math.round(((chunkIndex + 1) / chunks.length) * 100),
+        message:
+          chunkIndex + 1 === chunks.length
+            ? `Finished translating ${chunks.length} chunks.`
+            : `Translating chunk ${chunkIndex + 2} of ${chunks.length}.`,
       });
     }
 
@@ -107,15 +115,26 @@ export abstract class AITranslateProvider extends TranslateProvider {
     };
   }
 
-  getPromptPreview(request: Omit<TranslateRequest, "segments">): TranslatePromptPreview {
+  getPromptPreview(request: TranslateRequest): TranslatePromptPreview {
+    const chunks = this.buildChunks(
+      request.segments.map((segment) => segment ?? ""),
+    );
+    const firstChunk = chunks[0];
+
+    if (!firstChunk || firstChunk.length === 0) {
+      return {
+        supported: true,
+        content: null,
+      };
+    }
+
     return {
       supported: true,
       content: this.buildPrompt(
-        [
-          { index: 0, text: "First sample segment." },
-          { index: 1, text: "Second sample segment with {{placeholder}}." },
-          { index: 2, text: "Third sample segment with\nline break." },
-        ],
+        firstChunk.map((segment) => ({
+          index: segment.index,
+          text: segment.text,
+        })),
         request.sourceLanguage,
         request.targetLanguage,
       ),
@@ -202,6 +221,108 @@ export abstract class AITranslateProvider extends TranslateProvider {
     return JSON.parse(jsonText) as ParsedTranslation;
   }
 
+  private async translateChunkWithRetry(
+    logger: ReturnType<typeof Log.forContext>,
+    chunkIndex: number,
+    payload: Array<{ index: number; text: string }>,
+    sourceLanguage: string,
+    targetLanguage: string,
+  ): Promise<ValidParsedTranslation> {
+    let lastError: Error | null = null;
+
+    for (
+      let attempt = 1;
+      attempt <= this.maxRetries + 1;
+      attempt += 1
+    ) {
+      const messages = this.buildMessages(
+        payload,
+        sourceLanguage,
+        targetLanguage,
+      );
+
+      try {
+        await logger.information("Sending translation prompt to {provider}", {
+          chunkIndex,
+          attempt,
+          maxAttempts: this.maxRetries + 1,
+          messages,
+          payload,
+        });
+
+        const response = await this.requestOllama(messages);
+
+        if (!response.ok) {
+          throw new Error(
+            `${this.name} request failed with status ${response.status}.`,
+          );
+        }
+
+        const data = await response.json();
+        await logger.information("Received raw response from {provider}", {
+          chunkIndex,
+          attempt,
+          response: data,
+        });
+
+        const content = this.extractContent(data);
+        if (!content) {
+          throw new Error(`${this.name} returned an empty completion.`);
+        }
+
+        const parsed = this.parseTranslatedSegments(content);
+        if (
+          !parsed.translatedSegments ||
+          parsed.translatedSegments.length === 0
+        ) {
+          throw new Error(
+            `${this.name} did not return any translated segments.`,
+          );
+        }
+        if (parsed.translatedSegments.length !== payload.length) {
+          throw new Error(
+            `${this.name} returned ${parsed.translatedSegments.length} translated segments, expected ${payload.length}.`,
+          );
+        }
+
+        if (attempt > 1) {
+          await logger.information(
+            "Translation chunk {chunkIndex} succeeded after retry",
+            {
+              chunkIndex,
+              attempt,
+            },
+          );
+        }
+
+        return {
+          translatedSegments: parsed.translatedSegments,
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const willRetry = attempt <= this.maxRetries;
+
+        await logger.warning("Translation chunk attempt failed for {provider}", {
+          chunkIndex,
+          attempt,
+          maxAttempts: this.maxRetries + 1,
+          willRetry,
+          error: lastError.message,
+        });
+
+        if (!willRetry) {
+          break;
+        }
+
+        await delay(this.retryDelayMs * attempt);
+      }
+    }
+
+    throw new Error(
+      `${this.name} failed to translate chunk ${chunkIndex} after ${this.maxRetries + 1} attempts. Last error: ${lastError?.message ?? "Unknown error"}.`,
+    );
+  }
+
   private async requestOllama(messages: AIMessage[]) {
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), this.timeoutMs);
@@ -220,11 +341,21 @@ export abstract class AITranslateProvider extends TranslateProvider {
         signal: abortController.signal,
       });
     } catch (error) {
-      throw createNetworkError(error, this.endpoint, this.model, this.timeoutMs, this.name);
+      throw createNetworkError(
+        error,
+        this.endpoint,
+        this.model,
+        this.timeoutMs,
+        this.name,
+      );
     } finally {
       clearTimeout(timeout);
     }
   }
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function extractJsonObject(content: string) {
@@ -241,7 +372,7 @@ function extractJsonObject(content: string) {
   return candidate.slice(firstBrace, lastBrace + 1);
 }
 
-function normalizeLanguageName(languageCode: string) {
+export function normalizeLanguageName(languageCode: string) {
   const languageMap: Record<string, string> = {
     auto: "the detected source language",
     en: "English",

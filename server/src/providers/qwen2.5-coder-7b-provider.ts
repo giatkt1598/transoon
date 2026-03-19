@@ -22,6 +22,7 @@ export class Qwen25Coder7BProvider extends AITranslateProvider {
 
   protected extractContent(data: unknown) {
     const response = data as QwenResponse;
-    return response.message?.content;
+    const content = response.message?.content;
+    return content;
   }
 }

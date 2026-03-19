@@ -28,7 +28,18 @@ export class GoogleTranslateProvider extends TranslateProvider {
     const translatedMap = new Map<number, string>();
     const chunks = buildChunks(normalizedSegments);
 
-    for (const chunk of chunks) {
+    await request.onProgress?.({
+      phase: "translating",
+      totalChunks: chunks.length,
+      completedChunks: 0,
+      progressPercent: chunks.length === 0 ? 100 : 0,
+      message:
+        chunks.length === 0
+          ? "No non-empty text chunks to translate."
+          : `Translating chunk 1 of ${chunks.length}.`,
+    });
+
+    for (const [chunkIndex, chunk] of chunks.entries()) {
       const inputs = chunk.map((item) => item.text);
       const response = await translate(inputs, {
         from: request.sourceLanguage,
@@ -38,6 +49,17 @@ export class GoogleTranslateProvider extends TranslateProvider {
 
       response.forEach((result, index) => {
         translatedMap.set(chunk[index].index, result.text);
+      });
+
+      await request.onProgress?.({
+        phase: "translating",
+        totalChunks: chunks.length,
+        completedChunks: chunkIndex + 1,
+        progressPercent: Math.round(((chunkIndex + 1) / chunks.length) * 100),
+        message:
+          chunkIndex + 1 === chunks.length
+            ? `Finished translating ${chunks.length} chunks.`
+            : `Translating chunk ${chunkIndex + 2} of ${chunks.length}.`,
       });
     }
 

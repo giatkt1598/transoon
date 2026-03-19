@@ -4,6 +4,14 @@ export type TranslationResult = {
   provider: string;
 };
 
+export type TranslateProgress = {
+  phase: "queued" | "extracting" | "translating" | "merging" | "completed" | "failed";
+  totalChunks: number;
+  completedChunks: number;
+  progressPercent: number;
+  message: string;
+};
+
 export type TranslatePromptPreview = {
   supported: boolean;
   content: string | null;
@@ -13,6 +21,7 @@ export type TranslateRequest = {
   segments: string[];
   sourceLanguage: string;
   targetLanguage: string;
+  onProgress?: (progress: TranslateProgress) => void | Promise<void>;
 };
 
 export type TranslateProviderDefinition = {
@@ -56,7 +65,7 @@ export abstract class TranslateProvider {
 
   abstract translate(request: TranslateRequest): Promise<TranslationResult>;
 
-  getPromptPreview(_request: Omit<TranslateRequest, "segments">): TranslatePromptPreview {
+  getPromptPreview(_request: TranslateRequest): TranslatePromptPreview {
     return {
       supported: false,
       content: null,

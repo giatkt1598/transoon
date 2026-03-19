@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { io, type Socket } from 'socket.io-client'
 import './App.css'
 
 type LanguageOption = {
@@ -24,6 +25,7 @@ type TranslateProvidersResponse = {
 }
 
 type TranslationResponse = {
+  requestId: string
   sourceLanguage: string
   targetLanguage: string
   providerName: string
@@ -46,12 +48,33 @@ type PromptPreviewResponse = {
   content: string | null
 }
 
+type TranslationProgressResponse = {
+  requestId: string
+  phase: 'queued' | 'extracting' | 'translating' | 'merging' | 'completed' | 'failed'
+  totalChunks: number
+  completedChunks: number
+  progressPercent: number
+  message: string
+  updatedAt: string
+}
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
+const socketUrl = import.meta.env.VITE_SOCKET_URL ?? apiBaseUrl
 const storageKeys = {
   sourceLanguage: 'transoon.sourceLanguage',
   targetLanguage: 'transoon.targetLanguage',
   providerName: 'transoon.providerName',
 } as const
+
+let progressSocket: Socket | null = null
+
+function getProgressSocket() {
+  progressSocket ??= io(socketUrl, {
+    transports: ['websocket', 'polling'],
+  })
+
+  return progressSocket
+}
 
 const fallbackLanguages: LanguagesResponse = {
   defaultSourceLanguage: 'en',
@@ -97,6 +120,8 @@ function App() {
   const [isCopyingPrompt, setIsCopyingPrompt] = useState(false)
   const [submitStartedAt, setSubmitStartedAt] = useState<number | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null)
+  const [progress, setProgress] = useState<TranslationProgressResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<TranslationResponse | null>(null)
 
@@ -189,6 +214,28 @@ function App() {
     return () => window.clearInterval(interval)
   }, [isSubmitting, submitStartedAt])
 
+  useEffect(() => {
+    if (!isSubmitting || !activeRequestId) {
+      return
+    }
+
+    const socket = getProgressSocket()
+    const requestId = activeRequestId
+    const handleProgress = (nextProgress: TranslationProgressResponse) => {
+      if (nextProgress.requestId === requestId) {
+        setProgress(nextProgress)
+      }
+    }
+
+    socket.on('translation-progress', handleProgress)
+    socket.emit('translation-progress:subscribe', requestId)
+
+    return () => {
+      socket.emit('translation-progress:unsubscribe', requestId)
+      socket.off('translation-progress', handleProgress)
+    }
+  }, [activeRequestId, isSubmitting])
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!file) {
@@ -199,11 +246,23 @@ function App() {
     setIsSubmitting(true)
     setSubmitStartedAt(Date.now())
     setElapsedSeconds(0)
+    const requestId = crypto.randomUUID()
+    setActiveRequestId(requestId)
+    setProgress({
+      requestId,
+      phase: 'queued',
+      totalChunks: 0,
+      completedChunks: 0,
+      progressPercent: 0,
+      message: 'Preparing translation request.',
+      updatedAt: new Date().toISOString(),
+    })
     setError(null)
     setResult(null)
 
     try {
       const formData = new FormData()
+      formData.append('requestId', requestId)
       formData.append('file', file)
       formData.append('sourceLanguage', sourceLanguage)
       formData.append('targetLanguage', targetLanguage)
@@ -220,23 +279,61 @@ function App() {
       }
 
       setResult(data)
+      setProgress({
+        requestId: data.requestId,
+        phase: 'completed',
+        totalChunks: progress?.totalChunks ?? 0,
+        completedChunks: progress?.totalChunks ?? 0,
+        progressPercent: 100,
+        message: 'Translation completed.',
+        updatedAt: new Date().toISOString(),
+      })
     } catch (submitError) {
+      setProgress((currentProgress) =>
+        currentProgress
+          ? {
+              ...currentProgress,
+              phase: 'failed',
+              progressPercent: 100,
+              message:
+                submitError instanceof Error
+                  ? submitError.message
+                  : 'Something went wrong while uploading the document.',
+              updatedAt: new Date().toISOString(),
+            }
+          : currentProgress,
+      )
       setError(
         submitError instanceof Error ? submitError.message : 'Something went wrong while uploading the document.',
       )
     } finally {
       setIsSubmitting(false)
       setSubmitStartedAt(null)
+      setActiveRequestId(null)
     }
   }
 
   async function handleCopyBuildPrompt() {
+    if (!file) {
+      setError('Please choose a .txt or .docx file first.')
+      return
+    }
+
     setIsCopyingPrompt(true)
     setError(null)
 
     try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('sourceLanguage', sourceLanguage)
+      formData.append('targetLanguage', targetLanguage)
+
       const response = await fetch(
-        `${apiBaseUrl}/api/translate-providers/${encodeURIComponent(providerName)}/prompt-preview?sourceLanguage=${encodeURIComponent(sourceLanguage)}&targetLanguage=${encodeURIComponent(targetLanguage)}`,
+        `${apiBaseUrl}/api/translate-providers/${encodeURIComponent(providerName)}/prompt-preview`,
+        {
+          method: 'POST',
+          body: formData,
+        },
       )
       const data = (await response.json()) as PromptPreviewResponse | { error: string }
 
@@ -339,6 +436,22 @@ function App() {
           <button className="submit-button" type="submit" disabled={isSubmitting}>
             {isSubmitting ? `Processing document (${formatTimer(elapsedSeconds)})...` : 'Translate document'}
           </button>
+
+          {isSubmitting && progress ? (
+            <div className="progress-card">
+              <div className="progress-copy">
+                <strong>{progress.phase === 'failed' ? 'Translation failed' : 'Translation progress'}</strong>
+                <span>{Math.max(0, Math.min(100, progress.progressPercent))}%</span>
+              </div>
+              <div className="progress-bar" aria-hidden="true">
+                <div
+                  className="progress-bar-fill"
+                  style={{ width: `${Math.max(0, Math.min(100, progress.progressPercent))}%` }}
+                />
+              </div>
+              <p>{progress.message}</p>
+            </div>
+          ) : null}
 
           {error ? <p className="status error">{error}</p> : null}
         </form>
