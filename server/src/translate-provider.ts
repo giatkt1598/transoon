@@ -4,45 +4,68 @@ export type TranslationResult = {
   provider: string;
 };
 
+export type TranslatePromptPreview = {
+  supported: boolean;
+  content: string | null;
+};
+
 export type TranslateRequest = {
   segments: string[];
   sourceLanguage: string;
   targetLanguage: string;
 };
 
+export type TranslateProviderDefinition = {
+  name: string;
+  description: string;
+};
+
 type TranslateProviderConstructor = new () => TranslateProvider;
 
 export abstract class TranslateProvider {
-  private static readonly registry = new Map<string, TranslateProviderConstructor>();
+  private static readonly registry = new Map<
+    string,
+    { providerClass: TranslateProviderConstructor; definition: TranslateProviderDefinition }
+  >();
 
-  static register(name: string, providerClass: TranslateProviderConstructor) {
-    this.registry.set(name, providerClass);
+  static register(
+    definition: TranslateProviderDefinition,
+    providerClass: TranslateProviderConstructor,
+  ) {
+    this.registry.set(definition.name, { providerClass, definition });
   }
 
   static resolve(name: string): TranslateProvider {
-    const providerClass = this.registry.get(name);
+    const entry = this.registry.get(name);
 
-    if (!providerClass) {
+    if (!entry) {
       const supportedProviders = Array.from(this.registry.keys()).join(", ");
       throw new Error(
         `Unknown translate provider "${name}". Registered providers: ${supportedProviders || "none"}.`,
       );
     }
 
-    return new providerClass();
+    return new entry.providerClass();
   }
 
   static list() {
-    return Array.from(this.registry.keys());
+    return Array.from(this.registry.values()).map((entry) => entry.definition);
   }
 
   abstract readonly name: string;
 
   abstract translate(request: TranslateRequest): Promise<TranslationResult>;
+
+  getPromptPreview(_request: Omit<TranslateRequest, "segments">): TranslatePromptPreview {
+    return {
+      supported: false,
+      content: null,
+    };
+  }
 }
 
-export function RegisterTranslateProvider(name: string) {
+export function RegisterTranslateProvider(definition: TranslateProviderDefinition) {
   return function <T extends TranslateProviderConstructor>(providerClass: T) {
-    TranslateProvider.register(name, providerClass);
+    TranslateProvider.register(definition, providerClass);
   };
 }

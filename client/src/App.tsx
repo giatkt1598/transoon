@@ -10,9 +10,17 @@ type LanguageOption = {
 type LanguagesResponse = {
   defaultSourceLanguage: string
   defaultTargetLanguage: string
-  defaultTranslateProvider: string
-  translateProviders: string[]
   languages: LanguageOption[]
+}
+
+type TranslateProviderOption = {
+  name: string
+  description: string
+}
+
+type TranslateProvidersResponse = {
+  defaultTranslateProvider: string
+  translateProviders: TranslateProviderOption[]
 }
 
 type TranslationResponse = {
@@ -25,17 +33,29 @@ type TranslationResponse = {
   provider: string
   warnings: string[]
   segmentCount: number
+  processingTimeMs: number
   preview: string[]
   downloadUrl: string
 }
 
+type PromptPreviewResponse = {
+  providerName: string
+  sourceLanguage: string
+  targetLanguage: string
+  supported: boolean
+  content: string | null
+}
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
+const storageKeys = {
+  sourceLanguage: 'transoon.sourceLanguage',
+  targetLanguage: 'transoon.targetLanguage',
+  providerName: 'transoon.providerName',
+} as const
 
 const fallbackLanguages: LanguagesResponse = {
   defaultSourceLanguage: 'en',
   defaultTargetLanguage: 'ja',
-  defaultTranslateProvider: 'Google Translate',
-  translateProviders: ['Google Translate', 'DeepSeek r1'],
   languages: [
     { code: 'auto', label: 'Auto detect' },
     { code: 'en', label: 'English' },
@@ -49,13 +69,34 @@ const fallbackLanguages: LanguagesResponse = {
   ],
 }
 
+const fallbackTranslateProviders: TranslateProvidersResponse = {
+  defaultTranslateProvider: 'Google Translate',
+  translateProviders: [
+    { name: 'Google Translate', description: 'Cloud-style machine translation via google-translate-api-x.' },
+    { name: 'DeepSeek r1', description: 'Local Ollama model deepseek-r1:8b for reasoning-heavy translation.' },
+    { name: 'Gemma3 1B', description: 'Local Ollama model gemma3:1b for lightweight translation.' },
+    { name: 'Qwen2.5 Coder 7B', description: 'Local Ollama model qwen2.5-coder:7b adapted for translation tasks.' },
+  ],
+}
+
 function App() {
   const [languagesData, setLanguagesData] = useState<LanguagesResponse>(fallbackLanguages)
+  const [translateProvidersData, setTranslateProvidersData] =
+    useState<TranslateProvidersResponse>(fallbackTranslateProviders)
   const [file, setFile] = useState<File | null>(null)
-  const [sourceLanguage, setSourceLanguage] = useState(fallbackLanguages.defaultSourceLanguage)
-  const [targetLanguage, setTargetLanguage] = useState(fallbackLanguages.defaultTargetLanguage)
-  const [providerName, setProviderName] = useState(fallbackLanguages.defaultTranslateProvider)
+  const [sourceLanguage, setSourceLanguage] = useState(() =>
+    loadStoredValue(storageKeys.sourceLanguage, fallbackLanguages.defaultSourceLanguage),
+  )
+  const [targetLanguage, setTargetLanguage] = useState(() =>
+    loadStoredValue(storageKeys.targetLanguage, fallbackLanguages.defaultTargetLanguage),
+  )
+  const [providerName, setProviderName] = useState(() =>
+    loadStoredValue(storageKeys.providerName, fallbackTranslateProviders.defaultTranslateProvider),
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isCopyingPrompt, setIsCopyingPrompt] = useState(false)
+  const [submitStartedAt, setSubmitStartedAt] = useState<number | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<TranslationResponse | null>(null)
 
@@ -73,9 +114,17 @@ function App() {
 
         const data: LanguagesResponse = await response.json()
         setLanguagesData(data)
-        setSourceLanguage(data.defaultSourceLanguage)
-        setTargetLanguage(data.defaultTargetLanguage)
-        setProviderName(data.defaultTranslateProvider)
+        setSourceLanguage((currentValue) =>
+          hasLanguageOption(data.languages, currentValue) ? currentValue : data.defaultSourceLanguage,
+        )
+        setTargetLanguage((currentValue) =>
+          hasLanguageOption(
+            data.languages.filter((language) => language.code !== 'auto'),
+            currentValue,
+          )
+            ? currentValue
+            : data.defaultTargetLanguage,
+        )
       } catch {
         setLanguagesData(fallbackLanguages)
       }
@@ -86,6 +135,60 @@ function App() {
     return () => controller.abort()
   }, [])
 
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadTranslateProviders() {
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/translate-providers`, {
+          signal: controller.signal,
+        })
+        if (!response.ok) {
+          throw new Error('Could not load translate providers.')
+        }
+
+        const data: TranslateProvidersResponse = await response.json()
+        setTranslateProvidersData(data)
+        setProviderName((currentValue) =>
+          data.translateProviders.some((provider) => provider.name === currentValue)
+            ? currentValue
+            : data.defaultTranslateProvider,
+        )
+      } catch {
+        setTranslateProvidersData(fallbackTranslateProviders)
+      }
+    }
+
+    void loadTranslateProviders()
+
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(storageKeys.sourceLanguage, sourceLanguage)
+  }, [sourceLanguage])
+
+  useEffect(() => {
+    localStorage.setItem(storageKeys.targetLanguage, targetLanguage)
+  }, [targetLanguage])
+
+  useEffect(() => {
+    localStorage.setItem(storageKeys.providerName, providerName)
+  }, [providerName])
+
+  useEffect(() => {
+    if (!isSubmitting || submitStartedAt === null) {
+      setElapsedSeconds(0)
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - submitStartedAt) / 1000))
+    }, 1000)
+
+    return () => window.clearInterval(interval)
+  }, [isSubmitting, submitStartedAt])
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!file) {
@@ -94,6 +197,8 @@ function App() {
     }
 
     setIsSubmitting(true)
+    setSubmitStartedAt(Date.now())
+    setElapsedSeconds(0)
     setError(null)
     setResult(null)
 
@@ -121,25 +226,38 @@ function App() {
       )
     } finally {
       setIsSubmitting(false)
+      setSubmitStartedAt(null)
+    }
+  }
+
+  async function handleCopyBuildPrompt() {
+    setIsCopyingPrompt(true)
+    setError(null)
+
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/api/translate-providers/${encodeURIComponent(providerName)}/prompt-preview?sourceLanguage=${encodeURIComponent(sourceLanguage)}&targetLanguage=${encodeURIComponent(targetLanguage)}`,
+      )
+      const data = (await response.json()) as PromptPreviewResponse | { error: string }
+
+      if (!response.ok || 'error' in data) {
+        throw new Error('error' in data ? data.error : 'Could not load buildPrompt.')
+      }
+
+      if (!data.supported || !data.content) {
+        throw new Error(`Provider "${providerName}" does not expose buildPrompt.`)
+      }
+
+      await navigator.clipboard.writeText(data.content)
+    } catch (copyError) {
+      setError(copyError instanceof Error ? copyError.message : 'Could not copy buildPrompt.')
+    } finally {
+      setIsCopyingPrompt(false)
     }
   }
 
   return (
     <main className="shell">
-      <section className="hero-panel">
-        <p className="eyebrow">Transoon</p>
-        <h1>Upload a document and send it straight into the translation pipeline.</h1>
-        <p className="lead">
-          This first feature supports <strong>TXT</strong> and <strong>DOCX</strong>,
-          lets the user pick source and target languages, then rebuilds a translated file
-          with the new text inserted back into the document.
-        </p>
-        <div className="hero-notes">
-          <span>Default route: English to Japanese</span>
-          <span>Formatting-safe replacement for DOCX text nodes</span>
-        </div>
-      </section>
-
       <section className="workspace">
         <form className="panel form-panel" onSubmit={handleSubmit}>
           <div className="panel-heading">
@@ -147,7 +265,6 @@ function App() {
               <p className="panel-kicker">Feature 01</p>
               <h2>Document Intake</h2>
             </div>
-            <span className="badge">Upload {'->'} Extract {'->'} Replace</span>
           </div>
 
           <label className="field upload-field">
@@ -198,33 +315,29 @@ function App() {
               value={providerName}
               onChange={(event) => setProviderName(event.target.value)}
             >
-              {languagesData.translateProviders.map((provider) => (
-                <option key={provider} value={provider}>
-                  {provider}
+              {translateProvidersData.translateProviders.map((provider) => (
+                <option key={provider.name} value={provider.name}>
+                  {provider.name}
                 </option>
               ))}
             </select>
+            <small>
+              {translateProvidersData.translateProviders.find((provider) => provider.name === providerName)?.description ??
+                'Select a translation provider.'}
+            </small>
           </label>
 
-          <div className="selection-summary">
-            <div>
-              <span>Selected file</span>
-              <strong>{file?.name ?? 'No file selected yet'}</strong>
-            </div>
-            <div>
-              <span>Language route</span>
-              <strong>
-                {sourceLanguage} {'->'} {targetLanguage}
-              </strong>
-            </div>
-            <div>
-              <span>Translate provider</span>
-              <strong>{providerName}</strong>
-            </div>
-          </div>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={handleCopyBuildPrompt}
+            disabled={isCopyingPrompt}
+          >
+            {isCopyingPrompt ? 'Copying buildPrompt...' : 'Copy buildPrompt'}
+          </button>
 
           <button className="submit-button" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Processing document...' : 'Translate document'}
+            {isSubmitting ? `Processing document (${formatTimer(elapsedSeconds)})...` : 'Translate document'}
           </button>
 
           {error ? <p className="status error">{error}</p> : null}
@@ -252,6 +365,10 @@ function App() {
                 <div>
                   <span>Provider</span>
                   <strong>{result.provider}</strong>
+                </div>
+                <div>
+                  <span>Processing time</span>
+                  <strong>{formatProcessingTime(result.processingTimeMs)}</strong>
                 </div>
               </div>
 
@@ -292,6 +409,33 @@ function App() {
       </section>
     </main>
   )
+}
+
+function formatProcessingTime(processingTimeMs: number) {
+  if (processingTimeMs < 1000) {
+    return `${processingTimeMs} ms`
+  }
+
+  return `${(processingTimeMs / 1000).toFixed(2)} s`
+}
+
+function formatTimer(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+function loadStoredValue(storageKey: string, fallbackValue: string) {
+  const storedValue = localStorage.getItem(storageKey)
+  return storedValue && storedValue.trim().length > 0 ? storedValue : fallbackValue
+}
+
+function hasLanguageOption(
+  languages: LanguageOption[],
+  selectedCode: string,
+) {
+  return languages.some((language) => language.code === selectedCode)
 }
 
 export default App

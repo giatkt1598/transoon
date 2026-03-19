@@ -5,7 +5,7 @@ import cors from "cors";
 import express from "express";
 import multer from "multer";
 import { extractDocument, writeOutputFile } from "./document-service";
-import { translateSegments } from "./translation-service";
+import { TranslateProvider, translateSegments } from "./translation-service";
 
 const app = express();
 const PORT = 3000;
@@ -27,7 +27,6 @@ app.get("/api/languages", (_req, res) => {
     defaultSourceLanguage: "en",
     defaultTargetLanguage: "ja",
     defaultTranslateProvider: "Google Translate",
-    translateProviders: ["Google Translate", "DeepSeek r1"],
     languages: [
       { code: "auto", label: "Auto detect" },
       { code: "en", label: "English" },
@@ -42,7 +41,39 @@ app.get("/api/languages", (_req, res) => {
   });
 });
 
+app.get("/api/translate-providers", (_req, res) => {
+  res.json({
+    defaultTranslateProvider: "Google Translate",
+    translateProviders: TranslateProvider.list(),
+  });
+});
+
+app.get("/api/translate-providers/:providerName/prompt-preview", (req, res) => {
+  try {
+    const providerName = String(req.params.providerName);
+    const sourceLanguage = String(req.query.sourceLanguage ?? "en");
+    const targetLanguage = String(req.query.targetLanguage ?? "ja");
+    const preview = TranslateProvider.resolve(providerName).getPromptPreview({
+      sourceLanguage,
+      targetLanguage,
+    });
+
+    res.json({
+      providerName,
+      sourceLanguage,
+      targetLanguage,
+      ...preview,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unexpected server error.";
+    res.status(500).json({ error: message });
+  }
+});
+
 app.post("/api/translate-document", upload.single("file"), async (req, res) => {
+  const startedAt = performance.now();
+
   try {
     const sourceLanguage = String(req.body.sourceLanguage ?? "en");
     const targetLanguage = String(req.body.targetLanguage ?? "ja");
@@ -76,6 +107,7 @@ app.post("/api/translate-document", upload.single("file"), async (req, res) => {
       provider,
       warnings,
       segmentCount: extractedDocument.segments.length,
+      processingTimeMs: Math.round(performance.now() - startedAt),
       preview: translatedSegments.filter((segment) => segment.trim().length > 0).slice(0, 8),
       downloadUrl: `http://localhost:${PORT}/api/downloads/${outputFileName}`,
     });

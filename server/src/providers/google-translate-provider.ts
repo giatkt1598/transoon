@@ -6,7 +6,10 @@ import {
   type TranslationResult,
 } from "../translate-provider";
 
-@RegisterTranslateProvider("Google Translate")
+@RegisterTranslateProvider({
+  name: "Google Translate",
+  description: "Cloud-style machine translation via google-translate-api-x.",
+})
 export class GoogleTranslateProvider extends TranslateProvider {
   readonly name = "Google Translate";
 

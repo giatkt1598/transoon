@@ -1,8 +1,11 @@
 import { TranslateProvider, type TranslationResult } from "./translate-provider";
 import "./providers/google-translate-provider";
 import "./providers/deepseek-r1-provider";
+import "./providers/gemma3-1b-provider";
+import "./providers/qwen2.5-coder-7b-provider";
 
 export type { TranslationResult } from "./translate-provider";
+export { TranslateProvider } from "./translate-provider";
 
 export async function translateSegments(
   segments: string[],
