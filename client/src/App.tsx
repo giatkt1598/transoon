@@ -98,6 +98,7 @@ const fallbackTranslateProviders: TranslateProvidersResponse = {
     { name: 'Google Translate', description: 'Cloud-style machine translation via google-translate-api-x.' },
     { name: 'DeepSeek r1', description: 'Local Ollama model deepseek-r1:8b for reasoning-heavy translation.' },
     { name: 'Gemma3 1B', description: 'Local Ollama model gemma3:1b for lightweight translation.' },
+    { name: 'Gemma3 4B', description: 'Local Ollama model gemma3:4b for stronger translation quality.' },
     { name: 'Qwen2.5 Coder 7B', description: 'Local Ollama model qwen2.5-coder:7b adapted for translation tasks.' },
   ],
 }
