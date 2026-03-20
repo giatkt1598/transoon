@@ -22,7 +22,6 @@ const THREADED_COMMENTS_PATH_PATTERN =
   /^xl\/threadedComments\/threadedComment\d+\.xml$/;
 const DRAWING_PATH_PATTERN = /^xl\/drawings\/drawing\d+\.xml$/;
 const CHART_PATH_PATTERN = /^xl\/charts\/chart\d+\.xml$/;
-const VML_DRAWING_PATH_PATTERN = /^xl\/drawings\/vmlDrawing\d+\.vml$/;
 
 type SegmentEntryType =
   | "shared-string"
@@ -41,7 +40,6 @@ type SegmentEntryType =
   | "threaded-comment"
   | "drawing-text"
   | "chart-rich-text"
-  | "vml-textbox"
   | "core-property"
   | "custom-property"
   | "connection-description"
@@ -104,7 +102,6 @@ const DISPLAY_TEXT_ENTRY_TYPES: readonly SegmentEntryType[] = [
   "threaded-comment",
   "drawing-text",
   "chart-rich-text",
-  "vml-textbox",
   "core-property",
   "custom-property",
   "connection-description",
@@ -127,6 +124,7 @@ const INTERNAL_REFERENCE_TOKENS_NOT_TRANSLATED = [
   "queryTableField name",
   "slicerCache name",
   "definedName value",
+  "vml textbox rich content",
 ] as const;
 
 const xlsxEntryConfigs: EntryConfig[] = [
@@ -246,15 +244,6 @@ const xlsxEntryConfigs: EntryConfig[] = [
         entryType: "chart-rich-text",
         containerNames: ["rich"],
         textNodeNames: ["t"],
-      },
-    ],
-  },
-  {
-    pathPattern: VML_DRAWING_PATH_PATTERN,
-    plainTextElementNames: [
-      {
-        entryType: "vml-textbox",
-        elementNames: ["textbox"],
       },
     ],
   },
@@ -548,8 +537,8 @@ function collectAttributeDescriptors(
   let itemIndex = 0;
 
   elements.forEach((element) => {
-    const text = element.getAttribute(config.attributeName)?.trim() ?? "";
-    if (text.length === 0) {
+    const text = element.getAttribute(config.attributeName) ?? "";
+    if (text.trim().length === 0) {
       itemIndex += 1;
       return;
     }
@@ -577,10 +566,10 @@ function collectTextContainerDescriptors(
   containers.forEach((container) => {
     const text =
       config.textNodeNames.length > 0
-        ? getContainerText(container, config.textNodeNames)
+        ? getSafeContainerText(container, config.textNodeNames)
         : normalizePlainText(container.textContent ?? "");
 
-    if (text.trim().length === 0) {
+    if (!text || text.trim().length === 0) {
       itemIndex += 1;
       return;
     }
@@ -656,6 +645,10 @@ function applyTextContainerReplacements(
     const replacementText = replacementLookup.get(lookupKey);
     if (replacementText !== undefined) {
       if (config.textNodeNames.length > 0) {
+        if (!isSafeSingleRunContainer(container, config.textNodeNames)) {
+          itemIndex += 1;
+          return;
+        }
         replaceContainerText(container, config.textNodeNames, replacementText);
       } else {
         setElementPlainText(container, replacementText);
@@ -746,6 +739,14 @@ function getContainerText(container: Element, textNodeNames: string[]) {
     .join("");
 }
 
+function getSafeContainerText(container: Element, textNodeNames: string[]) {
+  if (!isSafeSingleRunContainer(container, textNodeNames)) {
+    return null;
+  }
+
+  return getContainerText(container, textNodeNames);
+}
+
 function replaceContainerText(
   container: Element,
   textNodeNames: string[],
@@ -769,6 +770,10 @@ function setElementPlainText(element: Element, text: string) {
   }
 
   element.appendChild(element.ownerDocument.createTextNode(text));
+}
+
+function isSafeSingleRunContainer(container: Element, textNodeNames: string[]) {
+  return findElementsByLocalName(container, textNodeNames).length <= 1;
 }
 
 function getLocalName(node: Element) {
