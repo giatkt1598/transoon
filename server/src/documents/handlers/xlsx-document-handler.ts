@@ -1,3 +1,4 @@
+import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import JSZip from "jszip";
 import type {
   DocumentHandler,
@@ -6,101 +7,355 @@ import type {
 } from "../document-types";
 
 const SHARED_STRINGS_PATH = "xl/sharedStrings.xml";
+const WORKBOOK_PATH = "xl/workbook.xml";
+const CORE_PROPERTIES_PATH = "docProps/core.xml";
+const CUSTOM_PROPERTIES_PATH = "docProps/custom.xml";
+const CONNECTIONS_PATH = "xl/connections.xml";
+
 const WORKSHEET_PATH_PATTERN = /^xl\/worksheets\/sheet\d+\.xml$/;
+const TABLE_PATH_PATTERN = /^xl\/tables\/table\d+\.xml$/;
+const PIVOT_TABLE_PATH_PATTERN = /^xl\/pivotTables\/pivotTable\d+\.xml$/;
+const QUERY_TABLE_PATH_PATTERN = /^xl\/queryTables\/queryTable\d+\.xml$/;
+const SLICER_PATH_PATTERN = /^xl\/slicers\/slicer\d+\.xml$/;
 const COMMENTS_PATH_PATTERN = /^xl\/comments\d+\.xml$/;
 const THREADED_COMMENTS_PATH_PATTERN =
   /^xl\/threadedComments\/threadedComment\d+\.xml$/;
 const DRAWING_PATH_PATTERN = /^xl\/drawings\/drawing\d+\.xml$/;
 const CHART_PATH_PATTERN = /^xl\/charts\/chart\d+\.xml$/;
+const VML_DRAWING_PATH_PATTERN = /^xl\/drawings\/vmlDrawing\d+\.vml$/;
 
-const sharedStringItemPattern = /<si\b[^>]*>[\s\S]*?<\/si>/g;
-const inlineStringPattern =
-  /(<c\b[^>]*\bt="inlineStr"[^>]*>[\s\S]*?<is\b[^>]*>)([\s\S]*?)(<\/is>[\s\S]*?<\/c>)/g;
-const commentItemPattern = /<comment\b[^>]*>[\s\S]*?<\/comment>/g;
-const threadedCommentItemPattern =
-  /<threadedComment\b[^>]*>[\s\S]*?<\/threadedComment>/g;
-const drawingTextBodyPattern =
-  /(<(?:xdr|a):txBody\b[^>]*>)([\s\S]*?)(<\/(?:xdr|a):txBody>)/g;
-const chartRichTextPattern = /(<c:rich\b[^>]*>)([\s\S]*?)(<\/c:rich>)/g;
-const textNodePattern = /(<t(?:\s+[^>]*)?>)([\s\S]*?)(<\/t>)/g;
-const drawingTextNodePattern = /(<a:t(?:\s+[^>]*)?>)([\s\S]*?)(<\/a:t>)/g;
-const threadedTextPattern = /(<text(?:\s+[^>]*)?>)([\s\S]*?)(<\/text>)/g;
+type SegmentEntryType =
+  | "shared-string"
+  | "inline-string"
+  | "sheet-name"
+  | "workbook-defined-name"
+  | "hyperlink-display"
+  | "validation-prompt-title"
+  | "validation-prompt"
+  | "validation-error-title"
+  | "validation-error"
+  | "header-footer"
+  | "table-column-name"
+  | "table-total-label"
+  | "comment"
+  | "threaded-comment"
+  | "drawing-text"
+  | "chart-rich-text"
+  | "vml-textbox"
+  | "core-property"
+  | "custom-property"
+  | "connection-description"
+  | "query-table-name"
+  | "slicer-name"
+  | "slicer-caption"
+  | "pivot-data-caption"
+  | "pivot-error-caption"
+  | "pivot-field-caption"
+  | "pivot-data-field-name";
 
 type SegmentDescriptor = {
   id: string;
   entryName: string;
-  entryType:
-    | "shared-string"
-    | "inline-string"
-    | "comment"
-    | "threaded-comment"
-    | "drawing-text"
-    | "chart-rich-text";
+  entryType: SegmentEntryType;
   itemIndex: number;
   text: string;
 };
+
+type AttributeConfig = {
+  entryType: SegmentEntryType;
+  elementNames: string[];
+  attributeName: string;
+};
+
+type TextContainerConfig = {
+  entryType: SegmentEntryType;
+  containerNames: string[];
+  textNodeNames: string[];
+};
+
+type EntryConfig = {
+  entryName?: string;
+  pathPattern?: RegExp;
+  attributeConfigs?: AttributeConfig[];
+  textContainerConfigs?: TextContainerConfig[];
+  plainTextElementNames?: Array<{
+    entryType: SegmentEntryType;
+    elementNames: string[];
+  }>;
+};
+
+const parser = new DOMParser();
+const serializer = new XMLSerializer();
+
+const DISPLAY_TEXT_ENTRY_TYPES: readonly SegmentEntryType[] = [
+  "shared-string",
+  "inline-string",
+  "sheet-name",
+  "workbook-defined-name",
+  "hyperlink-display",
+  "validation-prompt-title",
+  "validation-prompt",
+  "validation-error-title",
+  "validation-error",
+  "header-footer",
+  "table-column-name",
+  "table-total-label",
+  "comment",
+  "threaded-comment",
+  "drawing-text",
+  "chart-rich-text",
+  "vml-textbox",
+  "core-property",
+  "custom-property",
+  "connection-description",
+  "query-table-name",
+  "slicer-name",
+  "slicer-caption",
+  "pivot-data-caption",
+  "pivot-error-caption",
+  "pivot-field-caption",
+  "pivot-data-field-name",
+] as const;
+
+// These values often behave as workbook identifiers, styles, or internal references,
+// so they are intentionally excluded from translation.
+const INTERNAL_REFERENCE_TOKENS_NOT_TRANSLATED = [
+  "pivotTableStyle",
+  "pageStyle",
+  "pageField name",
+  "connection name",
+  "queryTableField name",
+  "slicerCache name",
+  "definedName value",
+] as const;
+
+const xlsxEntryConfigs: EntryConfig[] = [
+  {
+    entryName: WORKBOOK_PATH,
+    attributeConfigs: [
+      {
+        entryType: "sheet-name",
+        elementNames: ["sheet"],
+        attributeName: "name",
+      },
+      {
+        entryType: "workbook-defined-name",
+        elementNames: ["definedName"],
+        attributeName: "name",
+      },
+    ],
+  },
+  {
+    pathPattern: WORKSHEET_PATH_PATTERN,
+    attributeConfigs: [
+      {
+        entryType: "hyperlink-display",
+        elementNames: ["hyperlink"],
+        attributeName: "display",
+      },
+      {
+        entryType: "validation-prompt-title",
+        elementNames: ["dataValidation"],
+        attributeName: "promptTitle",
+      },
+      {
+        entryType: "validation-prompt",
+        elementNames: ["dataValidation"],
+        attributeName: "prompt",
+      },
+      {
+        entryType: "validation-error-title",
+        elementNames: ["dataValidation"],
+        attributeName: "errorTitle",
+      },
+      {
+        entryType: "validation-error",
+        elementNames: ["dataValidation"],
+        attributeName: "error",
+      },
+    ],
+    textContainerConfigs: [
+      {
+        entryType: "inline-string",
+        containerNames: ["is"],
+        textNodeNames: ["t"],
+      },
+      {
+        entryType: "header-footer",
+        containerNames: [
+          "oddHeader",
+          "oddFooter",
+          "evenHeader",
+          "evenFooter",
+          "firstHeader",
+          "firstFooter",
+        ],
+        textNodeNames: [],
+      },
+    ],
+  },
+  {
+    pathPattern: TABLE_PATH_PATTERN,
+    attributeConfigs: [
+      {
+        entryType: "table-column-name",
+        elementNames: ["tableColumn"],
+        attributeName: "name",
+      },
+      {
+        entryType: "table-total-label",
+        elementNames: ["tableColumn"],
+        attributeName: "totalsRowLabel",
+      },
+    ],
+  },
+  {
+    pathPattern: COMMENTS_PATH_PATTERN,
+    textContainerConfigs: [
+      {
+        entryType: "comment",
+        containerNames: ["comment"],
+        textNodeNames: ["t"],
+      },
+    ],
+  },
+  {
+    pathPattern: THREADED_COMMENTS_PATH_PATTERN,
+    textContainerConfigs: [
+      {
+        entryType: "threaded-comment",
+        containerNames: ["threadedComment"],
+        textNodeNames: ["text"],
+      },
+    ],
+  },
+  {
+    pathPattern: DRAWING_PATH_PATTERN,
+    textContainerConfigs: [
+      {
+        entryType: "drawing-text",
+        containerNames: ["txBody"],
+        textNodeNames: ["t"],
+      },
+    ],
+  },
+  {
+    pathPattern: CHART_PATH_PATTERN,
+    textContainerConfigs: [
+      {
+        entryType: "chart-rich-text",
+        containerNames: ["rich"],
+        textNodeNames: ["t"],
+      },
+    ],
+  },
+  {
+    pathPattern: VML_DRAWING_PATH_PATTERN,
+    plainTextElementNames: [
+      {
+        entryType: "vml-textbox",
+        elementNames: ["textbox"],
+      },
+    ],
+  },
+  {
+    entryName: CORE_PROPERTIES_PATH,
+    plainTextElementNames: [
+      {
+        entryType: "core-property",
+        elementNames: ["title", "subject", "description", "keywords", "category"],
+      },
+    ],
+  },
+  {
+    entryName: CUSTOM_PROPERTIES_PATH,
+    plainTextElementNames: [
+      {
+        entryType: "custom-property",
+        elementNames: ["lpwstr"],
+      },
+    ],
+  },
+  {
+    entryName: CONNECTIONS_PATH,
+    attributeConfigs: [
+      {
+        entryType: "connection-description",
+        elementNames: ["connection"],
+        attributeName: "description",
+      },
+    ],
+  },
+  {
+    pathPattern: QUERY_TABLE_PATH_PATTERN,
+    attributeConfigs: [
+      {
+        entryType: "query-table-name",
+        elementNames: ["queryTable"],
+        attributeName: "name",
+      },
+    ],
+  },
+  {
+    pathPattern: SLICER_PATH_PATTERN,
+    attributeConfigs: [
+      {
+        entryType: "slicer-name",
+        elementNames: ["slicer"],
+        attributeName: "name",
+      },
+      {
+        entryType: "slicer-caption",
+        elementNames: ["slicer"],
+        attributeName: "caption",
+      },
+    ],
+  },
+  {
+    pathPattern: PIVOT_TABLE_PATH_PATTERN,
+    attributeConfigs: [
+      {
+        entryType: "pivot-data-caption",
+        elementNames: ["pivotTableDefinition"],
+        attributeName: "dataCaption",
+      },
+      {
+        entryType: "pivot-error-caption",
+        elementNames: ["pivotTableDefinition"],
+        attributeName: "errorCaption",
+      },
+      {
+        entryType: "pivot-field-caption",
+        elementNames: ["field"],
+        attributeName: "caption",
+      },
+      {
+        entryType: "pivot-data-field-name",
+        elementNames: ["dataField"],
+        attributeName: "name",
+      },
+    ],
+  },
+] as const;
 
 export class XlsxDocumentHandler implements DocumentHandler {
   readonly supportedExtensions = [".xlsx"];
 
   async extract(fileName: string, buffer: Buffer): Promise<ExtractedDocument> {
     const zip = await JSZip.loadAsync(buffer);
-    const segments: ExtractedSegment[] = [];
     const descriptors: SegmentDescriptor[] = [];
     const entryXmlMap = new Map<string, string>();
 
-    await this.collectSharedStrings(zip, segments, descriptors, entryXmlMap);
-    await this.collectWorksheetInlineStrings(
-      zip,
-      segments,
-      descriptors,
-      entryXmlMap,
-    );
-    await this.collectCommentEntries(
-      zip,
-      COMMENTS_PATH_PATTERN,
-      commentItemPattern,
-      textNodePattern,
-      "comment",
-      segments,
-      descriptors,
-      entryXmlMap,
-    );
-    await this.collectCommentEntries(
-      zip,
-      THREADED_COMMENTS_PATH_PATTERN,
-      threadedCommentItemPattern,
-      threadedTextPattern,
-      "threaded-comment",
-      segments,
-      descriptors,
-      entryXmlMap,
-    );
-    await this.collectRichTextEntries(
-      zip,
-      DRAWING_PATH_PATTERN,
-      drawingTextBodyPattern,
-      drawingTextNodePattern,
-      "drawing-text",
-      segments,
-      descriptors,
-      entryXmlMap,
-    );
-    await this.collectRichTextEntries(
-      zip,
-      CHART_PATH_PATTERN,
-      chartRichTextPattern,
-      drawingTextNodePattern,
-      "chart-rich-text",
-      segments,
-      descriptors,
-      entryXmlMap,
-    );
+    await this.collectSharedStrings(zip, descriptors, entryXmlMap);
+    await this.collectConfiguredEntries(zip, descriptors, entryXmlMap);
 
     return {
       documentType: "xlsx",
       fileName,
-      segments,
+      segments: descriptors.map((descriptor) => ({
+        id: descriptor.id,
+        text: descriptor.text,
+      })),
       replaceSegments: async (nextSegments: string[]) => {
         const replacementLookup = new Map<string, string>();
 
@@ -111,118 +366,20 @@ export class XlsxDocumentHandler implements DocumentHandler {
           );
         });
 
-        const sharedStringsXml = entryXmlMap.get(SHARED_STRINGS_PATH);
-        if (sharedStringsXml) {
-          let itemIndex = 0;
-          const nextSharedStringsXml = sharedStringsXml.replace(
-            sharedStringItemPattern,
-            (itemXml) => {
-              const replacementText =
-                replacementLookup.get(
-                  buildLookupKey("shared-string", SHARED_STRINGS_PATH, itemIndex),
-                ) ?? decodeXml(extractTextFromXml(itemXml, textNodePattern));
-              itemIndex += 1;
-              return replaceTextNodes(itemXml, replacementText, textNodePattern);
-            },
-          );
-          zip.file(SHARED_STRINGS_PATH, nextSharedStringsXml);
-        }
-
         for (const [entryName, xml] of entryXmlMap.entries()) {
+          const document = parseXml(xml);
+
           if (entryName === SHARED_STRINGS_PATH) {
-            continue;
-          }
-
-          let nextXml = xml;
-
-          if (WORKSHEET_PATH_PATTERN.test(entryName)) {
-            let itemIndex = 0;
-            nextXml = nextXml.replace(
-              inlineStringPattern,
-              (_full, openTag, innerXml, closeTag) => {
-                const replacementText =
-                  replacementLookup.get(
-                    buildLookupKey("inline-string", entryName, itemIndex),
-                  ) ?? decodeXml(extractTextFromXml(innerXml, textNodePattern));
-                itemIndex += 1;
-                return `${openTag}${replaceTextNodes(
-                  innerXml,
-                  replacementText,
-                  textNodePattern,
-                )}${closeTag}`;
-              },
+            this.applySharedStrings(document, entryName, replacementLookup);
+          } else {
+            this.applyConfiguredEntry(
+              document,
+              entryName,
+              replacementLookup,
             );
           }
 
-          if (COMMENTS_PATH_PATTERN.test(entryName)) {
-            let itemIndex = 0;
-            nextXml = nextXml.replace(commentItemPattern, (itemXml) => {
-              const replacementText =
-                replacementLookup.get(
-                  buildLookupKey("comment", entryName, itemIndex),
-                ) ?? decodeXml(extractTextFromXml(itemXml, textNodePattern));
-              itemIndex += 1;
-              return replaceTextNodes(itemXml, replacementText, textNodePattern);
-            });
-          }
-
-          if (THREADED_COMMENTS_PATH_PATTERN.test(entryName)) {
-            let itemIndex = 0;
-            nextXml = nextXml.replace(threadedCommentItemPattern, (itemXml) => {
-              const replacementText =
-                replacementLookup.get(
-                  buildLookupKey("threaded-comment", entryName, itemIndex),
-                ) ?? decodeXml(extractTextFromXml(itemXml, threadedTextPattern));
-              itemIndex += 1;
-              return replaceTextNodes(
-                itemXml,
-                replacementText,
-                threadedTextPattern,
-              );
-            });
-          }
-
-          if (DRAWING_PATH_PATTERN.test(entryName)) {
-            let itemIndex = 0;
-            nextXml = nextXml.replace(
-              drawingTextBodyPattern,
-              (_full, openTag, innerXml, closeTag) => {
-                const replacementText =
-                  replacementLookup.get(
-                    buildLookupKey("drawing-text", entryName, itemIndex),
-                  ) ??
-                  decodeXml(extractTextFromXml(innerXml, drawingTextNodePattern));
-                itemIndex += 1;
-                return `${openTag}${replaceTextNodes(
-                  innerXml,
-                  replacementText,
-                  drawingTextNodePattern,
-                )}${closeTag}`;
-              },
-            );
-          }
-
-          if (CHART_PATH_PATTERN.test(entryName)) {
-            let itemIndex = 0;
-            nextXml = nextXml.replace(
-              chartRichTextPattern,
-              (_full, openTag, innerXml, closeTag) => {
-                const replacementText =
-                  replacementLookup.get(
-                    buildLookupKey("chart-rich-text", entryName, itemIndex),
-                  ) ??
-                  decodeXml(extractTextFromXml(innerXml, drawingTextNodePattern));
-                itemIndex += 1;
-                return `${openTag}${replaceTextNodes(
-                  innerXml,
-                  replacementText,
-                  drawingTextNodePattern,
-                )}${closeTag}`;
-              },
-            );
-          }
-
-          zip.file(entryName, nextXml);
+          zip.file(entryName, serializeXml(document));
         }
 
         return zip.generateAsync({
@@ -236,7 +393,6 @@ export class XlsxDocumentHandler implements DocumentHandler {
 
   private async collectSharedStrings(
     zip: JSZip,
-    segments: ExtractedSegment[],
     descriptors: SegmentDescriptor[],
     entryXmlMap: Map<string, string>,
   ) {
@@ -246,197 +402,381 @@ export class XlsxDocumentHandler implements DocumentHandler {
     }
 
     entryXmlMap.set(SHARED_STRINGS_PATH, sharedStringsXml);
+    const document = parseXml(sharedStringsXml);
+    const sharedStringItems = findElementsByLocalName(document, ["si"]);
 
-    let itemIndex = 0;
-    for (const match of sharedStringsXml.matchAll(sharedStringItemPattern)) {
-      const itemXml = match[0] ?? "";
-      const text = decodeXml(extractTextFromXml(itemXml, textNodePattern));
-      this.pushDescriptor(
-        {
-          id: `sharedStrings#${itemIndex}`,
-          entryName: SHARED_STRINGS_PATH,
-          entryType: "shared-string",
-          itemIndex,
-          text,
-        },
-        segments,
-        descriptors,
-      );
-      itemIndex += 1;
-    }
-  }
-
-  private async collectWorksheetInlineStrings(
-    zip: JSZip,
-    segments: ExtractedSegment[],
-    descriptors: SegmentDescriptor[],
-    entryXmlMap: Map<string, string>,
-  ) {
-    const worksheetEntries = Object.values(zip.files).filter((entry) =>
-      WORKSHEET_PATH_PATTERN.test(entry.name),
-    );
-
-    for (const entry of worksheetEntries) {
-      const xml = await entry.async("text");
-      entryXmlMap.set(entry.name, xml);
-
-      let itemIndex = 0;
-      for (const match of xml.matchAll(inlineStringPattern)) {
-        const innerXml = match[2] ?? "";
-        const text = decodeXml(extractTextFromXml(innerXml, textNodePattern));
-        this.pushDescriptor(
-          {
-            id: `${entry.name}#inlineStr-${itemIndex}`,
-            entryName: entry.name,
-            entryType: "inline-string",
-            itemIndex,
-            text,
-          },
-          segments,
-          descriptors,
-        );
-        itemIndex += 1;
+    sharedStringItems.forEach((item, itemIndex) => {
+      const text = getContainerText(item, ["t"]);
+      if (text.trim().length === 0) {
+        return;
       }
-    }
+
+      descriptors.push({
+        id: `${SHARED_STRINGS_PATH}#shared-string-${itemIndex}`,
+        entryName: SHARED_STRINGS_PATH,
+        entryType: "shared-string",
+        itemIndex,
+        text,
+      });
+    });
   }
 
-  private async collectCommentEntries(
+  private async collectConfiguredEntries(
     zip: JSZip,
-    pathPattern: RegExp,
-    itemPattern: RegExp,
-    nodePattern: RegExp,
-    entryType: SegmentDescriptor["entryType"],
-    segments: ExtractedSegment[],
     descriptors: SegmentDescriptor[],
     entryXmlMap: Map<string, string>,
   ) {
-    const entries = Object.values(zip.files).filter((entry) =>
-      pathPattern.test(entry.name),
-    );
+    for (const config of xlsxEntryConfigs) {
+      const entryNames = await resolveZipEntryNames(zip, config);
 
-    for (const entry of entries) {
-      const xml = await entry.async("text");
-      entryXmlMap.set(entry.name, xml);
-
-      let itemIndex = 0;
-      for (const match of xml.matchAll(itemPattern)) {
-        const itemXml = match[0] ?? "";
-        const text = decodeXml(extractTextFromXml(itemXml, nodePattern));
-        this.pushDescriptor(
-          {
-            id: `${entry.name}#${entryType}-${itemIndex}`,
-            entryName: entry.name,
-            entryType,
-            itemIndex,
-            text,
-          },
-          segments,
-          descriptors,
-        );
-        itemIndex += 1;
-      }
-    }
-  }
-
-  private async collectRichTextEntries(
-    zip: JSZip,
-    pathPattern: RegExp,
-    itemPattern: RegExp,
-    nodePattern: RegExp,
-    entryType: SegmentDescriptor["entryType"],
-    segments: ExtractedSegment[],
-    descriptors: SegmentDescriptor[],
-    entryXmlMap: Map<string, string>,
-  ) {
-    const entries = Object.values(zip.files).filter((entry) =>
-      pathPattern.test(entry.name),
-    );
-
-    for (const entry of entries) {
-      const xml = await entry.async("text");
-      entryXmlMap.set(entry.name, xml);
-
-      let itemIndex = 0;
-      for (const match of xml.matchAll(itemPattern)) {
-        const innerXml = match[2] ?? "";
-        const text = decodeXml(extractTextFromXml(innerXml, nodePattern));
-        if (text.trim().length === 0) {
-          itemIndex += 1;
+      for (const entryName of entryNames) {
+        if (entryXmlMap.has(entryName)) {
+          this.collectFromXml(
+            entryName,
+            entryXmlMap.get(entryName) ?? "",
+            config,
+            descriptors,
+          );
           continue;
         }
 
-        this.pushDescriptor(
-          {
-            id: `${entry.name}#${entryType}-${itemIndex}`,
-            entryName: entry.name,
-            entryType,
-            itemIndex,
-            text,
-          },
-          segments,
-          descriptors,
-        );
-        itemIndex += 1;
+        const xml = await zip.file(entryName)?.async("text");
+        if (!xml) {
+          continue;
+        }
+
+        entryXmlMap.set(entryName, xml);
+        this.collectFromXml(entryName, xml, config, descriptors);
       }
     }
   }
 
-  private pushDescriptor(
-    descriptor: SegmentDescriptor,
-    segments: ExtractedSegment[],
+  private collectFromXml(
+    entryName: string,
+    xml: string,
+    config: EntryConfig,
     descriptors: SegmentDescriptor[],
   ) {
-    segments.push({
-      id: descriptor.id,
-      text: descriptor.text,
+    const document = parseXml(xml);
+
+    config.attributeConfigs?.forEach((attributeConfig) => {
+      collectAttributeDescriptors(document, entryName, attributeConfig, descriptors);
     });
-    descriptors.push(descriptor);
+
+    config.textContainerConfigs?.forEach((textConfig) => {
+      collectTextContainerDescriptors(document, entryName, textConfig, descriptors);
+    });
+
+    config.plainTextElementNames?.forEach((plainTextConfig) => {
+      collectPlainTextElementDescriptors(
+        document,
+        entryName,
+        plainTextConfig,
+        descriptors,
+      );
+    });
+  }
+
+  private applySharedStrings(
+    document: Document,
+    entryName: string,
+    replacementLookup: Map<string, string>,
+  ) {
+    const sharedStringItems = findElementsByLocalName(document, ["si"]);
+
+    sharedStringItems.forEach((item, itemIndex) => {
+      const lookupKey = buildLookupKey("shared-string", entryName, itemIndex);
+      const replacementText = replacementLookup.get(lookupKey);
+
+      if (replacementText === undefined) {
+        return;
+      }
+
+      replaceContainerText(item, ["t"], replacementText);
+    });
+  }
+
+  private applyConfiguredEntry(
+    document: Document,
+    entryName: string,
+    replacementLookup: Map<string, string>,
+  ) {
+    const config = xlsxEntryConfigs.find((entry) =>
+      matchesEntryConfig(entryName, entry),
+    );
+
+    if (!config) {
+      return;
+    }
+
+    config.attributeConfigs?.forEach((attributeConfig) => {
+      applyAttributeReplacements(
+        document,
+        entryName,
+        attributeConfig,
+        replacementLookup,
+      );
+    });
+
+    config.textContainerConfigs?.forEach((textConfig) => {
+      applyTextContainerReplacements(
+        document,
+        entryName,
+        textConfig,
+        replacementLookup,
+      );
+    });
+
+    config.plainTextElementNames?.forEach((plainTextConfig) => {
+      applyPlainTextElementReplacements(
+        document,
+        entryName,
+        plainTextConfig,
+        replacementLookup,
+      );
+    });
   }
 }
 
-function extractTextFromXml(xml: string, nodePattern: RegExp) {
-  return Array.from(xml.matchAll(nodePattern))
-    .map((match) => match[2] ?? "")
-    .join("");
-}
-
-function replaceTextNodes(
-  xml: string,
-  replacementText: string,
-  nodePattern: RegExp,
+function collectAttributeDescriptors(
+  document: Document,
+  entryName: string,
+  config: AttributeConfig,
+  descriptors: SegmentDescriptor[],
 ) {
-  let hasReplacedFirstNode = false;
+  const elements = findElementsByLocalName(document, config.elementNames);
+  let itemIndex = 0;
 
-  return xml.replace(nodePattern, (_full, openTag, _text, closeTag) => {
-    if (!hasReplacedFirstNode) {
-      hasReplacedFirstNode = true;
-      return `${ensurePreserveWhitespaceAttribute(
-        openTag,
-        replacementText,
-      )}${encodeXml(replacementText)}${closeTag}`;
+  elements.forEach((element) => {
+    const text = element.getAttribute(config.attributeName)?.trim() ?? "";
+    if (text.length === 0) {
+      itemIndex += 1;
+      return;
     }
 
-    return `${stripPreserveWhitespaceAttribute(openTag)}${closeTag}`;
+    descriptors.push({
+      id: `${entryName}#${config.entryType}-${itemIndex}`,
+      entryName,
+      entryType: config.entryType,
+      itemIndex,
+      text,
+    });
+    itemIndex += 1;
   });
 }
 
-function ensurePreserveWhitespaceAttribute(openTag: string, value: string) {
-  const shouldPreserve =
-    value.trim() !== value || value.includes("\n") || value.includes("\t");
+function collectTextContainerDescriptors(
+  document: Document,
+  entryName: string,
+  config: TextContainerConfig,
+  descriptors: SegmentDescriptor[],
+) {
+  const containers = findElementsByLocalName(document, config.containerNames);
+  let itemIndex = 0;
 
-  if (!shouldPreserve) {
-    return stripPreserveWhitespaceAttribute(openTag);
-  }
+  containers.forEach((container) => {
+    const text =
+      config.textNodeNames.length > 0
+        ? getContainerText(container, config.textNodeNames)
+        : normalizePlainText(container.textContent ?? "");
 
-  if (/\sxml:space=/.test(openTag)) {
-    return openTag.replace(/\sxml:space="[^"]*"/, ' xml:space="preserve"');
-  }
+    if (text.trim().length === 0) {
+      itemIndex += 1;
+      return;
+    }
 
-  return openTag.replace(/>$/, ' xml:space="preserve">');
+    descriptors.push({
+      id: `${entryName}#${config.entryType}-${itemIndex}`,
+      entryName,
+      entryType: config.entryType,
+      itemIndex,
+      text,
+    });
+    itemIndex += 1;
+  });
 }
 
-function stripPreserveWhitespaceAttribute(openTag: string) {
-  return openTag.replace(/\sxml:space="[^"]*"/, "");
+function collectPlainTextElementDescriptors(
+  document: Document,
+  entryName: string,
+  config: { entryType: SegmentEntryType; elementNames: string[] },
+  descriptors: SegmentDescriptor[],
+) {
+  const elements = findElementsByLocalName(document, config.elementNames);
+  let itemIndex = 0;
+
+  elements.forEach((element) => {
+    const text = normalizePlainText(element.textContent ?? "");
+    if (text.trim().length === 0) {
+      itemIndex += 1;
+      return;
+    }
+
+    descriptors.push({
+      id: `${entryName}#${config.entryType}-${itemIndex}`,
+      entryName,
+      entryType: config.entryType,
+      itemIndex,
+      text,
+    });
+    itemIndex += 1;
+  });
+}
+
+function applyAttributeReplacements(
+  document: Document,
+  entryName: string,
+  config: AttributeConfig,
+  replacementLookup: Map<string, string>,
+) {
+  const elements = findElementsByLocalName(document, config.elementNames);
+  let itemIndex = 0;
+
+  elements.forEach((element) => {
+    const lookupKey = buildLookupKey(config.entryType, entryName, itemIndex);
+    const replacementText = replacementLookup.get(lookupKey);
+    if (replacementText !== undefined) {
+      element.setAttribute(config.attributeName, replacementText);
+    }
+    itemIndex += 1;
+  });
+}
+
+function applyTextContainerReplacements(
+  document: Document,
+  entryName: string,
+  config: TextContainerConfig,
+  replacementLookup: Map<string, string>,
+) {
+  const containers = findElementsByLocalName(document, config.containerNames);
+  let itemIndex = 0;
+
+  containers.forEach((container) => {
+    const lookupKey = buildLookupKey(config.entryType, entryName, itemIndex);
+    const replacementText = replacementLookup.get(lookupKey);
+    if (replacementText !== undefined) {
+      if (config.textNodeNames.length > 0) {
+        replaceContainerText(container, config.textNodeNames, replacementText);
+      } else {
+        setElementPlainText(container, replacementText);
+      }
+    }
+    itemIndex += 1;
+  });
+}
+
+function applyPlainTextElementReplacements(
+  document: Document,
+  entryName: string,
+  config: { entryType: SegmentEntryType; elementNames: string[] },
+  replacementLookup: Map<string, string>,
+) {
+  const elements = findElementsByLocalName(document, config.elementNames);
+  let itemIndex = 0;
+
+  elements.forEach((element) => {
+    const lookupKey = buildLookupKey(config.entryType, entryName, itemIndex);
+    const replacementText = replacementLookup.get(lookupKey);
+    if (replacementText !== undefined) {
+      setElementPlainText(element, replacementText);
+    }
+    itemIndex += 1;
+  });
+}
+
+async function resolveZipEntryNames(zip: JSZip, config: EntryConfig) {
+  if (config.entryName) {
+    return zip.file(config.entryName) ? [config.entryName] : [];
+  }
+
+  if (!config.pathPattern) {
+    return [] as string[];
+  }
+
+  return Object.values(zip.files)
+    .filter((entry) => config.pathPattern?.test(entry.name))
+    .map((entry) => entry.name);
+}
+
+function matchesEntryConfig(entryName: string, config: EntryConfig) {
+  if (config.entryName) {
+    return config.entryName === entryName;
+  }
+
+  return config.pathPattern?.test(entryName) ?? false;
+}
+
+function parseXml(xml: string) {
+  return parser.parseFromString(xml, "text/xml");
+}
+
+function serializeXml(document: Document) {
+  return serializer.serializeToString(document);
+}
+
+function findElementsByLocalName(
+  root: Document | Element,
+  localNames: string[],
+): Element[] {
+  const lookup = new Set(localNames);
+  const result: Element[] = [];
+  const nodes =
+    root.nodeType === root.DOCUMENT_NODE
+      ? (root as Document).getElementsByTagName("*")
+      : (root as Element).getElementsByTagName("*");
+
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes.item(index);
+    if (node && lookup.has(getLocalName(node))) {
+      result.push(node);
+    }
+  }
+
+  if (root.nodeType !== root.DOCUMENT_NODE && lookup.has(getLocalName(root as Element))) {
+    result.unshift(root as Element);
+  }
+
+  return result;
+}
+
+function getContainerText(container: Element, textNodeNames: string[]) {
+  const textNodes = findElementsByLocalName(container, textNodeNames);
+  return textNodes
+    .map((node) => normalizePlainText(node.textContent ?? ""))
+    .join("");
+}
+
+function replaceContainerText(
+  container: Element,
+  textNodeNames: string[],
+  replacementText: string,
+) {
+  const textNodes = findElementsByLocalName(container, textNodeNames);
+
+  if (textNodes.length === 0) {
+    setElementPlainText(container, replacementText);
+    return;
+  }
+
+  textNodes.forEach((node, index) => {
+    setElementPlainText(node, index === 0 ? replacementText : "");
+  });
+}
+
+function setElementPlainText(element: Element, text: string) {
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
+  }
+
+  element.appendChild(element.ownerDocument.createTextNode(text));
+}
+
+function getLocalName(node: Element) {
+  return node.localName ?? node.nodeName.split(":").pop() ?? node.nodeName;
+}
+
+function normalizePlainText(value: string) {
+  return value.replace(/\r\n/g, "\n");
 }
 
 function buildDescriptorKey(descriptor: SegmentDescriptor) {
@@ -448,27 +788,14 @@ function buildDescriptorKey(descriptor: SegmentDescriptor) {
 }
 
 function buildLookupKey(
-  entryType: SegmentDescriptor["entryType"],
+  entryType: SegmentEntryType,
   entryName: string,
   itemIndex: number,
 ) {
   return `${entryType}:${entryName}:${itemIndex}`;
 }
 
-function decodeXml(value: string): string {
-  return value
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, "&");
-}
-
-function encodeXml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
+export const xlsxTranslationPolicy = {
+  displayTextEntryTypes: [...DISPLAY_TEXT_ENTRY_TYPES],
+  internalReferenceTokensNotTranslated: [...INTERNAL_REFERENCE_TOKENS_NOT_TRANSLATED],
+};

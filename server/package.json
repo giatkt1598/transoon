@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@xmldom/xmldom": "^0.8.11",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "google-translate-api-x": "^10.7.2",
