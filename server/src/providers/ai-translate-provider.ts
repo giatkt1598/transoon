@@ -73,7 +73,11 @@ export abstract class AITranslateProvider extends TranslateProvider {
     const warnings: string[] = [];
     const chunks = this.buildChunks(normalizedSegments);
 
-    await this.reportSegmentProgress(request, translatedMap.size, totalSegments);
+    await this.reportSegmentProgress(
+      request,
+      translatedMap.size,
+      totalSegments,
+    );
 
     for (const [chunkIndex, chunk] of chunks.entries()) {
       const payload = chunk.map((item) => ({
@@ -111,7 +115,11 @@ export abstract class AITranslateProvider extends TranslateProvider {
         });
       }
 
-      await this.reportSegmentProgress(request, translatedMap.size, totalSegments);
+      await this.reportSegmentProgress(
+        request,
+        translatedMap.size,
+        totalSegments,
+      );
     }
 
     const unresolvedSegments = dedupeSegments(
@@ -148,7 +156,11 @@ export abstract class AITranslateProvider extends TranslateProvider {
           });
         }
 
-        await this.reportSegmentProgress(request, translatedMap.size, totalSegments);
+        await this.reportSegmentProgress(
+          request,
+          translatedMap.size,
+          totalSegments,
+        );
       }
     }
 
