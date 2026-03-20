@@ -8,6 +8,38 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  build: {
+    rolldownOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (
+              id.includes('@mui/material') ||
+              id.includes('@mui/icons-material') ||
+              id.includes('@emotion/react') ||
+              id.includes('@emotion/styled')
+            ) {
+              return 'mui'
+            }
+
+            if (
+              id.includes('react-router-dom') ||
+              id.includes('react-dom') ||
+              id.includes(`${'node_modules'}${'/'}react${'/'}`)
+            ) {
+              return 'react'
+            }
+
+            if (id.includes('socket.io-client')) {
+              return 'realtime'
+            }
+          }
+
+          return undefined
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': 'http://localhost:3000',
