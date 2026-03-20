@@ -5,6 +5,7 @@ import { Server as SocketIOServer } from "socket.io";
 import { appConfig } from "./config/app-config";
 import { createApiRouter } from "./http/api-router";
 import { createDownloadRouter } from "./http/download-router";
+import { initializeTranslationMemoryDatabase } from "./translation-memory/database";
 import {
   attachTranslationProgressSocket,
   registerTranslationProgressSocketHandlers,
@@ -20,6 +21,8 @@ const io = new SocketIOServer(httpServer, {
 
 app.use(cors());
 app.use(express.json());
+
+initializeTranslationMemoryDatabase();
 
 attachTranslationProgressSocket(io);
 registerTranslationProgressSocketHandlers(io);

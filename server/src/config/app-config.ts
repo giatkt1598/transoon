@@ -3,4 +3,6 @@ export const appConfig = {
   defaultSourceLanguage: "en",
   defaultTargetLanguage: "ja",
   defaultTranslateProvider: "Google Translate",
+  translationMemoryDatabasePath:
+    process.env.TRANSLATION_MEMORY_DATABASE_PATH ?? "storage/translation-memory.sqlite",
 } as const;
