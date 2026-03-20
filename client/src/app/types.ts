@@ -24,7 +24,7 @@ export type TranslationResponse = {
   sourceLanguage: string
   targetLanguage: string
   providerName: string
-  documentType: 'docx' | 'txt' | 'xlsx'
+  documentType: 'docx' | 'txt' | 'xlsx' | 'pptx'
   originalFileName: string
   outputFileName: string
   provider: string

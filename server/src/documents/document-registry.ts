@@ -1,5 +1,6 @@
 import path from "path";
 import { DocxDocumentHandler } from "./handlers/docx-document-handler";
+import { PptxDocumentHandler } from "./handlers/pptx-document-handler";
 import { TxtDocumentHandler } from "./handlers/txt-document-handler";
 import { XlsxDocumentHandler } from "./handlers/xlsx-document-handler";
 import type { DocumentHandler, ExtractedDocument } from "./document-types";
@@ -8,6 +9,7 @@ const registeredHandlers: DocumentHandler[] = [
   new TxtDocumentHandler(),
   new DocxDocumentHandler(),
   new XlsxDocumentHandler(),
+  new PptxDocumentHandler(),
 ];
 
 export async function extractDocument(
@@ -21,7 +23,7 @@ export async function extractDocument(
 
   if (!handler) {
     throw new Error(
-      "Only .txt, .docx, and .xlsx files are supported right now. The server is structured so .pptx can be added next.",
+      "Only .txt, .docx, .xlsx, and .pptx files are supported right now.",
     );
   }
 
