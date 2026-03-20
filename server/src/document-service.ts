@@ -120,7 +120,11 @@ async function extractDocxDocument(
         zip.file(entryName, nextXml);
       }
 
-      return zip.generateAsync({ type: "nodebuffer" });
+      return zip.generateAsync({
+        type: "nodebuffer",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 },
+      });
     },
   };
 }
