@@ -26,7 +26,7 @@ export abstract class AITranslateProvider extends TranslateProvider {
     process.env.OLLAMA_TIMEOUT_MS ?? 180000,
   );
   protected readonly maxRetries = Number(
-    process.env.AI_TRANSLATE_MAX_RETRIES ?? 2,
+    process.env.AI_TRANSLATE_MAX_RETRIES ?? 3,
   );
   protected readonly retryDelayMs = Number(
     process.env.AI_TRANSLATE_RETRY_DELAY_MS ?? 1000,
@@ -181,8 +181,6 @@ export abstract class AITranslateProvider extends TranslateProvider {
       "- Preserve placeholders, variables, and line breaks.",
       "- Do not merge or split segments.",
       "- Do not wrap the JSON in markdown fences.",
-      `- Source language code: ${sourceLanguage}.`,
-      `- Target language code: ${targetLanguage}.`,
       "Segments:",
       JSON.stringify(segments),
     ].join("\n");
@@ -230,11 +228,7 @@ export abstract class AITranslateProvider extends TranslateProvider {
   ): Promise<ValidParsedTranslation> {
     let lastError: Error | null = null;
 
-    for (
-      let attempt = 1;
-      attempt <= this.maxRetries + 1;
-      attempt += 1
-    ) {
+    for (let attempt = 1; attempt <= this.maxRetries + 1; attempt += 1) {
       const messages = this.buildMessages(
         payload,
         sourceLanguage,
@@ -302,13 +296,16 @@ export abstract class AITranslateProvider extends TranslateProvider {
         lastError = error instanceof Error ? error : new Error(String(error));
         const willRetry = attempt <= this.maxRetries;
 
-        await logger.warning("Translation chunk attempt failed for {provider}", {
-          chunkIndex,
-          attempt,
-          maxAttempts: this.maxRetries + 1,
-          willRetry,
-          error: lastError.message,
-        });
+        await logger.warning(
+          "Translation chunk attempt failed for {provider}",
+          {
+            chunkIndex,
+            attempt,
+            maxAttempts: this.maxRetries + 1,
+            willRetry,
+            error: lastError.message,
+          },
+        );
 
         if (!willRetry) {
           break;

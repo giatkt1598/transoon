@@ -17,7 +17,7 @@ type QwenResponse = {
 export class Qwen25Coder7BProvider extends AITranslateProvider {
   readonly name = "Qwen2.5 Coder 7B";
   protected readonly model = "qwen2.5-coder:7b";
-  protected readonly chunkSize = 100;
+  protected readonly chunkSize = 500;
 
   protected extractContent(data: unknown) {
     const response = data as QwenResponse;
