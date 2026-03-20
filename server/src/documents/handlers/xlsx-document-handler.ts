@@ -1,5 +1,6 @@
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import JSZip from "jszip";
+import { Log } from "../../logger";
 import type {
   DocumentHandler,
   ExtractedDocument,
@@ -26,7 +27,6 @@ const CHART_PATH_PATTERN = /^xl\/charts\/chart\d+\.xml$/;
 type SegmentEntryType =
   | "shared-string"
   | "inline-string"
-  | "sheet-name"
   | "workbook-defined-name"
   | "hyperlink-display"
   | "validation-prompt-title"
@@ -82,13 +82,26 @@ type EntryConfig = {
   }>;
 };
 
+type ChartTextTarget =
+  | {
+      kind: "rich-paragraph";
+      textNodes: Element[];
+    }
+  | {
+      kind: "cache-point";
+      valueElement: Element;
+    }
+  | {
+      kind: "direct-text";
+      valueElement: Element;
+    };
+
 const parser = new DOMParser();
 const serializer = new XMLSerializer();
 
 const DISPLAY_TEXT_ENTRY_TYPES: readonly SegmentEntryType[] = [
   "shared-string",
   "inline-string",
-  "sheet-name",
   "workbook-defined-name",
   "hyperlink-display",
   "validation-prompt-title",
@@ -117,6 +130,7 @@ const DISPLAY_TEXT_ENTRY_TYPES: readonly SegmentEntryType[] = [
 // These values often behave as workbook identifiers, styles, or internal references,
 // so they are intentionally excluded from translation.
 const INTERNAL_REFERENCE_TOKENS_NOT_TRANSLATED = [
+  "sheet name",
   "pivotTableStyle",
   "pageStyle",
   "pageField name",
@@ -131,11 +145,6 @@ const xlsxEntryConfigs: EntryConfig[] = [
   {
     entryName: WORKBOOK_PATH,
     attributeConfigs: [
-      {
-        entryType: "sheet-name",
-        elementNames: ["sheet"],
-        attributeName: "name",
-      },
       {
         entryType: "workbook-defined-name",
         elementNames: ["definedName"],
@@ -238,16 +247,6 @@ const xlsxEntryConfigs: EntryConfig[] = [
     ],
   },
   {
-    pathPattern: CHART_PATH_PATTERN,
-    textContainerConfigs: [
-      {
-        entryType: "chart-rich-text",
-        containerNames: ["rich"],
-        textNodeNames: ["t"],
-      },
-    ],
-  },
-  {
     entryName: CORE_PROPERTIES_PATH,
     plainTextElementNames: [
       {
@@ -334,9 +333,14 @@ export class XlsxDocumentHandler implements DocumentHandler {
     const zip = await JSZip.loadAsync(buffer);
     const descriptors: SegmentDescriptor[] = [];
     const entryXmlMap = new Map<string, string>();
+    const logger = Log.forContext({
+      documentHandler: "xlsx",
+      fileName,
+    });
 
     await this.collectSharedStrings(zip, descriptors, entryXmlMap);
     await this.collectConfiguredEntries(zip, descriptors, entryXmlMap);
+    await this.collectChartEntries(zip, descriptors, entryXmlMap, logger);
 
     return {
       documentType: "xlsx",
@@ -360,6 +364,8 @@ export class XlsxDocumentHandler implements DocumentHandler {
 
           if (entryName === SHARED_STRINGS_PATH) {
             this.applySharedStrings(document, entryName, replacementLookup);
+          } else if (CHART_PATH_PATTERN.test(entryName)) {
+            this.applyChartEntry(document, entryName, replacementLookup, logger);
           } else {
             this.applyConfiguredEntry(
               document,
@@ -437,6 +443,52 @@ export class XlsxDocumentHandler implements DocumentHandler {
         entryXmlMap.set(entryName, xml);
         this.collectFromXml(entryName, xml, config, descriptors);
       }
+    }
+  }
+
+  private async collectChartEntries(
+    zip: JSZip,
+    descriptors: SegmentDescriptor[],
+    entryXmlMap: Map<string, string>,
+    logger: ReturnType<typeof Log.forContext>,
+  ) {
+    const chartEntryNames = Object.values(zip.files)
+      .filter((entry) => CHART_PATH_PATTERN.test(entry.name))
+      .map((entry) => entry.name);
+
+    for (const entryName of chartEntryNames) {
+      const xml = await zip.file(entryName)?.async("text");
+      if (!xml) {
+        continue;
+      }
+
+      entryXmlMap.set(entryName, xml);
+      const document = parseXml(xml);
+      const targets = findChartTextTargets(document);
+      const collectedTargets = targets
+        .map((target, itemIndex) => ({
+          target,
+          itemIndex,
+          text: normalizePlainText(getChartTargetText(target)),
+        }))
+        .filter((item) => item.text.trim().length > 0);
+
+      await logger.debug("Collected chart translation targets from {entryName}", {
+        entryName,
+        targetCount: collectedTargets.length,
+        targetKinds: collectedTargets.map((item) => item.target.kind),
+        sampleTexts: collectedTargets.slice(0, 8).map((item) => item.text),
+      });
+
+      collectedTargets.forEach(({ itemIndex, text }) => {
+        descriptors.push({
+          id: `${entryName}#chart-rich-text-${itemIndex}`,
+          entryName,
+          entryType: "chart-rich-text",
+          itemIndex,
+          text,
+        });
+      });
     }
   }
 
@@ -523,6 +575,33 @@ export class XlsxDocumentHandler implements DocumentHandler {
         plainTextConfig,
         replacementLookup,
       );
+    });
+  }
+
+  private applyChartEntry(
+    document: Document,
+    entryName: string,
+    replacementLookup: Map<string, string>,
+    logger: ReturnType<typeof Log.forContext>,
+  ) {
+    const targets = findChartTextTargets(document);
+    let replacedCount = 0;
+
+    targets.forEach((target, itemIndex) => {
+      const lookupKey = buildLookupKey("chart-rich-text", entryName, itemIndex);
+      const replacementText = replacementLookup.get(lookupKey);
+      if (replacementText === undefined) {
+        return;
+      }
+
+      applyChartTargetText(target, replacementText);
+      replacedCount += 1;
+    });
+
+    void logger.debug("Applied chart translation targets to {entryName}", {
+      entryName,
+      targetCount: targets.length,
+      replacedCount,
     });
   }
 }
@@ -778,6 +857,154 @@ function isSafeSingleRunContainer(container: Element, textNodeNames: string[]) {
 
 function getLocalName(node: Element) {
   return node.localName ?? node.nodeName.split(":").pop() ?? node.nodeName;
+}
+
+function findChartTextTargets(document: Document): ChartTextTarget[] {
+  return [
+    ...findChartRichParagraphTargets(document),
+    ...findChartCachePointTargets(document),
+    ...findChartDirectTextTargets(document),
+  ];
+}
+
+function findChartRichParagraphTargets(document: Document): ChartTextTarget[] {
+  const richElements = findElementsByLocalName(document, ["rich"]);
+  const targets: ChartTextTarget[] = [];
+
+  richElements.forEach((richElement) => {
+    const paragraphs = findElementsByLocalName(richElement, ["p"]);
+
+    paragraphs.forEach((paragraph) => {
+      const textNodes = findElementsByLocalName(paragraph, ["t"]);
+      if (textNodes.length === 0) {
+        return;
+      }
+
+      targets.push({
+        kind: "rich-paragraph",
+        textNodes,
+      });
+    });
+  });
+
+  return targets;
+}
+
+function findChartCachePointTargets(document: Document): ChartTextTarget[] {
+  const pointElements = findElementsByLocalName(document, ["pt"]);
+  const targets: ChartTextTarget[] = [];
+
+  pointElements.forEach((pointElement) => {
+    if (!hasAncestor(pointElement, ["strCache", "multiLvlStrCache"])) {
+      return;
+    }
+
+    const valueElement = findDirectChildByLocalName(pointElement, "v");
+    if (!valueElement) {
+      return;
+    }
+
+    const text = normalizePlainText(valueElement.textContent ?? "");
+    if (text.trim().length === 0) {
+      return;
+    }
+
+    targets.push({
+      kind: "cache-point",
+      valueElement,
+    });
+  });
+
+  return targets;
+}
+
+function findChartDirectTextTargets(document: Document): ChartTextTarget[] {
+  const textContainers = findElementsByLocalName(document, ["tx"]);
+  const targets: ChartTextTarget[] = [];
+
+  textContainers.forEach((textContainer) => {
+    if (
+      findDirectChildByLocalName(textContainer, "rich") ||
+      findDirectChildByLocalName(textContainer, "strRef") ||
+      findDirectChildByLocalName(textContainer, "multiLvlStrRef")
+    ) {
+      return;
+    }
+
+    const valueElement = findDirectChildByLocalName(textContainer, "v");
+    if (!valueElement) {
+      return;
+    }
+
+    const text = normalizePlainText(valueElement.textContent ?? "");
+    if (text.trim().length === 0) {
+      return;
+    }
+
+    targets.push({
+      kind: "direct-text",
+      valueElement,
+    });
+  });
+
+  return targets;
+}
+
+function getChartTargetText(target: ChartTextTarget) {
+  switch (target.kind) {
+    case "rich-paragraph":
+      return target.textNodes
+        .map((textNode) => normalizePlainText(textNode.textContent ?? ""))
+        .join("");
+    case "cache-point":
+    case "direct-text":
+      return normalizePlainText(target.valueElement.textContent ?? "");
+  }
+}
+
+function applyChartTargetText(target: ChartTextTarget, replacementText: string) {
+  switch (target.kind) {
+    case "rich-paragraph":
+      target.textNodes.forEach((textNode, index) => {
+        setElementPlainText(textNode, index === 0 ? replacementText : "");
+      });
+      return;
+    case "cache-point":
+    case "direct-text":
+      setElementPlainText(target.valueElement, replacementText);
+      return;
+  }
+}
+
+function hasAncestor(element: Element, localNames: string[]) {
+  const lookup = new Set(localNames);
+  let current = element.parentNode;
+
+  while (current) {
+    if (current.nodeType === current.ELEMENT_NODE) {
+      const currentElement = current as Element;
+      if (lookup.has(getLocalName(currentElement))) {
+        return true;
+      }
+    }
+
+    current = current.parentNode;
+  }
+
+  return false;
+}
+
+function findDirectChildByLocalName(element: Element, localName: string) {
+  const children = element.childNodes;
+
+  for (let index = 0; index < children.length; index += 1) {
+    const child = children.item(index);
+    if (child?.nodeType === child.ELEMENT_NODE && getLocalName(child as Element) === localName) {
+      return child as Element;
+    }
+  }
+
+  return null;
 }
 
 function normalizePlainText(value: string) {
