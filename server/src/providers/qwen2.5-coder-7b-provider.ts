@@ -16,8 +16,7 @@ type QwenResponse = {
 })
 export class Qwen25Coder7BProvider extends AITranslateProvider {
   readonly name = "Qwen2.5 Coder 7B";
-  protected readonly model =
-    process.env.QWEN25_CODER_OLLAMA_MODEL ?? "qwen2.5-coder:7b";
+  protected readonly model = "qwen2.5-coder:7b";
   protected readonly chunkSize = 100;
 
   protected extractContent(data: unknown) {

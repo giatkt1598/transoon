@@ -1,6 +1,4 @@
-import {
-  RegisterTranslateProvider,
-} from "../translate-provider";
+import { RegisterTranslateProvider } from "../translate-provider";
 import { AITranslateProvider } from "./ai-translate-provider";
 
 type DeepSeekResponse = {
@@ -14,11 +12,12 @@ type DeepSeekResponse = {
 
 @RegisterTranslateProvider({
   name: "DeepSeek r1",
-  description: "Local Ollama model deepseek-r1:8b for reasoning-heavy translation.",
+  description:
+    "Local Ollama model deepseek-r1:8b for reasoning-heavy translation.",
 })
 export class DeepSeekR1Provider extends AITranslateProvider {
   readonly name = "DeepSeek r1";
-  protected readonly model = process.env.DEEPSEEK_OLLAMA_MODEL ?? "deepseek-r1:8b";
+  protected readonly model = "deepseek-r1:8b";
   protected readonly chunkSize = 3000;
 
   protected extractContent(data: unknown) {

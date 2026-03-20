@@ -15,7 +15,7 @@ type GemmaResponse = {
 })
 export class Gemma34BProvider extends AITranslateProvider {
   readonly name = "Gemma3 4B";
-  protected readonly model = process.env.GEMMA34_OLLAMA_MODEL ?? "gemma3:4b";
+  protected readonly model = "gemma3:4b";
   protected readonly chunkSize = 500;
 
   protected extractContent(data: unknown) {
