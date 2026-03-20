@@ -18,7 +18,7 @@ export type TranslateDocumentResult = {
   sourceLanguage: string;
   targetLanguage: string;
   providerName: string;
-  documentType: "docx" | "txt";
+  documentType: "docx" | "txt" | "xlsx";
   originalFileName: string;
   outputFileName: string;
   provider: string;

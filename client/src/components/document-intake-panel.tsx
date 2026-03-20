@@ -36,13 +36,13 @@ export function DocumentIntakePanel() {
         <span>Document file</span>
         <input
           type="file"
-          accept=".txt,.docx"
+          accept=".txt,.docx,.xlsx"
           onChange={(event) => setFile(event.target.files?.[0] ?? null)}
         />
         <small>
           {file
             ? `Selected file: ${file.name}`
-            : 'Supported in this version: `.txt`, `.docx`'}
+            : 'Supported in this version: `.txt`, `.docx`, `.xlsx`'}
         </small>
       </label>
 

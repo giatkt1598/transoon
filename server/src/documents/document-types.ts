@@ -1,4 +1,4 @@
-export type SupportedDocumentType = "docx" | "txt";
+export type SupportedDocumentType = "docx" | "txt" | "xlsx";
 
 export type ExtractedSegment = {
   id: string;
