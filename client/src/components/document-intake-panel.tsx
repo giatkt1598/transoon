@@ -15,6 +15,23 @@ import { ProgressCard } from "./progress-card";
 const showCopyBuildPrompt =
   import.meta.env.VITE_SHOW_COPY_BUILD_PROMPT !== "false";
 
+const selectMenuProps = {
+  transitionDuration: 180,
+  PaperProps: {
+    className: "select-menu-paper",
+    sx: {
+      opacity: 1,
+      backgroundColor: "#fffaf2",
+      backgroundImage: "none",
+      backdropFilter: "none",
+      boxShadow: "0 18px 45px rgba(73, 52, 34, 0.1)",
+      "& .MuiMenuItem-root": {
+        opacity: 1,
+      },
+    },
+  },
+} as const;
+
 export function DocumentIntakePanel() {
   const {
     languagesData,
@@ -101,6 +118,7 @@ export function DocumentIntakePanel() {
             labelId="source-language-label"
             value={sourceLanguage}
             notched={false}
+            MenuProps={selectMenuProps}
             onChange={(event) => setSourceLanguage(event.target.value)}
             sx={{
               borderRadius: "14px",
@@ -133,6 +151,7 @@ export function DocumentIntakePanel() {
             labelId="target-language-label"
             value={targetLanguage}
             notched={false}
+            MenuProps={selectMenuProps}
             onChange={(event) => setTargetLanguage(event.target.value)}
             sx={{
               borderRadius: "14px",
@@ -168,6 +187,7 @@ export function DocumentIntakePanel() {
           labelId="translate-provider-label"
           value={providerName}
           notched={false}
+          MenuProps={selectMenuProps}
           onChange={(event) => setProviderName(event.target.value)}
           disabled={translateProvidersData.translateProviders.length === 0}
           sx={{

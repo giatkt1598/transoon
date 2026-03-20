@@ -331,6 +331,30 @@
   background: #d97f37;
 }
 
+.MuiMenu-paper {
+  opacity: 1 !important;
+  background: #fffaf2;
+}
+
+.select-menu-paper {
+  transform-origin: top center !important;
+  animation: dropdown-unfold 180ms ease;
+}
+
+@keyframes dropdown-unfold {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0 round 16px);
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0 round 16px);
+    transform: translateY(0);
+  }
+}
+
 .preview-block,
 .warning-block,
 .empty-state {
