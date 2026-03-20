@@ -1,15 +1,16 @@
+import { Box } from '@mui/material'
 import './App.css'
 import { DocumentIntakePanel } from './components/document-intake-panel'
 import { PipelineOutputPanel } from './components/pipeline-output-panel'
 
 function App() {
   return (
-    <main className="shell">
-      <section className="workspace">
+    <Box component="main" className="shell">
+      <Box component="section" className="workspace">
         <DocumentIntakePanel />
         <PipelineOutputPanel />
-      </section>
-    </main>
+      </Box>
+    </Box>
   )
 }
 

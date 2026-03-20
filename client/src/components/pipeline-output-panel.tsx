@@ -1,3 +1,4 @@
+import { Box, Button, Link, Paper, Typography } from '@mui/material'
 import { useTranslationApp } from '../app/translation-app-context'
 import { formatProcessingTime } from '../app/utils'
 
@@ -5,68 +6,76 @@ export function PipelineOutputPanel() {
   const { result } = useTranslationApp()
 
   return (
-    <div className="panel result-panel">
-      <div className="panel-heading">
-        <div>
-          <p className="panel-kicker">Result</p>
-          <h2>Pipeline Output</h2>
-        </div>
-      </div>
+    <Paper className="panel result-panel" elevation={0}>
+      <Box className="panel-heading">
+        <Box>
+          <Typography component="p" className="panel-kicker">
+            Result
+          </Typography>
+          <Typography component="h2" variant="h4">
+            Pipeline Output
+          </Typography>
+        </Box>
+      </Box>
 
       {result ? (
-        <div className="result-content">
-          <div className="result-metrics">
-            <div>
-              <span>Document type</span>
-              <strong>{result.documentType.toUpperCase()}</strong>
-            </div>
-            <div>
-              <span>Text segments</span>
-              <strong>{result.segmentCount}</strong>
-            </div>
-            <div>
-              <span>Provider</span>
-              <strong>{result.provider}</strong>
-            </div>
-            <div>
-              <span>Processing time</span>
-              <strong>{formatProcessingTime(result.processingTimeMs)}</strong>
-            </div>
-          </div>
+        <Box className="result-content">
+          <Box className="result-metrics">
+            {[
+              ['Document type', result.documentType.toUpperCase()],
+              ['Text segments', String(result.segmentCount)],
+              ['Provider', result.provider],
+              ['Processing time', formatProcessingTime(result.processingTimeMs)],
+            ].map(([label, value]) => (
+              <Box key={label}>
+                <Typography component="span">{label}</Typography>
+                <Typography component="strong">{value}</Typography>
+              </Box>
+            ))}
+          </Box>
 
-          <a className="download-link" href={result.downloadUrl}>
+          <Button
+            className="download-link"
+            component={Link}
+            href={result.downloadUrl}
+            underline="none"
+          >
             Download translated file
-          </a>
+          </Button>
 
-          <div className="preview-block">
-            <h3>Preview</h3>
+          <Box className="preview-block">
+            <Typography component="h3">Preview</Typography>
             {result.preview.length > 0 ? (
               result.preview.map((segment, index) => (
-                <p key={`${segment}-${index}`}>{segment}</p>
+                <Typography key={`${segment}-${index}`} component="p">
+                  {segment}
+                </Typography>
               ))
             ) : (
-              <p>No non-empty text segment was found for preview.</p>
+              <Typography component="p">No non-empty text segment was found for preview.</Typography>
             )}
-          </div>
+          </Box>
 
           {result.warnings.length > 0 ? (
-            <div className="warning-block">
-              <h3>Warnings</h3>
+            <Box className="warning-block">
+              <Typography component="h3">Warnings</Typography>
               {result.warnings.map((warning) => (
-                <p key={warning}>{warning}</p>
+                <Typography key={warning} component="p">
+                  {warning}
+                </Typography>
               ))}
-            </div>
+            </Box>
           ) : null}
-        </div>
+        </Box>
       ) : (
-        <div className="empty-state">
-          <p>The translated document will appear here after upload.</p>
-          <p>
+        <Box className="empty-state">
+          <Typography component="p">The translated document will appear here after upload.</Typography>
+          <Typography component="p">
             The server extracts text segments, translates them, then inserts the new
             text back into the original file structure.
-          </p>
-        </div>
+          </Typography>
+        </Box>
       )}
-    </div>
+    </Paper>
   )
 }

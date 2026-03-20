@@ -81,6 +81,11 @@
   padding: 28px;
 }
 
+.panel .MuiTypography-root,
+.panel .MuiFormLabel-root {
+  margin: 0;
+}
+
 .panel-heading {
   display: flex;
   align-items: start;
@@ -111,6 +116,22 @@
   padding: 18px;
 }
 
+.upload-field {
+  padding: 0;
+}
+
+.field.MuiFormControl-root {
+  margin: 0 0 18px;
+}
+
+.field .MuiInputLabel-root {
+  color: #856247;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
 .field span,
 .result-metrics span {
   color: #856247;
@@ -136,6 +157,30 @@
 }
 
 .field small {
+  color: #6c5643;
+}
+
+.field small.MuiTypography-root {
+  color: #6c5643;
+}
+
+.field .MuiInputBase-root {
+  min-height: 0;
+}
+
+.field .MuiOutlinedInput-input,
+.field .MuiSelect-select {
+  padding: 14px 16px;
+}
+
+.field .MuiSelect-select {
+  min-height: 1.5em;
+  display: flex;
+  align-items: center;
+}
+
+.field .MuiSelect-icon {
+  right: 14px;
   color: #6c5643;
 }
 
@@ -174,6 +219,14 @@
     transform 180ms ease,
     box-shadow 180ms ease,
     background 180ms ease;
+}
+
+.submit-button.MuiButton-root,
+.secondary-button.MuiButton-root,
+.download-link.MuiButton-root {
+  min-width: 0;
+  min-height: 52px;
+  line-height: 1.2;
 }
 
 .secondary-button {
@@ -272,6 +325,10 @@
   background: #d97f37;
   color: #fff7ef;
   font-weight: 700;
+}
+
+.download-link.MuiButton-root:hover {
+  background: #d97f37;
 }
 
 .preview-block,

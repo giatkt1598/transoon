@@ -1,6 +1,19 @@
-import { useTranslationApp } from '../app/translation-app-context'
-import { formatTimer } from '../app/utils'
-import { ProgressCard } from './progress-card'
+import {
+  Box,
+  Button,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Typography,
+} from "@mui/material";
+import { useTranslationApp } from "../app/translation-app-context";
+import { formatTimer } from "../app/utils";
+import { ProgressCard } from "./progress-card";
+
+const showCopyBuildPrompt =
+  import.meta.env.VITE_SHOW_COPY_BUILD_PROMPT !== "false";
 
 export function DocumentIntakePanel() {
   const {
@@ -21,99 +34,200 @@ export function DocumentIntakePanel() {
     setProviderName,
     handleSubmit,
     handleCopyBuildPrompt,
-  } = useTranslationApp()
+  } = useTranslationApp();
 
   return (
-    <form className="panel form-panel" onSubmit={handleSubmit}>
-      <div className="panel-heading">
-        <div>
-          <p className="panel-kicker">Feature 01</p>
-          <h2>Document Intake</h2>
-        </div>
-      </div>
+    <Paper
+      component="form"
+      className="panel form-panel"
+      elevation={0}
+      onSubmit={handleSubmit}
+    >
+      <Box className="panel-heading">
+        <Box>
+          <Typography component="p" className="panel-kicker">
+            Feature 01
+          </Typography>
+          <Typography component="h2" variant="h4">
+            Document Intake
+          </Typography>
+        </Box>
+      </Box>
 
-      <label className="field upload-field">
-        <span>Document file</span>
-        <input
-          type="file"
-          accept=".txt,.docx,.xlsx,.pptx"
-          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-        />
-        <small>
+      <Box className="field upload-field">
+        <Typography component="span">Document file</Typography>
+        <Button
+          component="label"
+          variant="outlined"
+          sx={{
+            justifyContent: "flex-start",
+            borderRadius: "14px",
+            borderColor: "#d8c2a8",
+            backgroundColor: "#fff",
+            color: "#291d13",
+            padding: "14px 16px",
+            fontWeight: 400,
+            "&:hover": {
+              borderColor: "#d97f37",
+              backgroundColor: "#fffaf2",
+            },
+          }}
+        >
+          {file ? "Choose another file" : "Choose document"}
+          <input
+            hidden
+            type="file"
+            accept=".txt,.docx,.xlsx,.pptx"
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          />
+        </Button>
+        <Typography component="small">
           {file
             ? `Selected file: ${file.name}`
-            : 'Supported in this version: `.txt`, `.docx`, `.xlsx`, `.pptx`'}
-        </small>
-      </label>
+            : "Supported in this version: `.txt`, `.docx`, `.xlsx`, `.pptx`"}
+        </Typography>
+      </Box>
 
-      <div className="field-grid">
-        <label className="field">
-          <span>Source language</span>
-          <select
+      <Box className="field-grid">
+        <FormControl className="field" fullWidth>
+          <InputLabel
+            id="source-language-label"
+            shrink
+            sx={{ position: "static", transform: "none", mb: 1.25 }}
+          >
+            Source language
+          </InputLabel>
+          <Select
+            labelId="source-language-label"
             value={sourceLanguage}
+            notched={false}
             onChange={(event) => setSourceLanguage(event.target.value)}
+            sx={{
+              borderRadius: "14px",
+              backgroundColor: "#fff",
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: "#d8c2a8",
+              },
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                borderColor: "#d97f37",
+              },
+            }}
           >
             {languagesData.languages.map((language) => (
-              <option key={language.code} value={language.code}>
+              <MenuItem key={language.code} value={language.code}>
                 {language.label}
-              </option>
+              </MenuItem>
             ))}
-          </select>
-        </label>
+          </Select>
+        </FormControl>
 
-        <label className="field">
-          <span>Target language</span>
-          <select
+        <FormControl className="field" fullWidth>
+          <InputLabel
+            id="target-language-label"
+            shrink
+            sx={{ position: "static", transform: "none", mb: 1.25 }}
+          >
+            Target language
+          </InputLabel>
+          <Select
+            labelId="target-language-label"
             value={targetLanguage}
+            notched={false}
             onChange={(event) => setTargetLanguage(event.target.value)}
+            sx={{
+              borderRadius: "14px",
+              backgroundColor: "#fff",
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: "#d8c2a8",
+              },
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                borderColor: "#d97f37",
+              },
+            }}
           >
             {languagesData.languages
-              .filter((language) => language.code !== 'auto')
+              .filter((language) => language.code !== "auto")
               .map((language) => (
-                <option key={language.code} value={language.code}>
+                <MenuItem key={language.code} value={language.code}>
                   {language.label}
-                </option>
+                </MenuItem>
               ))}
-          </select>
-        </label>
-      </div>
+          </Select>
+        </FormControl>
+      </Box>
 
-      <label className="field">
-        <span>Translate provider</span>
-        <select
+      <FormControl className="field" fullWidth>
+        <InputLabel
+          id="translate-provider-label"
+          shrink
+          sx={{ position: "static", transform: "none", mb: 1.25 }}
+        >
+          Translate provider
+        </InputLabel>
+        <Select
+          labelId="translate-provider-label"
           value={providerName}
+          notched={false}
           onChange={(event) => setProviderName(event.target.value)}
           disabled={translateProvidersData.translateProviders.length === 0}
+          sx={{
+            borderRadius: "14px",
+            backgroundColor: "#fff",
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#d8c2a8",
+            },
+            "&:hover .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#d97f37",
+            },
+          }}
         >
           {translateProvidersData.translateProviders.map((provider) => (
-            <option key={provider.name} value={provider.name}>
+            <MenuItem key={provider.name} value={provider.name}>
               {provider.name}
-            </option>
+            </MenuItem>
           ))}
-        </select>
-        <small>
-          {translateProvidersData.translateProviders.find((provider) => provider.name === providerName)?.description ??
+        </Select>
+        <Typography component="small">
+          {translateProvidersData.translateProviders.find(
+            (provider) => provider.name === providerName,
+          )?.description ??
             (translateProvidersData.translateProviders.length === 0
-              ? 'Translate providers are loaded only from the server API.'
-              : 'Select a translation provider.')}
-        </small>
-      </label>
+              ? "Translate providers are loaded only from the server API."
+              : "Select a translation provider.")}
+        </Typography>
+      </FormControl>
 
-      <button
-        className="secondary-button"
-        type="button"
-        onClick={handleCopyBuildPrompt}
-        disabled={isCopyingPrompt || !providerName}
+      {showCopyBuildPrompt ? (
+        <Button
+          className="secondary-button"
+          type="button"
+          onClick={handleCopyBuildPrompt}
+          disabled={isCopyingPrompt || !providerName}
+          variant="outlined"
+          sx={{ my: 2 }}
+        >
+          {isCopyingPrompt ? "Copying buildPrompt..." : "Copy buildPrompt"}
+        </Button>
+      ) : null}
+
+      <Button
+        className="submit-button"
+        type="submit"
+        disabled={isSubmitting || !providerName}
+        variant="contained"
+        size="large"
       >
-        {isCopyingPrompt ? 'Copying buildPrompt...' : 'Copy buildPrompt'}
-      </button>
-
-      <button className="submit-button" type="submit" disabled={isSubmitting || !providerName}>
-        {isSubmitting ? `Processing document (${formatTimer(elapsedSeconds)})...` : 'Translate document'}
-      </button>
+        {isSubmitting
+          ? `Processing document (${formatTimer(elapsedSeconds)})...`
+          : "Translate document"}
+      </Button>
 
       {isSubmitting && progress ? <ProgressCard progress={progress} /> : null}
-      {error ? <p className="status error">{error}</p> : null}
-    </form>
-  )
+      {error ? (
+        <Typography component="p" className="status error">
+          {error}
+        </Typography>
+      ) : null}
+    </Paper>
+  );
 }
