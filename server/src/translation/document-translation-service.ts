@@ -89,9 +89,29 @@ export async function translateDocument(
     warnings,
     segmentCount: extractedDocument.segments.length,
     processingTimeMs: Math.round(performance.now() - startedAt),
-    preview: translatedSegments
-      .filter((segment) => segment.trim().length > 0)
-      .slice(0, 8),
+    preview: buildPreviewSegments(extractedDocument.segments, translatedSegments),
     downloadUrl: `http://localhost:${appConfig.port}/api/downloads/${outputFileName}`,
   };
+}
+
+function buildPreviewSegments(
+  segments: Array<{ text: string; previewPriority?: number }>,
+  translatedSegments: string[],
+) {
+  return translatedSegments
+    .map((segment, index) => ({
+      text: segment,
+      previewPriority: segments[index]?.previewPriority ?? 50,
+      originalIndex: index,
+    }))
+    .filter((segment) => segment.text.trim().length > 0)
+    .sort((left, right) => {
+      if (left.previewPriority !== right.previewPriority) {
+        return left.previewPriority - right.previewPriority;
+      }
+
+      return left.originalIndex - right.originalIndex;
+    })
+    .slice(0, 8)
+    .map((segment) => segment.text);
 }

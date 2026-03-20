@@ -8,18 +8,74 @@ import type {
 
 const SLIDE_PATH_PATTERN = /^ppt\/slides\/slide\d+\.xml$/;
 const NOTES_SLIDE_PATH_PATTERN = /^ppt\/notesSlides\/notesSlide\d+\.xml$/;
+const SLIDE_LAYOUT_PATH_PATTERN = /^ppt\/slideLayouts\/slideLayout\d+\.xml$/;
+const SLIDE_MASTER_PATH_PATTERN = /^ppt\/slideMasters\/slideMaster\d+\.xml$/;
 const COMMENT_PATH_PATTERN = /^ppt\/comments\/comment\d+\.xml$/;
 const CHART_PATH_PATTERN = /^ppt\/charts\/chart\d+\.xml$/;
+
+type PptxSegmentType =
+  | "slide-paragraph"
+  | "notes-paragraph"
+  | "layout-paragraph"
+  | "master-paragraph"
+  | "chart-paragraph"
+  | "comment-text";
+
+type SegmentDescriptor = {
+  id: string;
+  entryName: string;
+  entryType: PptxSegmentType;
+  itemIndex: number;
+  text: string;
+  previewPriority: number;
+};
+
+type ParagraphConfig = {
+  entryType: Exclude<PptxSegmentType, "comment-text">;
+  pathPattern: RegExp;
+};
+
+type TextElementConfig = {
+  entryType: Extract<PptxSegmentType, "comment-text">;
+  pathPattern: RegExp;
+  elementNames: string[];
+};
 
 const parser = new DOMParser();
 const serializer = new XMLSerializer();
 
-type TextNodeDescriptor = {
-  id: string;
-  entryName: string;
-  textNodeIndex: number;
-  text: string;
-};
+const DISPLAY_TEXT_ENTRY_TYPES: readonly PptxSegmentType[] = [
+  "slide-paragraph",
+  "notes-paragraph",
+  "layout-paragraph",
+  "master-paragraph",
+  "chart-paragraph",
+  "comment-text",
+] as const;
+
+const INTERNAL_REFERENCE_TOKENS_NOT_TRANSLATED = [
+  "relationship ids",
+  "placeholder types",
+  "chart formulas",
+  "theme/style tokens",
+  "rich text multi-run paragraphs",
+] as const;
+
+const paragraphConfigs: ParagraphConfig[] = [
+  { entryType: "slide-paragraph", pathPattern: SLIDE_PATH_PATTERN },
+  { entryType: "notes-paragraph", pathPattern: NOTES_SLIDE_PATH_PATTERN },
+  { entryType: "layout-paragraph", pathPattern: SLIDE_LAYOUT_PATH_PATTERN },
+  { entryType: "master-paragraph", pathPattern: SLIDE_MASTER_PATH_PATTERN },
+  { entryType: "chart-paragraph", pathPattern: CHART_PATH_PATTERN },
+];
+
+const textElementConfigs: TextElementConfig[] = [
+  {
+    entryType: "comment-text",
+    pathPattern: COMMENT_PATH_PATTERN,
+    elementNames: ["text"],
+  },
+];
 
 export class PptxDocumentHandler implements DocumentHandler {
   readonly supportedExtensions = [".pptx"];
@@ -27,16 +83,11 @@ export class PptxDocumentHandler implements DocumentHandler {
   async extract(fileName: string, buffer: Buffer): Promise<ExtractedDocument> {
     const zip = await JSZip.loadAsync(buffer);
     const entryNames = Object.values(zip.files)
-      .filter((entry) =>
-        SLIDE_PATH_PATTERN.test(entry.name) ||
-        NOTES_SLIDE_PATH_PATTERN.test(entry.name) ||
-        COMMENT_PATH_PATTERN.test(entry.name) ||
-        CHART_PATH_PATTERN.test(entry.name),
-      )
+      .filter((entry) => matchesAnyConfig(entry.name))
       .map((entry) => entry.name);
 
     const entryXmlMap = new Map<string, string>();
-    const descriptors: TextNodeDescriptor[] = [];
+    const descriptors: SegmentDescriptor[] = [];
 
     for (const entryName of entryNames) {
       const xml = await zip.file(entryName)?.async("text");
@@ -46,21 +97,9 @@ export class PptxDocumentHandler implements DocumentHandler {
 
       entryXmlMap.set(entryName, xml);
       const document = parseXml(xml);
-      const textNodes = findElementsByLocalName(document, ["t"]);
 
-      textNodes.forEach((textNode, textNodeIndex) => {
-        const text = normalizeText(textNode.textContent ?? "");
-        if (text.trim().length === 0) {
-          return;
-        }
-
-        descriptors.push({
-          id: `${entryName}#text-${textNodeIndex}`,
-          entryName,
-          textNodeIndex,
-          text,
-        });
-      });
+      collectParagraphDescriptors(document, entryName, descriptors);
+      collectTextElementDescriptors(document, entryName, descriptors);
     }
 
     return {
@@ -69,6 +108,7 @@ export class PptxDocumentHandler implements DocumentHandler {
       segments: descriptors.map((descriptor) => ({
         id: descriptor.id,
         text: descriptor.text,
+        previewPriority: descriptor.previewPriority,
       })),
       replaceSegments: async (nextSegments: string[]) => {
         const replacementLookup = new Map<string, string>();
@@ -82,22 +122,9 @@ export class PptxDocumentHandler implements DocumentHandler {
 
         for (const [entryName, xml] of entryXmlMap.entries()) {
           const document = parseXml(xml);
-          const textNodes = findElementsByLocalName(document, ["t"]);
 
-          textNodes.forEach((textNode, textNodeIndex) => {
-            const replacementText = replacementLookup.get(
-              buildDescriptorKey({
-                entryName,
-                textNodeIndex,
-              }),
-            );
-
-            if (replacementText === undefined) {
-              return;
-            }
-
-            setElementText(textNode, replacementText);
-          });
+          applyParagraphReplacements(document, entryName, replacementLookup);
+          applyTextElementReplacements(document, entryName, replacementLookup);
 
           zip.file(entryName, serializeXml(document));
         }
@@ -110,6 +137,155 @@ export class PptxDocumentHandler implements DocumentHandler {
       },
     };
   }
+}
+
+function collectParagraphDescriptors(
+  document: Document,
+  entryName: string,
+  descriptors: SegmentDescriptor[],
+) {
+  const config = paragraphConfigs.find((item) => item.pathPattern.test(entryName));
+  if (!config) {
+    return;
+  }
+
+  const paragraphs = findElementsByLocalName(document, ["p"]);
+  let itemIndex = 0;
+
+  paragraphs.forEach((paragraph) => {
+    if (!isSafeSingleRunParagraph(paragraph)) {
+      return;
+    }
+
+    const text = getParagraphText(paragraph);
+    if (text.trim().length === 0) {
+      return;
+    }
+
+    descriptors.push({
+      id: `${entryName}#${config.entryType}-${itemIndex}`,
+      entryName,
+      entryType: config.entryType,
+      itemIndex,
+      text,
+      previewPriority: getPreviewPriority(config.entryType),
+    });
+    itemIndex += 1;
+  });
+}
+
+function collectTextElementDescriptors(
+  document: Document,
+  entryName: string,
+  descriptors: SegmentDescriptor[],
+) {
+  const config = textElementConfigs.find((item) => item.pathPattern.test(entryName));
+  if (!config) {
+    return;
+  }
+
+  const elements = findElementsByLocalName(document, config.elementNames);
+  let itemIndex = 0;
+
+  elements.forEach((element) => {
+    const text = normalizeText(element.textContent ?? "");
+    if (text.trim().length === 0) {
+      return;
+    }
+
+    descriptors.push({
+      id: `${entryName}#${config.entryType}-${itemIndex}`,
+      entryName,
+      entryType: config.entryType,
+      itemIndex,
+      text,
+      previewPriority: getPreviewPriority(config.entryType),
+    });
+    itemIndex += 1;
+  });
+}
+
+function applyParagraphReplacements(
+  document: Document,
+  entryName: string,
+  replacementLookup: Map<string, string>,
+) {
+  const config = paragraphConfigs.find((item) => item.pathPattern.test(entryName));
+  if (!config) {
+    return;
+  }
+
+  const paragraphs = findElementsByLocalName(document, ["p"]);
+  let itemIndex = 0;
+
+  paragraphs.forEach((paragraph) => {
+    if (!isSafeSingleRunParagraph(paragraph)) {
+      return;
+    }
+
+    const text = getParagraphText(paragraph);
+    if (text.trim().length === 0) {
+      return;
+    }
+
+    const replacementText = replacementLookup.get(
+      buildLookupKey(config.entryType, entryName, itemIndex),
+    );
+    if (replacementText !== undefined) {
+      const textNode = findElementsByLocalName(paragraph, ["t"])[0];
+      if (textNode) {
+        setElementText(textNode, replacementText);
+      }
+    }
+
+    itemIndex += 1;
+  });
+}
+
+function applyTextElementReplacements(
+  document: Document,
+  entryName: string,
+  replacementLookup: Map<string, string>,
+) {
+  const config = textElementConfigs.find((item) => item.pathPattern.test(entryName));
+  if (!config) {
+    return;
+  }
+
+  const elements = findElementsByLocalName(document, config.elementNames);
+  let itemIndex = 0;
+
+  elements.forEach((element) => {
+    const currentText = normalizeText(element.textContent ?? "");
+    if (currentText.trim().length === 0) {
+      return;
+    }
+
+    const replacementText = replacementLookup.get(
+      buildLookupKey(config.entryType, entryName, itemIndex),
+    );
+    if (replacementText !== undefined) {
+      setElementText(element, replacementText);
+    }
+
+    itemIndex += 1;
+  });
+}
+
+function isSafeSingleRunParagraph(paragraph: Element) {
+  return findElementsByLocalName(paragraph, ["t"]).length === 1;
+}
+
+function getParagraphText(paragraph: Element) {
+  const textNode = findElementsByLocalName(paragraph, ["t"])[0];
+  return normalizeText(textNode?.textContent ?? "");
+}
+
+function matchesAnyConfig(entryName: string) {
+  return (
+    paragraphConfigs.some((config) => config.pathPattern.test(entryName)) ||
+    textElementConfigs.some((config) => config.pathPattern.test(entryName))
+  );
 }
 
 function parseXml(xml: string) {
@@ -136,6 +312,10 @@ function findElementsByLocalName(
     if (node && lookup.has(getLocalName(node))) {
       result.push(node);
     }
+  }
+
+  if (root.nodeType !== root.DOCUMENT_NODE && lookup.has(getLocalName(root as Element))) {
+    result.unshift(root as Element);
   }
 
   return result;
@@ -167,6 +347,44 @@ function normalizeText(value: string) {
   return value.replace(/\r\n/g, "\n");
 }
 
-function buildDescriptorKey(descriptor: Pick<TextNodeDescriptor, "entryName" | "textNodeIndex">) {
-  return `${descriptor.entryName}:${descriptor.textNodeIndex}`;
+function buildDescriptorKey(
+  descriptor: Pick<SegmentDescriptor, "entryType" | "entryName" | "itemIndex">,
+) {
+  return buildLookupKey(
+    descriptor.entryType,
+    descriptor.entryName,
+    descriptor.itemIndex,
+  );
 }
+
+function buildLookupKey(
+  entryType: PptxSegmentType,
+  entryName: string,
+  itemIndex: number,
+) {
+  return `${entryType}:${entryName}:${itemIndex}`;
+}
+
+function getPreviewPriority(entryType: PptxSegmentType) {
+  switch (entryType) {
+    case "slide-paragraph":
+      return 0;
+    case "notes-paragraph":
+      return 1;
+    case "comment-text":
+      return 2;
+    case "chart-paragraph":
+      return 3;
+    case "layout-paragraph":
+      return 100;
+    case "master-paragraph":
+      return 101;
+    default:
+      return 50;
+  }
+}
+
+export const pptxTranslationPolicy = {
+  displayTextEntryTypes: [...DISPLAY_TEXT_ENTRY_TYPES],
+  internalReferenceTokensNotTranslated: [...INTERNAL_REFERENCE_TOKENS_NOT_TRANSLATED],
+};

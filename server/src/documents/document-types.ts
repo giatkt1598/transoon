@@ -3,6 +3,7 @@ export type SupportedDocumentType = "docx" | "txt" | "xlsx" | "pptx";
 export type ExtractedSegment = {
   id: string;
   text: string;
+  previewPriority?: number;
 };
 
 export type ExtractedDocument = {
