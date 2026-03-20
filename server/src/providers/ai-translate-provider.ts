@@ -15,8 +15,9 @@ type ParsedTranslation = {
   translatedSegments?: Array<{ index: number; text: string }>;
 };
 
-type ValidParsedTranslation = {
+type ChunkTranslationResult = {
   translatedSegments: Array<{ index: number; text: string }>;
+  lastError?: string;
 };
 
 export abstract class AITranslateProvider extends TranslateProvider {
@@ -30,6 +31,9 @@ export abstract class AITranslateProvider extends TranslateProvider {
   );
   protected readonly retryDelayMs = Number(
     process.env.AI_TRANSLATE_RETRY_DELAY_MS ?? 1000,
+  );
+  protected readonly recoveryAttempts = Number(
+    process.env.AI_TRANSLATE_RECOVERY_ATTEMPTS ?? 3,
   );
   protected readonly systemPrompt =
     "You are a translation engine. Return JSON only. Do not add explanations. Keep the same number of items and preserve placeholders, whitespace, and line breaks as closely as possible.";
@@ -48,13 +52,14 @@ export abstract class AITranslateProvider extends TranslateProvider {
     });
 
     const normalizedSegments = request.segments.map((segment) => segment ?? "");
-    const nonEmptySegments = normalizedSegments.filter(
-      (segment) => segment.trim().length > 0,
-    );
+    const translatableSegments = normalizedSegments
+      .map((text, index) => ({ index, text }))
+      .filter((segment) => segment.text.trim().length > 0);
+    const totalSegments = translatableSegments.length;
 
     if (
       request.sourceLanguage === request.targetLanguage ||
-      nonEmptySegments.length === 0
+      totalSegments === 0
     ) {
       return {
         translatedSegments: normalizedSegments,
@@ -64,25 +69,19 @@ export abstract class AITranslateProvider extends TranslateProvider {
     }
 
     const translatedMap = new Map<number, string>();
+    const deferredSegments: Array<{ index: number; text: string }> = [];
+    const warnings: string[] = [];
     const chunks = this.buildChunks(normalizedSegments);
 
-    await request.onProgress?.({
-      phase: "translating",
-      totalChunks: chunks.length,
-      completedChunks: 0,
-      progressPercent: chunks.length === 0 ? 100 : 0,
-      message:
-        chunks.length === 0
-          ? "No non-empty text chunks to translate."
-          : `Translating chunk 1 of ${chunks.length}.`,
-    });
+    await this.reportSegmentProgress(request, translatedMap.size, totalSegments);
 
     for (const [chunkIndex, chunk] of chunks.entries()) {
       const payload = chunk.map((item) => ({
         index: item.index,
         text: item.text,
       }));
-      const parsed = await this.translateChunkWithRetry(
+
+      const result = await this.translateChunkWithRetry(
         logger,
         chunkIndex,
         payload,
@@ -90,27 +89,74 @@ export abstract class AITranslateProvider extends TranslateProvider {
         request.targetLanguage,
       );
 
-      parsed.translatedSegments.forEach((item) => {
+      result.translatedSegments.forEach((item) => {
         translatedMap.set(item.index, item.text);
       });
 
-      await request.onProgress?.({
-        phase: "translating",
-        totalChunks: chunks.length,
-        completedChunks: chunkIndex + 1,
-        progressPercent: Math.round(((chunkIndex + 1) / chunks.length) * 100),
-        message:
-          chunkIndex + 1 === chunks.length
-            ? `Finished translating ${chunks.length} chunks.`
-            : `Translating chunk ${chunkIndex + 2} of ${chunks.length}.`,
+      const translatedIndexes = new Set(
+        result.translatedSegments.map((item) => item.index),
+      );
+      const unresolvedChunkSegments = payload.filter(
+        (item) => !translatedIndexes.has(item.index),
+      );
+
+      if (unresolvedChunkSegments.length > 0) {
+        deferredSegments.push(...unresolvedChunkSegments);
+        await logger.warning("Deferring untranslated segments for {provider}", {
+          chunkIndex,
+          deferredSegmentCount: unresolvedChunkSegments.length,
+          error:
+            result.lastError ??
+            `${this.name} returned a partial translation for chunk ${chunkIndex}.`,
+        });
+      }
+
+      await this.reportSegmentProgress(request, translatedMap.size, totalSegments);
+    }
+
+    const unresolvedSegments = dedupeSegments(
+      deferredSegments.filter((segment) => !translatedMap.has(segment.index)),
+    );
+
+    if (unresolvedSegments.length > 0) {
+      await logger.warning("Retrying deferred segments for {provider}", {
+        deferredSegmentCount: unresolvedSegments.length,
+        recoveryAttempts: this.recoveryAttempts,
       });
+
+      for (const segment of unresolvedSegments) {
+        try {
+          const recovery = await this.translateChunkWithRetry(
+            logger,
+            "recovery",
+            [segment],
+            request.sourceLanguage,
+            request.targetLanguage,
+            this.recoveryAttempts,
+          );
+
+          recovery.translatedSegments.forEach((item) => {
+            translatedMap.set(item.index, item.text);
+          });
+        } catch (error) {
+          warnings.push(
+            `Segment ${segment.index} could not be translated after ${this.recoveryAttempts} recovery attempts. The original text was kept.`,
+          );
+          await logger.warning("Recovery translation failed for {provider}", {
+            segmentIndex: segment.index,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+
+        await this.reportSegmentProgress(request, translatedMap.size, totalSegments);
+      }
     }
 
     return {
       translatedSegments: normalizedSegments.map(
         (segment, index) => translatedMap.get(index) ?? segment,
       ),
-      warnings: [],
+      warnings,
       provider: this.name,
     };
   }
@@ -219,16 +265,35 @@ export abstract class AITranslateProvider extends TranslateProvider {
     return JSON.parse(jsonText) as ParsedTranslation;
   }
 
+  private async reportSegmentProgress(
+    request: TranslateRequest,
+    translatedSegmentCount: number,
+    totalSegments: number,
+  ) {
+    await request.onProgress?.({
+      phase: "translating",
+      totalChunks: totalSegments,
+      completedChunks: translatedSegmentCount,
+      progressPercent:
+        totalSegments === 0
+          ? 100
+          : Math.round((translatedSegmentCount / totalSegments) * 100),
+      message: `Translated ${translatedSegmentCount} of ${totalSegments} segments.`,
+    });
+  }
+
   private async translateChunkWithRetry(
     logger: ReturnType<typeof Log.forContext>,
-    chunkIndex: number,
+    chunkIndex: number | "recovery",
     payload: Array<{ index: number; text: string }>,
     sourceLanguage: string,
     targetLanguage: string,
-  ): Promise<ValidParsedTranslation> {
+    maxAttempts = this.maxRetries + 1,
+  ): Promise<ChunkTranslationResult> {
     let lastError: Error | null = null;
+    const translatedMap = new Map<number, string>();
 
-    for (let attempt = 1; attempt <= this.maxRetries + 1; attempt += 1) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const messages = this.buildMessages(
         payload,
         sourceLanguage,
@@ -239,7 +304,7 @@ export abstract class AITranslateProvider extends TranslateProvider {
         await logger.information("Sending translation prompt to {provider}", {
           chunkIndex,
           attempt,
-          maxAttempts: this.maxRetries + 1,
+          maxAttempts,
           messages,
           payload,
         });
@@ -265,44 +330,55 @@ export abstract class AITranslateProvider extends TranslateProvider {
         }
 
         const parsed = this.parseTranslatedSegments(content);
-        if (
-          !parsed.translatedSegments ||
-          parsed.translatedSegments.length === 0
-        ) {
+        const validTranslatedSegments = this.extractValidTranslatedSegments(
+          parsed,
+          payload,
+        );
+
+        if (validTranslatedSegments.length === 0) {
           throw new Error(
-            `${this.name} did not return any translated segments.`,
-          );
-        }
-        if (parsed.translatedSegments.length !== payload.length) {
-          throw new Error(
-            `${this.name} returned ${parsed.translatedSegments.length} translated segments, expected ${payload.length}.`,
+            `${this.name} did not return any valid translated segments.`,
           );
         }
 
-        if (attempt > 1) {
-          await logger.information(
-            "Translation chunk {chunkIndex} succeeded after retry",
-            {
-              chunkIndex,
-              attempt,
-            },
-          );
+        validTranslatedSegments.forEach((item) => {
+          translatedMap.set(item.index, item.text);
+        });
+
+        if (translatedMap.size === payload.length) {
+          if (attempt > 1) {
+            await logger.information(
+              "Translation chunk {chunkIndex} succeeded after retry",
+              {
+                chunkIndex,
+                attempt,
+              },
+            );
+          }
+
+          return {
+            translatedSegments: payload.map((item) => ({
+              index: item.index,
+              text: translatedMap.get(item.index) ?? item.text,
+            })),
+          };
         }
 
-        return {
-          translatedSegments: parsed.translatedSegments,
-        };
+        throw new Error(
+          `${this.name} returned ${translatedMap.size} translated segments, expected ${payload.length}.`,
+        );
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        const willRetry = attempt <= this.maxRetries;
+        const willRetry = attempt < maxAttempts;
 
         await logger.warning(
           "Translation chunk attempt failed for {provider}",
           {
             chunkIndex,
             attempt,
-            maxAttempts: this.maxRetries + 1,
+            maxAttempts,
             willRetry,
+            translatedSegmentCount: translatedMap.size,
             error: lastError.message,
           },
         );
@@ -315,9 +391,50 @@ export abstract class AITranslateProvider extends TranslateProvider {
       }
     }
 
+    if (translatedMap.size > 0) {
+      return {
+        translatedSegments: payload
+          .filter((item) => translatedMap.has(item.index))
+          .map((item) => ({
+            index: item.index,
+            text: translatedMap.get(item.index) ?? item.text,
+          })),
+        lastError: lastError?.message,
+      };
+    }
+
     throw new Error(
-      `${this.name} failed to translate chunk ${chunkIndex} after ${this.maxRetries + 1} attempts. Last error: ${lastError?.message ?? "Unknown error"}.`,
+      `${this.name} failed to translate chunk ${chunkIndex} after ${maxAttempts} attempts. Last error: ${lastError?.message ?? "Unknown error"}.`,
     );
+  }
+
+  private extractValidTranslatedSegments(
+    parsed: ParsedTranslation,
+    payload: Array<{ index: number; text: string }>,
+  ) {
+    if (!parsed.translatedSegments || parsed.translatedSegments.length === 0) {
+      return [];
+    }
+
+    const allowedIndexes = new Set(payload.map((item) => item.index));
+    const translatedMap = new Map<number, string>();
+
+    parsed.translatedSegments.forEach((item) => {
+      if (
+        typeof item.index === "number" &&
+        typeof item.text === "string" &&
+        allowedIndexes.has(item.index)
+      ) {
+        translatedMap.set(item.index, item.text);
+      }
+    });
+
+    return payload
+      .filter((item) => translatedMap.has(item.index))
+      .map((item) => ({
+        index: item.index,
+        text: translatedMap.get(item.index) ?? item.text,
+      }));
   }
 
   private async requestOllama(messages: AIMessage[]) {
@@ -353,6 +470,18 @@ export abstract class AITranslateProvider extends TranslateProvider {
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function dedupeSegments(segments: Array<{ index: number; text: string }>) {
+  const uniqueSegments = new Map<number, { index: number; text: string }>();
+
+  segments.forEach((segment) => {
+    if (!uniqueSegments.has(segment.index)) {
+      uniqueSegments.set(segment.index, segment);
+    }
+  });
+
+  return Array.from(uniqueSegments.values());
 }
 
 function extractJsonObject(content: string) {

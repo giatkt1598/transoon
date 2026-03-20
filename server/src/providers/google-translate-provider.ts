@@ -16,6 +16,7 @@ export class GoogleTranslateProvider extends TranslateProvider {
   async translate(request: TranslateRequest): Promise<TranslationResult> {
     const normalizedSegments = request.segments.map((segment) => segment ?? "");
     const nonEmptySegments = normalizedSegments.filter((segment) => segment.trim().length > 0);
+    const totalSegments = nonEmptySegments.length;
 
     if (request.sourceLanguage === request.targetLanguage || nonEmptySegments.length === 0) {
       return {
@@ -30,13 +31,13 @@ export class GoogleTranslateProvider extends TranslateProvider {
 
     await request.onProgress?.({
       phase: "translating",
-      totalChunks: chunks.length,
+      totalChunks: totalSegments,
       completedChunks: 0,
       progressPercent: chunks.length === 0 ? 100 : 0,
       message:
         chunks.length === 0
-          ? "No non-empty text chunks to translate."
-          : `Translating chunk 1 of ${chunks.length}.`,
+          ? "No non-empty text segments to translate."
+          : `Translated 0 of ${totalSegments} segments.`,
     });
 
     for (const [chunkIndex, chunk] of chunks.entries()) {
@@ -53,13 +54,13 @@ export class GoogleTranslateProvider extends TranslateProvider {
 
       await request.onProgress?.({
         phase: "translating",
-        totalChunks: chunks.length,
-        completedChunks: chunkIndex + 1,
-        progressPercent: Math.round(((chunkIndex + 1) / chunks.length) * 100),
-        message:
-          chunkIndex + 1 === chunks.length
-            ? `Finished translating ${chunks.length} chunks.`
-            : `Translating chunk ${chunkIndex + 2} of ${chunks.length}.`,
+        totalChunks: totalSegments,
+        completedChunks: translatedMap.size,
+        progressPercent:
+          totalSegments === 0
+            ? 100
+            : Math.round((translatedMap.size / totalSegments) * 100),
+        message: `Translated ${translatedMap.size} of ${totalSegments} segments.`,
       });
     }
 
