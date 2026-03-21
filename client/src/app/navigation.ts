@@ -17,7 +17,7 @@ export type NavigationItem = {
 export const primaryNavItems: NavigationItem[] = [
   { icon: HomeRoundedIcon, label: 'Overview', to: '/' },
   { icon: TranslateRoundedIcon, label: 'Translator', to: '/translator' },
-  { icon: FolderOpenOutlinedIcon, label: 'Documents', to: '/documents' },
+  { icon: FolderOpenOutlinedIcon, label: 'Projects', to: '/projects' },
   { icon: AnalyticsOutlinedIcon, label: 'Analytics', to: '/analytics' },
 ]
 

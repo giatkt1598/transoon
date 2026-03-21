@@ -4,6 +4,13 @@ import multer from "multer";
 import { appConfig } from "../config/app-config";
 import { languageCatalog } from "../config/language-catalog";
 import { extractDocument } from "../document-service";
+import {
+  createProject,
+  deleteProject,
+  getProjectById,
+  listProjects,
+  updateProject,
+} from "../translation-memory/project-service";
 import { TranslateProvider } from "../translation-service";
 import { translateDocument } from "../translation/document-translation-service";
 import { getTranslationProgress, setTranslationProgress } from "../translation-progress";
@@ -29,6 +36,66 @@ export function createApiRouter() {
       defaultTranslateProvider: appConfig.defaultTranslateProvider,
       translateProviders: TranslateProvider.list(),
     });
+  });
+
+  router.get("/api/projects", (_req, res) => {
+    res.json({
+      projects: listProjects(),
+    });
+  });
+
+  router.get("/api/projects/:projectId", (req, res) => {
+    const project = getProjectById(String(req.params.projectId));
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found." });
+      return;
+    }
+
+    res.json(project);
+  });
+
+  router.post("/api/projects", (req, res) => {
+    const validationError = validateProjectInput(req.body);
+    if (validationError) {
+      res.status(400).json({ error: validationError });
+      return;
+    }
+
+    const project = createProject(req.body);
+    res.status(201).json(project);
+  });
+
+  router.put("/api/projects/:projectId", (req, res) => {
+    const projectId = String(req.params.projectId);
+    const existingProject = getProjectById(projectId);
+
+    if (!existingProject) {
+      res.status(404).json({ error: "Project not found." });
+      return;
+    }
+
+    const validationError = validateProjectInput(req.body);
+    if (validationError) {
+      res.status(400).json({ error: validationError });
+      return;
+    }
+
+    const project = updateProject(projectId, req.body);
+    res.json(project);
+  });
+
+  router.delete("/api/projects/:projectId", (req, res) => {
+    const projectId = String(req.params.projectId);
+    const existingProject = getProjectById(projectId);
+
+    if (!existingProject) {
+      res.status(404).json({ error: "Project not found." });
+      return;
+    }
+
+    deleteProject(projectId);
+    res.status(204).send();
   });
 
   router.get("/api/translation-progress/:requestId", (req, res) => {
@@ -146,4 +213,26 @@ export function createApiRouter() {
   );
 
   return router;
+}
+
+function validateProjectInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A project payload is required.";
+  }
+
+  const { name, sourceLang, targetLang } = body as Record<string, unknown>;
+
+  if (typeof name !== "string" || name.trim().length === 0) {
+    return "Project name is required.";
+  }
+
+  if (typeof sourceLang !== "string" || sourceLang.trim().length === 0) {
+    return "Source language is required.";
+  }
+
+  if (typeof targetLang !== "string" || targetLang.trim().length === 0) {
+    return "Target language is required.";
+  }
+
+  return null;
 }

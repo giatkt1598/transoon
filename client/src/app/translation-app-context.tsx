@@ -7,6 +7,7 @@ import {
   type PropsWithChildren,
 } from 'react'
 import { io, type Socket } from 'socket.io-client'
+import { apiBaseUrl, socketUrl } from './config'
 import type {
   LanguagesResponse,
   PromptPreviewResponse,
@@ -37,8 +38,6 @@ type TranslationAppContextValue = {
   handleCopyBuildPrompt: () => Promise<void>
 }
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
-const socketUrl = import.meta.env.VITE_SOCKET_URL ?? apiBaseUrl
 const storageKeys = {
   sourceLanguage: 'transoon.sourceLanguage',
   targetLanguage: 'transoon.targetLanguage',

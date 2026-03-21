@@ -52,3 +52,19 @@ export type TranslationProgressResponse = {
   message: string
   updatedAt: string
 }
+
+export type ProjectSummary = {
+  id: string
+  name: string
+  sourceLang: string
+  targetLang: string
+  createdAt: string
+  documentCount: number
+  segmentCount: number
+  translatedSegmentCount: number
+  progressPercent: number
+}
+
+export type ProjectsResponse = {
+  projects: ProjectSummary[]
+}

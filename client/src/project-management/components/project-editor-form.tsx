@@ -1,0 +1,106 @@
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
+import { Box, Button, MenuItem, Paper, TextField, Typography } from '@mui/material'
+import { Link as RouterLink } from 'react-router-dom'
+import type { LanguagesResponse } from '../../app/types'
+import type { ProjectFormValues } from '../types'
+
+type ProjectEditorFormProps = {
+  title: string
+  description: string
+  languagesData: LanguagesResponse
+  formValues: ProjectFormValues
+  isLoading: boolean
+  isSaving: boolean
+  onFieldChange: <K extends keyof ProjectFormValues>(field: K, value: ProjectFormValues[K]) => void
+  onSave: () => Promise<void>
+}
+
+export function ProjectEditorForm({
+  title,
+  description,
+  languagesData,
+  formValues,
+  isLoading,
+  isSaving,
+  onFieldChange,
+  onSave,
+}: ProjectEditorFormProps) {
+  return (
+    <Paper className="project-editor-shell" elevation={0}>
+      <Box className="project-editor-section-head">
+        <Box>
+          <Typography component="h2" className="project-editor-title">
+            {title}
+          </Typography>
+          <Typography component="p" className="project-editor-copy">
+            {description}
+          </Typography>
+        </Box>
+      </Box>
+
+      <Box className="project-editor-form">
+        <TextField
+          label="Project name"
+          value={formValues.name}
+          onChange={(event) => onFieldChange('name', event.target.value)}
+          placeholder="Panasonic manuals, EN -> JA"
+          fullWidth
+          disabled={isLoading || isSaving}
+        />
+
+        <Box className="project-editor-grid">
+          <TextField
+            select
+            label="Source language"
+            value={formValues.sourceLang}
+            onChange={(event) => onFieldChange('sourceLang', event.target.value)}
+            disabled={isLoading || isSaving}
+          >
+            {languagesData.languages.map((language) => (
+              <MenuItem key={language.code} value={language.code}>
+                {language.label}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            select
+            label="Target language"
+            value={formValues.targetLang}
+            onChange={(event) => onFieldChange('targetLang', event.target.value)}
+            disabled={isLoading || isSaving}
+          >
+            {languagesData.languages
+              .filter((language) => language.code !== 'auto')
+              .map((language) => (
+                <MenuItem key={language.code} value={language.code}>
+                  {language.label}
+                </MenuItem>
+              ))}
+          </TextField>
+        </Box>
+      </Box>
+
+      <Box className="project-editor-actions">
+        <Button
+          component={RouterLink}
+          to="/projects"
+          variant="outlined"
+          className="secondary-button"
+          startIcon={<ArrowBackRoundedIcon />}
+        >
+          Back to list
+        </Button>
+
+        <Button
+          variant="contained"
+          className="submit-button"
+          onClick={() => void onSave()}
+          disabled={isLoading || isSaving}
+        >
+          {isSaving ? 'Saving project...' : 'Save project'}
+        </Button>
+      </Box>
+    </Paper>
+  )
+}

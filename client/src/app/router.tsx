@@ -10,6 +10,14 @@ const TranslatorPage = lazy(() =>
   import('../pages/translator-page').then((module) => ({ default: module.TranslatorPage })),
 )
 
+const ProjectsListPage = lazy(() =>
+  import('../pages/projects-list-page').then((module) => ({ default: module.ProjectsListPage })),
+)
+
+const ProjectEditorPage = lazy(() =>
+  import('../pages/project-editor-page').then((module) => ({ default: module.ProjectEditorPage })),
+)
+
 export const appRouter = createBrowserRouter([
   {
     path: '/',
@@ -30,14 +38,16 @@ export const appRouter = createBrowserRouter([
         element: <TranslatorPage />,
       },
       {
-        path: 'documents',
-        element: (
-          <PlaceholderPage
-            eyebrow="Documents"
-            title="Document history will live here."
-            description="This route is ready for upload history, file filtering, and downloadable translation outputs."
-          />
-        ),
+        path: 'projects',
+        element: <ProjectsListPage />,
+      },
+      {
+        path: 'projects/new',
+        element: <ProjectEditorPage />,
+      },
+      {
+        path: 'projects/:projectId/edit',
+        element: <ProjectEditorPage />,
       },
       {
         path: 'analytics',

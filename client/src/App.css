@@ -397,6 +397,231 @@
   gap: 24px;
 }
 
+.project-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.page-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.page-title {
+  margin: 0;
+  font-family: "Iowan Old Style", "Georgia", serif;
+  color: #1f140d;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1;
+}
+
+.breadcrumb-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  color: #7b6352;
+}
+
+.breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+}
+
+.breadcrumb-link,
+.breadcrumb-current {
+  color: inherit;
+  text-decoration: none;
+}
+
+.breadcrumb-current {
+  color: #8da0b2;
+}
+
+.page-header-action.MuiButton-root {
+  min-height: 48px;
+  padding-inline: 18px;
+  border-radius: 14px;
+  background: #1e2936;
+  box-shadow: none;
+}
+
+.page-header-action.MuiButton-root:hover {
+  background: #16202b;
+  box-shadow: none;
+}
+
+.project-table-shell,
+.project-editor-shell {
+  border: 1px solid rgba(58, 44, 30, 0.12);
+  background: rgba(255, 250, 242, 0.92);
+  box-shadow: 0 18px 45px rgba(73, 52, 34, 0.1);
+}
+
+.project-table-shell {
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 0;
+}
+
+.project-table-toolbar {
+  display: grid;
+  grid-template-columns: 200px 200px minmax(220px, 1fr);
+  gap: 16px;
+  padding: 18px;
+  border-bottom: 1px solid rgba(58, 44, 30, 0.08);
+}
+
+.project-toolbar-select .MuiOutlinedInput-root,
+.project-toolbar-search .MuiOutlinedInput-root,
+.project-editor-form .MuiOutlinedInput-root {
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.project-toolbar-search .MuiOutlinedInput-root {
+  min-height: 52px;
+}
+
+.project-table-head,
+.project-table-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.8fr) minmax(160px, 0.9fr) minmax(220px, 1fr) minmax(120px, 0.7fr) 104px;
+  gap: 16px;
+  align-items: center;
+}
+
+.project-table-head {
+  padding: 16px 18px;
+  background: #f1f5f9;
+  color: #51657a;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.project-table-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.project-table-row {
+  padding: 18px;
+  border-top: 1px solid rgba(58, 44, 30, 0.08);
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.project-primary-cell {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.project-avatar-badge {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #2f7f76 0%, #255751 100%);
+  color: #fffaf2;
+  font-weight: 700;
+  font-size: 1rem;
+  box-shadow: 0 12px 24px rgba(37, 87, 81, 0.18);
+  flex-shrink: 0;
+}
+
+.project-row-title,
+.project-created-cell p,
+.project-segment-cell p {
+  margin: 0;
+  color: #24170f;
+  font-weight: 600;
+}
+
+.project-row-subtitle,
+.project-created-cell span,
+.project-progress-cell span,
+.project-segment-cell span {
+  display: block;
+  margin-top: 4px;
+  color: #728397;
+  font-size: 0.92rem;
+}
+
+.project-progress-cell,
+.project-created-cell,
+.project-segment-cell {
+  min-width: 0;
+}
+
+.project-action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.project-empty-state {
+  margin: 18px;
+}
+
+.project-editor-shell {
+  border-radius: 28px;
+  overflow: hidden;
+}
+
+.project-editor-section-head {
+  padding: 26px 28px;
+  border-bottom: 1px solid rgba(58, 44, 30, 0.08);
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.project-editor-title {
+  margin: 0;
+  font-family: "Iowan Old Style", "Georgia", serif;
+  color: #22170f;
+  font-size: 1.9rem;
+}
+
+.project-editor-copy {
+  margin: 8px 0 0;
+  color: #6e5a4c;
+}
+
+.project-editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 28px;
+}
+
+.project-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.project-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 0 28px 28px;
+}
+
+.project-editor-actions .secondary-button.MuiButton-root,
+.project-editor-actions .submit-button.MuiButton-root {
+  width: auto;
+  min-width: 180px;
+  margin: 0;
+}
+
 .placeholder-page {
   padding: 36px;
   border-radius: 28px;
@@ -762,8 +987,36 @@
 
   .field-grid,
   .result-metrics,
-  .hero-stat-row {
+  .hero-stat-row,
+  .project-editor-grid,
+  .project-table-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .project-table-head {
+    display: none;
+  }
+
+  .project-table-row {
+    grid-template-columns: 1fr;
+  }
+
+  .project-action-cell {
+    justify-content: flex-start;
+  }
+
+  .project-editor-actions {
+    flex-direction: column-reverse;
+  }
+
+  .project-editor-actions .secondary-button.MuiButton-root,
+  .project-editor-actions .submit-button.MuiButton-root {
+    width: 100%;
   }
 }
 
