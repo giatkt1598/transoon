@@ -37,6 +37,7 @@ export function useProjectTranslations({
   const [isSavingSegments, setIsSavingSegments] = useState(false)
   const [isExportingDocument, setIsExportingDocument] = useState(false)
   const [segmentSaveRevision, setSegmentSaveRevision] = useState(0)
+  const [activeSegmentExternalId, setActiveSegmentExternalId] = useState<string | null>(null)
   const [isAutoTranslateDialogOpen, setIsAutoTranslateDialogOpen] = useState(false)
   const [isStartingAutoTranslate, setIsStartingAutoTranslate] = useState(false)
   const [selectedProviderName, setSelectedProviderName] = useState('')
@@ -196,6 +197,10 @@ export function useProjectTranslations({
     )
   }
 
+  function handleActiveSegmentChange(segmentExternalId: string | null) {
+    setActiveSegmentExternalId(segmentExternalId)
+  }
+
   async function handleGenerateSegments() {
     if (!projectId || isReadOnly) {
       return
@@ -351,6 +356,7 @@ export function useProjectTranslations({
     isSavingSegments,
     isExportingDocument,
     segmentSaveRevision,
+    activeSegmentExternalId,
     isAutoTranslateDialogOpen,
     isStartingAutoTranslate,
     selectedProviderName,
@@ -359,6 +365,7 @@ export function useProjectTranslations({
     hasPendingSegmentChanges,
     setSelectedProviderName,
     handleTargetChange,
+    handleActiveSegmentChange,
     handleSaveSegments,
     handleExportDocument,
     handleGenerateSegments,

@@ -438,6 +438,12 @@
   padding: 16px;
 }
 
+.alignment-tool-shell,
+.document-preview-shell {
+  display: flex;
+  flex-direction: column;
+}
+
 .alignment-toolbar-shell {
   display: flex;
   align-items: flex-start;
@@ -581,7 +587,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 12px;
-  min-height: 260px;
+  min-height: min(68vh, 780px);
   padding: 18px;
   border-radius: 18px;
   background: linear-gradient(180deg, #fffdf8 0%, #f6ecde 100%);
@@ -596,6 +602,56 @@
 .document-preview-placeholder p,
 .document-preview-placeholder span {
   color: #5d4838;
+}
+
+.document-preview-docx {
+  height: min(68vh, 780px);
+  min-height: 360px;
+  overflow: auto;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(58, 44, 30, 0.08);
+  background: #fffdf8;
+}
+
+.docx-preview-html-root {
+  color: #2a1c13;
+  line-height: 1.6;
+}
+
+.docx-preview-html-root p,
+.docx-preview-html-root li {
+  margin: 0 0 0.8rem;
+}
+
+.docx-preview-html-root table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1rem;
+}
+
+.docx-preview-html-root td,
+.docx-preview-html-root th {
+  padding: 10px;
+  border: 1px solid rgba(58, 44, 30, 0.14);
+  vertical-align: top;
+}
+
+.docx-preview-html-block {
+  scroll-margin-block: 24px;
+  border-radius: 12px;
+  transition: box-shadow 180ms ease, background 180ms ease, outline 180ms ease;
+}
+
+.docx-preview-html-block.active {
+  background: rgba(255, 244, 207, 0.6);
+  outline: 2px solid rgba(217, 127, 55, 0.7);
+  outline-offset: 4px;
+}
+
+.docx-preview-html-table.active {
+  border-color: rgba(13, 103, 200, 0.4);
+  box-shadow: 0 0 0 3px rgba(13, 103, 200, 0.08);
 }
 
 .generate-segments-shell {

@@ -2,12 +2,13 @@ import { Alert, Box, Tab, Tabs, Typography } from '@mui/material'
 import { AutoTranslateDialog } from '../project-translations/components/auto-translate-dialog'
 import { useParams } from 'react-router-dom'
 import { AlignmentTool } from '../project-translations/components/alignment-tool'
-import { DocumentPreviewPlaceholder } from '../project-translations/components/document-preview-placeholder'
+import { DocumentPreviewPanel } from '../project-translations/components/document-preview-panel'
 import { GenerateSegmentsCard } from '../project-translations/components/generate-segments-card'
 import { ProjectPageHeader } from '../project-management/components/project-page-header'
 import { ProjectDetailInformationSection } from '../project-management/components/project-detail-information-section'
 import { ProjectDetailTranslationMemoriesSection } from '../project-management/components/project-detail-translation-memories-section'
 import { useProjectDetail } from '../project-management/hooks/use-project-detail'
+import { useProjectDocumentPreview } from '../project-translations/hooks/use-project-document-preview'
 import { useProjectTranslations } from '../project-translations/hooks/use-project-translations'
 import { getLanguageLabel } from '../app/utils'
 
@@ -50,6 +51,7 @@ export function ProjectDetailPage() {
     isSavingSegments,
     isExportingDocument,
     segmentSaveRevision,
+    activeSegmentExternalId,
     isAutoTranslateDialogOpen,
     isStartingAutoTranslate,
     selectedProviderName,
@@ -57,6 +59,7 @@ export function ProjectDetailPage() {
     hasPendingSegmentChanges,
     setSelectedProviderName,
     handleTargetChange,
+    handleActiveSegmentChange,
     handleSaveSegments,
     handleExportDocument,
     handleGenerateSegments,
@@ -69,6 +72,15 @@ export function ProjectDetailPage() {
     translateProviders,
     isActive: activeTab === 1,
     onProjectDetailChange: setProjectDetail,
+  })
+  const {
+    preview,
+    isLoadingPreview,
+    previewError,
+  } = useProjectDocumentPreview({
+    projectId,
+    documentFileName: projectDetail?.documentFileName,
+    isActive: activeTab === 1,
   })
 
   return (
@@ -149,11 +161,18 @@ export function ProjectDetailPage() {
                 hasPendingChanges={hasPendingSegmentChanges}
                 restoreScrollKey={segmentSaveRevision}
                 onTargetChange={handleTargetChange}
+                onActiveSegmentChange={handleActiveSegmentChange}
                 onSaveAll={() => void handleSaveSegments()}
                 onExport={() => void handleExportDocument()}
                 onOpenAutoTranslate={handleOpenAutoTranslateDialog}
               />
-              <DocumentPreviewPlaceholder />
+              <DocumentPreviewPanel
+                preview={preview}
+                segments={segments}
+                activeSegmentExternalId={activeSegmentExternalId}
+                isLoading={isLoadingPreview}
+                error={previewError}
+              />
             </>
           ) : (
             <GenerateSegmentsCard

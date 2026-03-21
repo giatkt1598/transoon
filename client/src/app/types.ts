@@ -108,6 +108,26 @@ export type ProjectSegmentsResponse = {
   segments: ProjectSegment[]
 }
 
+export type DocxPreviewBlock = {
+  blockId: string
+  segmentIds: string[]
+  kind: 'paragraph' | 'table'
+}
+
+export type ProjectDocumentPreview =
+  | {
+      documentType: 'docx'
+      fileName: string
+      html: string
+      blocks: DocxPreviewBlock[]
+    }
+  | {
+      documentType: string | null
+      fileName: string
+      supported: false
+      message: string
+    }
+
 export type TranslationMemorySummary = {
   id: string
   name: string

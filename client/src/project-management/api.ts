@@ -2,6 +2,7 @@ import { apiBaseUrl } from '../app/config'
 import type {
   LanguagesResponse,
   ProjectDetail,
+  ProjectDocumentPreview,
   ProjectSegment,
   ProjectSegmentsResponse,
   ProjectSummary,
@@ -103,6 +104,19 @@ export async function fetchProjectSegments(projectId: string, signal?: AbortSign
   }
 
   return (data as ProjectSegmentsResponse).segments
+}
+
+export async function fetchProjectDocumentPreview(projectId: string, signal?: AbortSignal) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/document-preview`, { signal })
+  const data = await readJsonResponse<ProjectDocumentPreview | { error?: string }>(response)
+
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data ? data.error ?? 'Could not load project document preview.' : 'Could not load project document preview.',
+    )
+  }
+
+  return data as ProjectDocumentPreview
 }
 
 export async function generateProjectSegments(projectId: string) {

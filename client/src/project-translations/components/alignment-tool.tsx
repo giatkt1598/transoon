@@ -16,6 +16,7 @@ type AlignmentToolProps = {
   hasPendingChanges: boolean
   restoreScrollKey?: number
   onTargetChange: (segmentId: string, targetText: string) => void
+  onActiveSegmentChange: (segmentExternalId: string | null) => void
   onSaveAll: () => void
   onExport: () => void
   onOpenAutoTranslate: () => void
@@ -33,6 +34,7 @@ export function AlignmentTool({
   hasPendingChanges,
   restoreScrollKey = 0,
   onTargetChange,
+  onActiveSegmentChange,
   onSaveAll,
   onExport,
   onOpenAutoTranslate,
@@ -48,6 +50,7 @@ export function AlignmentTool({
     segments,
     isReadOnly,
     onTargetChange,
+    onActiveSegmentChange,
   }
 
   useLayoutEffect(() => {
@@ -120,9 +123,17 @@ type RowData = {
   segments: ProjectSegment[]
   isReadOnly: boolean
   onTargetChange: (segmentId: string, targetText: string) => void
+  onActiveSegmentChange: (segmentExternalId: string | null) => void
 }
 
-function AlignmentVirtualRow({ index, style, segments, isReadOnly, onTargetChange }: RowComponentProps<RowData>) {
+function AlignmentVirtualRow({
+  index,
+  style,
+  segments,
+  isReadOnly,
+  onTargetChange,
+  onActiveSegmentChange,
+}: RowComponentProps<RowData>) {
   const segment = segments[index]
   return (
     <div style={style}>
@@ -139,6 +150,7 @@ function AlignmentVirtualRow({ index, style, segments, isReadOnly, onTargetChang
           fullWidth
           value={segment.targetText}
           onChange={(event) => onTargetChange(segment.id, event.target.value)}
+          onFocus={() => onActiveSegmentChange(segment.externalSegmentId)}
           placeholder="Type target translation..."
           disabled={isReadOnly}
           className="alignment-target-field"

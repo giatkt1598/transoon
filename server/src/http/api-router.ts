@@ -14,6 +14,7 @@ import {
   listProjectSegments,
   listProjects,
   exportProjectDocument,
+  getProjectDocumentPreview,
   saveProjectSegments,
   startProjectAutoTranslate,
   updateProject,
@@ -115,6 +116,25 @@ export function createApiRouter() {
       res.json({
         segments: listProjectSegments(projectId),
       });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.get("/api/projects/:projectId/document-preview", async (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      const preview = await getProjectDocumentPreview(projectId);
+      res.json(preview);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unexpected server error.";
