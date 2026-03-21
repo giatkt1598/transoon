@@ -17,6 +17,12 @@ export type MatchQuality =
 
 export type TranslationMemoryAccessMode = "read" | "write";
 
+export type AppSettingEntity = {
+  key: string;
+  value: string;
+  updatedAt: string;
+};
+
 export type ProjectEntity = {
   id: string;
   name: string;

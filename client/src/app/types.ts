@@ -19,6 +19,10 @@ export type TranslateProvidersResponse = {
   translateProviders: TranslateProviderOption[]
 }
 
+export type AppSettings = {
+  inlineTranslateProvider: string
+}
+
 export type TranslationResponse = {
   requestId: string
   sourceLanguage: string

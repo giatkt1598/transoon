@@ -215,6 +215,17 @@
   padding: 22px 24px;
 }
 
+.settings-shell {
+  max-width: 920px;
+}
+
+.settings-provider-copy {
+  margin: 0;
+  color: #6e5a4c;
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
 .project-upload-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

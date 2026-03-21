@@ -34,6 +34,10 @@ const TranslationMemoryEditorPage = lazy(() =>
   })),
 )
 
+const SettingsPage = lazy(() =>
+  import('../pages/settings-page').then((module) => ({ default: module.SettingsPage })),
+)
+
 export const appRouter = createBrowserRouter([
   {
     path: '/',
@@ -82,54 +86,8 @@ export const appRouter = createBrowserRouter([
         element: <TranslationMemoryEditorPage />,
       },
       {
-        path: 'analytics',
-        element: (
-          <PlaceholderPage
-            eyebrow="Analytics"
-            title="Translation analytics can plug in here."
-            description="You can add provider performance, throughput, segment counts, and failure trends on this page later."
-          />
-        ),
-      },
-      {
-        path: 'templates',
-        element: (
-          <PlaceholderPage
-            eyebrow="Templates"
-            title="Prompt and workflow templates belong here."
-            description="This route is ready for reusable translation presets, glossary packs, and document handling profiles."
-          />
-        ),
-      },
-      {
-        path: 'imports',
-        element: (
-          <PlaceholderPage
-            eyebrow="Imports"
-            title="Bulk import tools can grow here."
-            description="Use this page later for batched uploads, queueing, and source system connectors."
-          />
-        ),
-      },
-      {
-        path: 'providers',
-        element: (
-          <PlaceholderPage
-            eyebrow="Providers"
-            title="Provider management is ready for expansion."
-            description="This route can host model availability, prompt previews, and environment-level provider configuration."
-          />
-        ),
-      },
-      {
         path: 'settings',
-        element: (
-          <PlaceholderPage
-            eyebrow="Settings"
-            title="Workspace settings will go here."
-            description="Add storage, export defaults, and UI preferences here when you're ready."
-          />
-        ),
+        element: <SettingsPage />,
       },
     ],
   },

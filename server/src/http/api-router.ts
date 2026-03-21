@@ -30,6 +30,10 @@ import {
   updateProjectTranslationMemory,
   updateTranslationMemory,
 } from "../translation-memory/translation-memory-service";
+import {
+  getAppSettings,
+  updateAppSettings,
+} from "../translation-memory/settings-service";
 import { TranslateProvider } from "../translation-service";
 import { translateDocument } from "../translation/document-translation-service";
 import { getTranslationProgress, setTranslationProgress } from "../translation-progress";
@@ -55,6 +59,32 @@ export function createApiRouter() {
       defaultTranslateProvider: appConfig.defaultTranslateProvider,
       translateProviders: TranslateProvider.list(),
     });
+  });
+
+  router.get("/api/settings", (_req, res) => {
+    try {
+      res.json(getAppSettings());
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.put("/api/settings", (req, res) => {
+    try {
+      const validationError = validateSettingsInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      res.json(updateAppSettings(req.body));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
   });
 
   router.get("/api/projects", (_req, res) => {
@@ -754,6 +784,24 @@ function validateProjectTranslationMemoryInput(body: unknown) {
   const numericPriority = Number(priority);
   if (!Number.isInteger(numericPriority) || numericPriority < 0) {
     return "Priority must be a non-negative integer.";
+  }
+
+  return null;
+}
+
+function validateSettingsInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A settings payload is required.";
+  }
+
+  const { inlineTranslateProvider } = body as Record<string, unknown>;
+
+  if (
+    inlineTranslateProvider !== undefined &&
+    (typeof inlineTranslateProvider !== "string" ||
+      inlineTranslateProvider.trim().length === 0)
+  ) {
+    return "Inline translate provider must be a non-empty string.";
   }
 
   return null;

@@ -77,6 +77,8 @@ export function NavigationSidebar({
           ))}
         </Box>
 
+        <Box sx={{flex: 1}}/>
+
         {collapsed ? null : (
           <Box className="sidebar-card">
             <Typography className="sidebar-card-title">Translation flow</Typography>
