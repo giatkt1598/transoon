@@ -666,14 +666,23 @@
 }
 
 .docx-preview-html-block.active {
-  background: rgba(255, 244, 207, 0.6);
-  outline: 2px solid rgba(217, 127, 55, 0.7);
-  outline-offset: 4px;
+  background: rgba(255, 248, 228, 0.9);
+  outline: 1px solid rgba(217, 127, 55, 0.28);
+  outline-offset: 2px;
 }
 
-.docx-preview-html-table.active {
-  border-color: rgba(13, 103, 200, 0.4);
-  box-shadow: 0 0 0 3px rgba(13, 103, 200, 0.08);
+.docx-preview-segment {
+  border-radius: 4px;
+  transition: background 180ms ease, box-shadow 180ms ease;
+}
+
+.docx-preview-segment.active {
+  background: rgba(255, 220, 163, 0.88);
+  box-shadow: 0 0 0 1px rgba(217, 127, 55, 0.4);
+}
+
+.docx-preview-html-table-cell.active {
+  box-shadow: 0 0 0 2px rgba(217, 127, 55, 0.12);
 }
 
 .generate-segments-shell {

@@ -14,45 +14,7 @@ export function DocxDocumentPreview({
   activeSegmentExternalId,
 }: DocxDocumentPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const renderedHtml = useMemo(() => {
-    const parser = new DOMParser()
-    const document = parser.parseFromString(
-      `<div class="docx-preview-html-root">${preview.html}</div>`,
-      'text/html',
-    )
-    const root = document.body.firstElementChild as HTMLElement | null
-
-    if (!root) {
-      return preview.html
-    }
-
-    const candidateElements = collectBlockElements(root)
-    preview.blocks.forEach((block, index) => {
-      const element = candidateElements[index]
-      if (!element) {
-        return
-      }
-
-      element.setAttribute('data-preview-block-id', block.blockId)
-      element.classList.add('docx-preview-html-block')
-      if (block.kind === 'table') {
-        element.classList.add('docx-preview-html-table')
-      }
-    })
-
-    return root.innerHTML
-  }, [preview.blocks, preview.html])
-
-  const activeBlockId = useMemo(() => {
-    if (!activeSegmentExternalId) {
-      return null
-    }
-
-    return (
-      preview.blocks.find((block) => block.segmentIds.includes(activeSegmentExternalId))
-        ?.blockId ?? null
-    )
-  }, [activeSegmentExternalId, preview.blocks])
+  const renderedHtml = useMemo(() => preview.html, [preview.html])
 
   const renderedTextMap = useMemo(() => {
     return new Map(
@@ -69,18 +31,22 @@ export function DocxDocumentPreview({
       return
     }
 
-    container.querySelectorAll<HTMLElement>('[data-preview-block-id]').forEach((element) => {
-      element.classList.remove('active')
+    const candidateElements = collectBlockElements(container)
+    preview.blocks.forEach((block, index) => {
+      const element = candidateElements[index]
+      if (!element) {
+        return
+      }
+
+      element.setAttribute('data-preview-block-id', block.blockId)
+      element.classList.add('docx-preview-html-block')
+      if (block.kind === 'table-cell') {
+        element.classList.add('docx-preview-html-table-cell')
+      }
+
+      renderPreviewBlock(element, block, renderedTextMap)
     })
-
-    if (!activeBlockId) {
-      return
-    }
-
-    const activeElement = container.querySelector<HTMLElement>(`[data-preview-block-id="${activeBlockId}"]`)
-    activeElement?.classList.add('active')
-    activeElement?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-  }, [activeBlockId, renderedHtml])
+  }, [preview.blocks, renderedHtml, renderedTextMap])
 
   useEffect(() => {
     const container = containerRef.current
@@ -88,28 +54,32 @@ export function DocxDocumentPreview({
       return
     }
 
-    preview.blocks.forEach((block) => {
-      const element = container.querySelector<HTMLElement>(`[data-preview-block-id="${block.blockId}"]`)
-      if (!element || block.segmentIds.length === 0) {
-        return
-      }
+    container
+      .querySelectorAll<HTMLElement>('[data-preview-segment-id]')
+      .forEach((element) => element.classList.remove('active'))
 
-      const replacementSegments = block.segmentIds
-        .map((segmentId) => renderedTextMap.get(segmentId))
-        .filter((text): text is string => typeof text === 'string')
-      const replacementText = buildReplacementText(block, replacementSegments)
+    container
+      .querySelectorAll<HTMLElement>('[data-preview-block-id]')
+      .forEach((element) => element.classList.remove('active'))
 
-      if (!replacementText) {
-        return
-      }
+    if (!activeSegmentExternalId) {
+      return
+    }
 
-      if (element.tagName === 'TABLE') {
-        return
-      }
+    const activeSegmentElement =
+      Array.from(container.querySelectorAll<HTMLElement>('[data-preview-segment-id]')).find(
+        (element) => element.dataset.previewSegmentId === activeSegmentExternalId,
+      ) ?? null
+    if (!activeSegmentElement) {
+      return
+    }
 
-      element.textContent = replacementText
-    })
-  }, [preview.blocks, renderedTextMap, renderedHtml])
+    activeSegmentElement.classList.add('active')
+    activeSegmentElement
+      .closest<HTMLElement>('[data-preview-block-id]')
+      ?.classList.add('active')
+    activeSegmentElement.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [activeSegmentExternalId, renderedHtml, preview.blocks, renderedTextMap])
 
   return (
     <Box className="document-preview-docx">
@@ -131,7 +101,7 @@ function collectBlockElements(root: HTMLElement) {
     }
 
     const tagName = child.tagName
-    if (['P', 'TABLE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(tagName)) {
+    if (['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(tagName)) {
       blockElements.push(child)
       return
     }
@@ -142,35 +112,65 @@ function collectBlockElements(root: HTMLElement) {
           (item): item is HTMLElement => item instanceof HTMLElement && item.tagName === 'LI',
         ),
       )
+      return
+    }
+
+    if (tagName === 'TABLE') {
+      blockElements.push(...collectTableBlockElements(child))
     }
   })
-
-  if (blockElements.length === 0) {
-    blockElements.push(
-      ...Array.from(
-        root.querySelectorAll(':scope > p, :scope > table, :scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6'),
-      ).filter((item): item is HTMLElement => item instanceof HTMLElement),
-    )
-  }
 
   return blockElements
 }
 
-function buildReplacementText(
-  block: Extract<ProjectDocumentPreview, { documentType: 'docx' }>['blocks'][number],
-  replacementSegments: string[],
-) {
-  if (replacementSegments.length === 0) {
-    return ''
+function collectTableBlockElements(table: HTMLElement) {
+  const cellParagraphs = Array.from(table.querySelectorAll('td > p, th > p')).filter(
+    (item): item is HTMLElement => item instanceof HTMLElement,
+  )
+
+  if (cellParagraphs.length > 0) {
+    return cellParagraphs
   }
 
-  let nextText = block.prefixText ?? ''
+  return Array.from(table.querySelectorAll('td, th')).filter(
+    (item): item is HTMLElement => item instanceof HTMLElement,
+  )
+}
 
-  replacementSegments.forEach((segmentText, index) => {
-    nextText += segmentText
-    nextText += block.separatorTexts?.[index] ?? ''
+function renderPreviewBlock(
+  element: HTMLElement,
+  block: Extract<ProjectDocumentPreview, { documentType: 'docx' }>['blocks'][number],
+  renderedTextMap: Map<string, string>,
+) {
+  if (block.segmentIds.length === 0) {
+    return
+  }
+
+  while (element.firstChild) {
+    element.removeChild(element.firstChild)
+  }
+
+  if (block.prefixText) {
+    element.appendChild(element.ownerDocument.createTextNode(block.prefixText))
+  }
+
+  block.segmentIds.forEach((segmentId, index) => {
+    const segmentText = renderedTextMap.get(segmentId)
+    if (segmentText !== undefined) {
+      const span = element.ownerDocument.createElement('span')
+      span.className = 'docx-preview-segment'
+      span.setAttribute('data-preview-segment-id', segmentId)
+      span.textContent = segmentText
+      element.appendChild(span)
+    }
+
+    const separatorText = block.separatorTexts?.[index]
+    if (separatorText) {
+      element.appendChild(element.ownerDocument.createTextNode(separatorText))
+    }
   })
 
-  nextText += block.suffixText ?? ''
-  return nextText
+  if (block.suffixText) {
+    element.appendChild(element.ownerDocument.createTextNode(block.suffixText))
+  }
 }

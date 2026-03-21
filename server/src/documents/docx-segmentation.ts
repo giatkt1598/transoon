@@ -10,7 +10,7 @@ import {
 export type DocxPreviewBlock = {
   blockId: string;
   segmentIds: string[];
-  kind: "paragraph" | "table";
+  kind: "paragraph" | "table-cell";
   prefixText?: string;
   separatorTexts?: string[];
   suffixText?: string;
@@ -85,14 +85,14 @@ export function buildDocxEntryPlan(entryName: string, xml: string): DocxEntryPla
         paragraphCounter += 1;
       }
 
-      if (entryName === DOCX_BODY_PATH) {
+      if (entryName === DOCX_BODY_PATH && paragraphBlock) {
         previewBlocks.push({
           blockId: `docx-block-${previewBlockCounter}`,
-          segmentIds: paragraphBlock?.segmentIds ?? [],
+          segmentIds: paragraphBlock.segmentIds,
           kind: "paragraph",
-          prefixText: paragraphBlock?.segmentedText.prefixText,
-          separatorTexts: paragraphBlock?.segmentedText.separatorTexts,
-          suffixText: paragraphBlock?.segmentedText.suffixText,
+          prefixText: paragraphBlock.segmentedText.prefixText,
+          separatorTexts: paragraphBlock.segmentedText.separatorTexts,
+          suffixText: paragraphBlock.segmentedText.suffixText,
         });
         previewBlockCounter += 1;
       }
@@ -119,12 +119,17 @@ export function buildDocxEntryPlan(entryName: string, xml: string): DocxEntryPla
       paragraphCounter += tableBlocks.length;
 
       if (entryName === DOCX_BODY_PATH) {
-        previewBlocks.push({
-          blockId: `docx-block-${previewBlockCounter}`,
-          segmentIds: tableBlocks.flatMap((block) => block.segmentIds),
-          kind: "table",
+        tableBlocks.forEach((block) => {
+          previewBlocks.push({
+            blockId: `docx-block-${previewBlockCounter}`,
+            segmentIds: block.segmentIds,
+            kind: "table-cell",
+            prefixText: block.segmentedText.prefixText,
+            separatorTexts: block.segmentedText.separatorTexts,
+            suffixText: block.segmentedText.suffixText,
+          });
+          previewBlockCounter += 1;
         });
-        previewBlockCounter += 1;
       }
     }
   }

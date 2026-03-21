@@ -111,7 +111,7 @@ export type ProjectSegmentsResponse = {
 export type DocxPreviewBlock = {
   blockId: string
   segmentIds: string[]
-  kind: 'paragraph' | 'table'
+  kind: 'paragraph' | 'table-cell'
   prefixText?: string
   separatorTexts?: string[]
   suffixText?: string
