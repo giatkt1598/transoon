@@ -644,6 +644,168 @@
   margin: 0;
 }
 
+.detail-tabs-shell {
+  border-bottom: 1px solid rgba(58, 44, 30, 0.08);
+}
+
+.detail-tabs .MuiTab-root {
+  min-height: 52px;
+  text-transform: none;
+  font-weight: 700;
+}
+
+.detail-home-grid {
+  display: grid;
+  gap: 24px;
+}
+
+.detail-section-card {
+  border: 1px solid rgba(58, 44, 30, 0.12);
+  border-radius: 28px;
+  padding: 28px;
+  background: rgba(255, 250, 242, 0.92);
+  box-shadow: 0 18px 45px rgba(73, 52, 34, 0.1);
+}
+
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.detail-info-item,
+.detail-description-block,
+.detail-progress-block {
+  border-radius: 20px;
+  background: #fffaf2;
+  padding: 18px;
+}
+
+.detail-info-item span,
+.detail-description-block span,
+.detail-progress-copy span,
+.detail-memory-meta span {
+  color: #856247;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.detail-info-item strong,
+.detail-progress-copy strong {
+  display: block;
+  margin-top: 8px;
+  color: #24170f;
+  font-size: 1rem;
+}
+
+.detail-description-block p,
+.detail-progress-copy p {
+  margin: 8px 0 0;
+  color: #5f4938;
+}
+
+.detail-progress-copy {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.detail-memory-priority-grid {
+  margin-top: 18px;
+}
+
+.detail-memory-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.detail-memory-actions .secondary-button.MuiButton-root,
+.detail-memory-actions .submit-button.MuiButton-root {
+  width: auto;
+  margin: 0;
+}
+
+.detail-memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.detail-memory-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 16px;
+  align-items: center;
+  border-radius: 20px;
+  background: #fffaf2;
+  padding: 18px;
+}
+
+.detail-memory-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.detail-memory-empty,
+.detail-translations-placeholder {
+  border-radius: 24px;
+}
+
+.detail-memory-table-shell {
+  margin-top: 22px;
+}
+
+.detail-memory-table-head,
+.detail-memory-table-row {
+  grid-template-columns: 56px minmax(260px, 1.6fr) minmax(180px, 0.9fr) minmax(100px, 0.6fr) 88px;
+}
+
+.detail-drag-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #728397;
+  cursor: grab;
+}
+
+.detail-memory-table-row.dragging {
+  opacity: 0.65;
+}
+
+.detail-access-select .MuiOutlinedInput-root {
+  border-radius: 14px;
+  background: #fff;
+}
+
+.detail-memory-save-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.detail-memory-save-row .submit-button.MuiButton-root {
+  width: auto;
+  min-width: 180px;
+}
+
+.detail-memory-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.detail-memory-dialog-toggle {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .placeholder-page {
   padding: 36px;
   border-radius: 28px;
@@ -1012,6 +1174,7 @@
   .hero-stat-row,
   .project-upload-field,
   .project-editor-grid,
+  .detail-info-grid,
   .project-table-toolbar {
     grid-template-columns: 1fr;
   }
@@ -1037,8 +1200,34 @@
     flex-direction: column-reverse;
   }
 
+  .detail-progress-copy,
+  .detail-memory-row,
+  .detail-memory-actions {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .project-editor-actions .secondary-button.MuiButton-root,
-  .project-editor-actions .submit-button.MuiButton-root {
+  .project-editor-actions .submit-button.MuiButton-root,
+  .detail-memory-actions .secondary-button.MuiButton-root,
+  .detail-memory-actions .submit-button.MuiButton-root {
+    width: 100%;
+  }
+
+  .detail-memory-row .project-action-cell {
+    justify-content: flex-start;
+  }
+
+  .detail-memory-table-head {
+    display: none;
+  }
+
+  .detail-memory-table-row {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-memory-save-row .submit-button.MuiButton-root {
     width: 100%;
   }
 }

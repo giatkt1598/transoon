@@ -31,6 +31,11 @@ export type AttachTranslationMemoryToProjectInput = {
   priority: number;
 };
 
+export type ProjectTranslationMemorySummary = ProjectTranslationMemoryEntity &
+  TranslationMemorySummary & {
+    linkedAt: string;
+  };
+
 export function listTranslationMemories() {
   const database = getTranslationMemoryDatabase();
   const sql = `
@@ -148,7 +153,116 @@ export function attachTranslationMemoryToProject(
   };
 
   repositories.projectTranslationMemories.insert(entity);
-  return entity;
+  return getProjectTranslationMemory(
+    input.projectId,
+    input.translationMemoryId,
+  );
+}
+
+export function updateProjectTranslationMemory(
+  input: AttachTranslationMemoryToProjectInput,
+) {
+  getTranslationMemoryDatabase()
+    .prepare(
+      `
+        UPDATE "projectTranslationMemories"
+        SET "accessMode" = ?, "priority" = ?
+        WHERE "projectId" = ? AND "translationMemoryId" = ?
+      `,
+    )
+    .run(
+      input.accessMode,
+      input.priority,
+      input.projectId,
+      input.translationMemoryId,
+    );
+
+  return getProjectTranslationMemory(input.projectId, input.translationMemoryId);
+}
+
+export function deleteProjectTranslationMemory(
+  projectId: string,
+  translationMemoryId: string,
+) {
+  getTranslationMemoryDatabase()
+    .prepare(
+      `
+        DELETE FROM "projectTranslationMemories"
+        WHERE "projectId" = ? AND "translationMemoryId" = ?
+      `,
+    )
+    .run(projectId, translationMemoryId);
+}
+
+export function listProjectTranslationMemories(projectId: string) {
+  const database = getTranslationMemoryDatabase();
+  const sql = `
+    SELECT
+      ptm.projectId,
+      ptm.translationMemoryId,
+      ptm.accessMode,
+      ptm.priority,
+      ptm.createdAt AS linkedAt,
+      tm.name,
+      tm.sourceLanguage,
+      tm.targetLanguage,
+      tm.lastModifiedAt,
+      tm.lastUsedAt,
+      tm.createdAt,
+      COUNT(t.id) AS termCount
+    FROM projectTranslationMemories ptm
+    INNER JOIN translationMemories tm ON tm.id = ptm.translationMemoryId
+    LEFT JOIN terms t ON t.translationMemoryId = tm.id
+    WHERE ptm.projectId = ?
+    GROUP BY
+      ptm.projectId,
+      ptm.translationMemoryId,
+      ptm.accessMode,
+      ptm.priority,
+      ptm.createdAt,
+      tm.name,
+      tm.sourceLanguage,
+      tm.targetLanguage,
+      tm.lastModifiedAt,
+      tm.lastUsedAt,
+      tm.createdAt
+    ORDER BY ptm.priority ASC, tm.lastModifiedAt DESC
+  `;
+
+  const rows = database.prepare(sql).all(projectId) as Array<
+    ProjectTranslationMemoryEntity &
+      TranslationMemoryEntity & {
+        termCount: number;
+        linkedAt: string;
+      }
+  >;
+
+  return rows.map((row) => ({
+    id: row.translationMemoryId,
+    projectId: row.projectId,
+    translationMemoryId: row.translationMemoryId,
+    accessMode: row.accessMode,
+    priority: Number(row.priority),
+    linkedAt: row.linkedAt,
+    name: row.name,
+    sourceLanguage: row.sourceLanguage,
+    targetLanguage: row.targetLanguage,
+    lastModifiedAt: row.lastModifiedAt,
+    lastUsedAt: row.lastUsedAt,
+    createdAt: row.createdAt,
+    termCount: Number(row.termCount ?? 0),
+  }));
+}
+
+export function getProjectTranslationMemory(
+  projectId: string,
+  translationMemoryId: string,
+) {
+  return (
+    listProjectTranslationMemories(projectId).find(
+      (item) => item.translationMemoryId === translationMemoryId,
+    ) ?? null
+  );
 }
 
 function touchTranslationMemory(translationMemoryId: string, timestamp: string) {

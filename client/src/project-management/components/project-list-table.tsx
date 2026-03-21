@@ -1,5 +1,6 @@
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import { Box, IconButton, InputAdornment, LinearProgress, MenuItem, Paper, TextField, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
@@ -129,6 +130,14 @@ export function ProjectListTable({
                 </Box>
 
                 <Box className="project-action-cell">
+                  <IconButton
+                    component={RouterLink}
+                    to={`/projects/${project.id}`}
+                    size="small"
+                    aria-label={`Open ${project.name}`}
+                  >
+                    <OpenInNewRoundedIcon fontSize="small" />
+                  </IconButton>
                   <IconButton
                     component={RouterLink}
                     to={`/projects/${project.id}/edit`}

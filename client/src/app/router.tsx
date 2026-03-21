@@ -18,6 +18,10 @@ const ProjectEditorPage = lazy(() =>
   import('../pages/project-editor-page').then((module) => ({ default: module.ProjectEditorPage })),
 )
 
+const ProjectDetailPage = lazy(() =>
+  import('../pages/project-detail-page').then((module) => ({ default: module.ProjectDetailPage })),
+)
+
 const TranslationMemoriesListPage = lazy(() =>
   import('../pages/translation-memories-list-page').then((module) => ({
     default: module.TranslationMemoriesListPage,
@@ -56,6 +60,10 @@ export const appRouter = createBrowserRouter([
       {
         path: 'projects/new',
         element: <ProjectEditorPage />,
+      },
+      {
+        path: 'projects/:projectId',
+        element: <ProjectDetailPage />,
       },
       {
         path: 'projects/:projectId/edit',

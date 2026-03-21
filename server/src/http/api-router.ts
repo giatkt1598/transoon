@@ -7,15 +7,20 @@ import { extractDocument } from "../document-service";
 import {
   createProject,
   deleteProject,
+  getProjectDetailById,
   getProjectById,
   listProjects,
   updateProject,
 } from "../translation-memory/project-service";
 import {
+  attachTranslationMemoryToProject,
   createTranslationMemory,
+  deleteProjectTranslationMemory,
   deleteTranslationMemory,
   getTranslationMemoryById,
+  getProjectTranslationMemory,
   listTranslationMemories,
+  updateProjectTranslationMemory,
   updateTranslationMemory,
 } from "../translation-memory/translation-memory-service";
 import { TranslateProvider } from "../translation-service";
@@ -60,6 +65,23 @@ export function createApiRouter() {
   router.get("/api/projects/:projectId", (req, res) => {
     try {
       const project = getProjectById(String(req.params.projectId));
+
+      if (!project) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      res.json(project);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.get("/api/projects/:projectId/detail", (req, res) => {
+    try {
+      const project = getProjectDetailById(String(req.params.projectId));
 
       if (!project) {
         res.status(404).json({ error: "Project not found." });
@@ -141,6 +163,126 @@ export function createApiRouter() {
       res.status(500).json({ error: message });
     }
   });
+
+  router.post("/api/projects/:projectId/translation-memories", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      const validationError = validateProjectTranslationMemoryInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const translationMemory = getTranslationMemoryById(
+        String(req.body.translationMemoryId),
+      );
+      if (!translationMemory) {
+        res.status(404).json({ error: "Translation memory not found." });
+        return;
+      }
+
+      const created = attachTranslationMemoryToProject({
+        projectId,
+        translationMemoryId: String(req.body.translationMemoryId),
+        accessMode: req.body.accessMode,
+        priority: Number(req.body.priority),
+      });
+      res.status(201).json(created);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.put(
+    "/api/projects/:projectId/translation-memories/:translationMemoryId",
+    (req, res) => {
+      try {
+        const projectId = String(req.params.projectId);
+        const translationMemoryId = String(req.params.translationMemoryId);
+
+        const existingProject = getProjectById(projectId);
+        if (!existingProject) {
+          res.status(404).json({ error: "Project not found." });
+          return;
+        }
+
+        const existingLink = getProjectTranslationMemory(
+          projectId,
+          translationMemoryId,
+        );
+        if (!existingLink) {
+          res
+            .status(404)
+            .json({ error: "Project translation memory configuration not found." });
+          return;
+        }
+
+        const validationError = validateProjectTranslationMemoryInput({
+          ...req.body,
+          translationMemoryId,
+        });
+        if (validationError) {
+          res.status(400).json({ error: validationError });
+          return;
+        }
+
+        const updated = updateProjectTranslationMemory({
+          projectId,
+          translationMemoryId,
+          accessMode: req.body.accessMode,
+          priority: Number(req.body.priority),
+        });
+        res.json(updated);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unexpected server error.";
+        res.status(500).json({ error: message });
+      }
+    },
+  );
+
+  router.delete(
+    "/api/projects/:projectId/translation-memories/:translationMemoryId",
+    (req, res) => {
+      try {
+        const projectId = String(req.params.projectId);
+        const translationMemoryId = String(req.params.translationMemoryId);
+
+        const existingProject = getProjectById(projectId);
+        if (!existingProject) {
+          res.status(404).json({ error: "Project not found." });
+          return;
+        }
+
+        const existingLink = getProjectTranslationMemory(
+          projectId,
+          translationMemoryId,
+        );
+        if (!existingLink) {
+          res
+            .status(404)
+            .json({ error: "Project translation memory configuration not found." });
+          return;
+        }
+
+        deleteProjectTranslationMemory(projectId, translationMemoryId);
+        res.status(204).send();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unexpected server error.";
+        res.status(500).json({ error: message });
+      }
+    },
+  );
 
   router.get("/api/translation-memories", (_req, res) => {
     try {
@@ -407,6 +549,42 @@ function validateTranslationMemoryInput(body: unknown) {
     targetLanguage.trim().length === 0
   ) {
     return "Target language is required.";
+  }
+
+  return null;
+}
+
+function validateProjectTranslationMemoryInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A project translation memory payload is required.";
+  }
+
+  const { translationMemoryId, accessMode, priority } = body as Record<
+    string,
+    unknown
+  >;
+
+  if (
+    typeof translationMemoryId !== "string" ||
+    translationMemoryId.trim().length === 0
+  ) {
+    return "Translation memory is required.";
+  }
+
+  if (accessMode !== "read" && accessMode !== "write") {
+    return "Access mode must be read or write.";
+  }
+
+  if (
+    typeof priority !== "number" &&
+    !(typeof priority === "string" && priority.trim().length > 0)
+  ) {
+    return "Priority is required.";
+  }
+
+  const numericPriority = Number(priority);
+  if (!Number.isInteger(numericPriority) || numericPriority < 0) {
+    return "Priority must be a non-negative integer.";
   }
 
   return null;

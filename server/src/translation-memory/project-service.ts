@@ -4,6 +4,7 @@ import path from "path";
 import { appConfig } from "../config/app-config";
 import { getTranslationMemoryDatabase } from "./database";
 import type { DocumentEntity, ProjectEntity } from "./entities";
+import { listProjectTranslationMemories } from "./translation-memory-service";
 import { createTranslationMemoryRepositories } from "./repositories/repository-service";
 
 export type ProjectSummary = ProjectEntity & {
@@ -12,6 +13,10 @@ export type ProjectSummary = ProjectEntity & {
   translatedSegmentCount: number;
   progressPercent: number;
   documentFileName: string | null;
+};
+
+export type ProjectDetail = ProjectSummary & {
+  translationMemories: ReturnType<typeof listProjectTranslationMemories>;
 };
 
 export type UpsertProjectInput = {
@@ -63,6 +68,18 @@ export function listProjects() {
 
 export function getProjectById(projectId: string) {
   return listProjects().find((project) => project.id === projectId) ?? null;
+}
+
+export function getProjectDetailById(projectId: string) {
+  const project = getProjectById(projectId);
+  if (!project) {
+    return null;
+  }
+
+  return {
+    ...project,
+    translationMemories: listProjectTranslationMemories(projectId),
+  } satisfies ProjectDetail;
 }
 
 export function createProject(input: UpsertProjectInput, options: CreateProjectOptions = {}) {

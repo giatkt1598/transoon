@@ -71,6 +71,18 @@ export type ProjectsResponse = {
   projects: ProjectSummary[]
 }
 
+export type ProjectTranslationMemoryConfig = TranslationMemorySummary & {
+  projectId: string
+  translationMemoryId: string
+  accessMode: 'read' | 'write'
+  priority: number
+  linkedAt: string
+}
+
+export type ProjectDetail = ProjectSummary & {
+  translationMemories: ProjectTranslationMemoryConfig[]
+}
+
 export type TranslationMemorySummary = {
   id: string
   name: string
