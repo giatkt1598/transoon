@@ -36,7 +36,7 @@ createRoot(document.getElementById("root")!).render(
     <TranslationAppProvider>
       <App />
       <ToastContainer
-        position="top-right"
+        position="top-center"
         autoClose={2500}
         hideProgressBar={false}
         newestOnTop
