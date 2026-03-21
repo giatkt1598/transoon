@@ -8,8 +8,6 @@ type DocxDocumentPreviewProps = {
   activeSegmentExternalId: string | null
 }
 
-const blockTagNames = new Set(['P', 'TABLE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'])
-
 export function DocxDocumentPreview({
   preview,
   segments,
@@ -126,23 +124,33 @@ export function DocxDocumentPreview({
 
 function collectBlockElements(root: HTMLElement) {
   const blockElements: HTMLElement[] = []
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT)
 
-  let currentNode = walker.nextNode()
-  while (currentNode) {
-    const element = currentNode as HTMLElement
-    const tagName = element.tagName
-    const isInsideTable = Boolean(element.closest('table')) && tagName !== 'TABLE'
-
-    if (blockTagNames.has(tagName) && !isInsideTable) {
-      blockElements.push(element)
-      if (tagName === 'TABLE') {
-        currentNode = walker.nextSibling()
-        continue
-      }
+  Array.from(root.children).forEach((child) => {
+    if (!(child instanceof HTMLElement)) {
+      return
     }
 
-    currentNode = walker.nextNode()
+    const tagName = child.tagName
+    if (['P', 'TABLE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(tagName)) {
+      blockElements.push(child)
+      return
+    }
+
+    if (tagName === 'UL' || tagName === 'OL') {
+      blockElements.push(
+        ...Array.from(child.children).filter(
+          (item): item is HTMLElement => item instanceof HTMLElement && item.tagName === 'LI',
+        ),
+      )
+    }
+  })
+
+  if (blockElements.length === 0) {
+    blockElements.push(
+      ...Array.from(
+        root.querySelectorAll(':scope > p, :scope > table, :scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6'),
+      ).filter((item): item is HTMLElement => item instanceof HTMLElement),
+    )
   }
 
   return blockElements
