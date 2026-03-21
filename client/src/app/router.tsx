@@ -18,6 +18,18 @@ const ProjectEditorPage = lazy(() =>
   import('../pages/project-editor-page').then((module) => ({ default: module.ProjectEditorPage })),
 )
 
+const TranslationMemoriesListPage = lazy(() =>
+  import('../pages/translation-memories-list-page').then((module) => ({
+    default: module.TranslationMemoriesListPage,
+  })),
+)
+
+const TranslationMemoryEditorPage = lazy(() =>
+  import('../pages/translation-memory-editor-page').then((module) => ({
+    default: module.TranslationMemoryEditorPage,
+  })),
+)
+
 export const appRouter = createBrowserRouter([
   {
     path: '/',
@@ -48,6 +60,18 @@ export const appRouter = createBrowserRouter([
       {
         path: 'projects/:projectId/edit',
         element: <ProjectEditorPage />,
+      },
+      {
+        path: 'translation-memories',
+        element: <TranslationMemoriesListPage />,
+      },
+      {
+        path: 'translation-memories/new',
+        element: <TranslationMemoryEditorPage />,
+      },
+      {
+        path: 'translation-memories/:translationMemoryId/edit',
+        element: <TranslationMemoryEditorPage />,
       },
       {
         path: 'analytics',

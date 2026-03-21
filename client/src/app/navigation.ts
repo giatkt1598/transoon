@@ -5,6 +5,7 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
+import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined'
 import TranslateRoundedIcon from '@mui/icons-material/TranslateRounded'
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined'
 
@@ -22,6 +23,7 @@ export const primaryNavItems: NavigationItem[] = [
 ]
 
 export const managementNavItems: NavigationItem[] = [
+  { icon: StorageOutlinedIcon, label: 'Translation Memories', to: '/translation-memories' },
   { icon: DescriptionOutlinedIcon, label: 'Templates', to: '/templates' },
   { icon: UploadFileOutlinedIcon, label: 'Imports', to: '/imports' },
   { icon: AutoAwesomeOutlinedIcon, label: 'Providers', to: '/providers' },

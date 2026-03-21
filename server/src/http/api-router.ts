@@ -11,6 +11,13 @@ import {
   listProjects,
   updateProject,
 } from "../translation-memory/project-service";
+import {
+  createTranslationMemory,
+  deleteTranslationMemory,
+  getTranslationMemoryById,
+  listTranslationMemories,
+  updateTranslationMemory,
+} from "../translation-memory/translation-memory-service";
 import { TranslateProvider } from "../translation-service";
 import { translateDocument } from "../translation/document-translation-service";
 import { getTranslationProgress, setTranslationProgress } from "../translation-progress";
@@ -127,6 +134,105 @@ export function createApiRouter() {
       }
 
       deleteProject(projectId);
+      res.status(204).send();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.get("/api/translation-memories", (_req, res) => {
+    try {
+      res.json({
+        translationMemories: listTranslationMemories(),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.get("/api/translation-memories/:translationMemoryId", (req, res) => {
+    try {
+      const translationMemory = getTranslationMemoryById(
+        String(req.params.translationMemoryId),
+      );
+
+      if (!translationMemory) {
+        res.status(404).json({ error: "Translation memory not found." });
+        return;
+      }
+
+      res.json(translationMemory);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.post("/api/translation-memories", (req, res) => {
+    try {
+      const validationError = validateTranslationMemoryInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const translationMemory = createTranslationMemory(req.body);
+      res.status(201).json(translationMemory);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.put("/api/translation-memories/:translationMemoryId", (req, res) => {
+    try {
+      const translationMemoryId = String(req.params.translationMemoryId);
+      const existingTranslationMemory = getTranslationMemoryById(
+        translationMemoryId,
+      );
+
+      if (!existingTranslationMemory) {
+        res.status(404).json({ error: "Translation memory not found." });
+        return;
+      }
+
+      const validationError = validateTranslationMemoryInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const translationMemory = updateTranslationMemory(
+        translationMemoryId,
+        req.body,
+      );
+      res.json(translationMemory);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.delete("/api/translation-memories/:translationMemoryId", (req, res) => {
+    try {
+      const translationMemoryId = String(req.params.translationMemoryId);
+      const existingTranslationMemory = getTranslationMemoryById(
+        translationMemoryId,
+      );
+
+      if (!existingTranslationMemory) {
+        res.status(404).json({ error: "Translation memory not found." });
+        return;
+      }
+
+      deleteTranslationMemory(translationMemoryId);
       res.status(204).send();
     } catch (error) {
       const message =
@@ -273,6 +379,34 @@ function validateProjectInput(body: unknown) {
 
   if (description !== undefined && typeof description !== "string") {
     return "Description must be a string.";
+  }
+
+  return null;
+}
+
+function validateTranslationMemoryInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A translation memory payload is required.";
+  }
+
+  const { name, sourceLanguage, targetLanguage } = body as Record<string, unknown>;
+
+  if (typeof name !== "string" || name.trim().length === 0) {
+    return "Translation memory name is required.";
+  }
+
+  if (
+    typeof sourceLanguage !== "string" ||
+    sourceLanguage.trim().length === 0
+  ) {
+    return "Source language is required.";
+  }
+
+  if (
+    typeof targetLanguage !== "string" ||
+    targetLanguage.trim().length === 0
+  ) {
+    return "Target language is required.";
   }
 
   return null;

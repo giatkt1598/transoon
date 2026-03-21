@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import type { LanguagesResponse, ProjectSummary } from '../../app/types'
 import { defaultProjectFormValues, fetchLanguages, fetchProject, getFallbackLanguages, saveProject } from '../api'
 import type { ProjectFormValues } from '../types'
@@ -79,9 +80,7 @@ export function useProjectEditor({ projectId }: UseProjectEditorOptions) {
 
     try {
       const savedProject = await saveProject(projectId ?? null, formValues, documentFile)
-      navigate(`/projects/${savedProject.id}/edit`, {
-        replace: !projectId,
-      })
+      toast.success(projectId ? 'Project updated successfully.' : 'Project created successfully.')
       setProject(savedProject)
       setFormValues({
         name: savedProject.name,
@@ -90,6 +89,7 @@ export function useProjectEditor({ projectId }: UseProjectEditorOptions) {
         targetLang: savedProject.targetLang,
       })
       setDocumentFile(null)
+      navigate(-1)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not save project.')
     } finally {

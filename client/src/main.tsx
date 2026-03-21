@@ -1,7 +1,9 @@
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material'
 import { createRoot } from 'react-dom/client'
+import { ToastContainer } from 'react-toastify'
 import { TranslationAppProvider } from './app/translation-app-context'
 import './index.css'
+import 'react-toastify/dist/ReactToastify.css'
 import App from './App.tsx'
 
 const theme = createTheme({
@@ -33,6 +35,17 @@ createRoot(document.getElementById("root")!).render(
     <CssBaseline />
     <TranslationAppProvider>
       <App />
+      <ToastContainer
+        position="top-right"
+        autoClose={2500}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnFocusLoss={false}
+        draggable
+        pauseOnHover
+        theme="light"
+      />
     </TranslationAppProvider>
   </ThemeProvider>,
 )

@@ -70,3 +70,18 @@ export type ProjectSummary = {
 export type ProjectsResponse = {
   projects: ProjectSummary[]
 }
+
+export type TranslationMemorySummary = {
+  id: string
+  name: string
+  sourceLanguage: string
+  targetLanguage: string
+  lastModifiedAt: string
+  lastUsedAt: string | null
+  createdAt: string
+  termCount: number
+}
+
+export type TranslationMemoriesResponse = {
+  translationMemories: TranslationMemorySummary[]
+}

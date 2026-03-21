@@ -14,6 +14,8 @@ export type MatchQuality =
   | "exact"
   | "human_approved";
 
+export type TranslationMemoryAccessMode = "read" | "write";
+
 export type ProjectEntity = {
   id: string;
   name: string;
@@ -52,6 +54,36 @@ export type SegmentEntity = {
   reviewedByHuman: 0 | 1;
   createdAt: string;
   updatedAt: string;
+};
+
+export type TranslationMemoryEntity = {
+  id: string;
+  name: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  lastModifiedAt: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+};
+
+export type TermEntity = {
+  id: string;
+  translationMemoryId: string;
+  sourceTerm: string;
+  sourceTermNormalized: string;
+  targetTerm: string;
+  targetTermNormalized: string;
+  lastModifiedAt: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+};
+
+export type ProjectTranslationMemoryEntity = {
+  projectId: string;
+  translationMemoryId: string;
+  accessMode: TranslationMemoryAccessMode;
+  priority: number;
+  createdAt: string;
 };
 
 export type SegmentTokenEntity = {

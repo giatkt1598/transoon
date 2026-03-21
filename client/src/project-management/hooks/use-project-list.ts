@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'react-toastify'
 import type { ProjectSummary } from '../../app/types'
 import { deleteProject, fetchProjects } from '../api'
 
@@ -47,14 +48,26 @@ export function useProjectList() {
   }, [projects, searchTerm])
 
   async function handleDeleteProject(projectId: string) {
+    const project = projects.find((item) => item.id === projectId)
+    const shouldDelete = window.confirm(
+      `Delete "${project?.name ?? 'this project'}"? This action cannot be undone.`,
+    )
+
+    if (!shouldDelete) {
+      return
+    }
+
     setIsDeleting(true)
     setError(null)
 
     try {
       await deleteProject(projectId)
       setProjects((currentProjects) => currentProjects.filter((project) => project.id !== projectId))
+      toast.success('Project deleted successfully.')
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Could not delete project.')
+      const message = deleteError instanceof Error ? deleteError.message : 'Could not delete project.'
+      setError(message)
+      toast.error(message)
     } finally {
       setIsDeleting(false)
     }
