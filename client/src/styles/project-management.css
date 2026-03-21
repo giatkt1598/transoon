@@ -105,6 +105,13 @@
   font-weight: 600;
 }
 
+.project-table-head span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .project-table-body {
   display: flex;
   flex-direction: column;
@@ -131,6 +138,10 @@
 .project-primary-cell {
   display: flex;
   align-items: center;
+  min-width: 0;
+}
+
+.project-primary-cell > div {
   min-width: 0;
 }
 
@@ -174,6 +185,18 @@
 .project-created-cell,
 .project-segment-cell {
   min-width: 0;
+  overflow: hidden;
+}
+
+.project-row-subtitle,
+.project-created-cell p,
+.project-created-cell span,
+.project-progress-cell span,
+.project-segment-cell p,
+.project-segment-cell span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-action-cell {
