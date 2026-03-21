@@ -1,14 +1,19 @@
 import { Box, Tab, Tabs, Typography } from '@mui/material'
 import { useParams } from 'react-router-dom'
+import { AlignmentTool } from '../project-translations/components/alignment-tool'
+import { DocumentPreviewPlaceholder } from '../project-translations/components/document-preview-placeholder'
+import { GenerateSegmentsCard } from '../project-translations/components/generate-segments-card'
 import { ProjectPageHeader } from '../project-management/components/project-page-header'
 import { ProjectDetailInformationSection } from '../project-management/components/project-detail-information-section'
 import { ProjectDetailTranslationMemoriesSection } from '../project-management/components/project-detail-translation-memories-section'
 import { useProjectDetail } from '../project-management/hooks/use-project-detail'
+import { useProjectTranslations } from '../project-translations/hooks/use-project-translations'
 
 export function ProjectDetailPage() {
   const { projectId } = useParams()
   const {
     projectDetail,
+    setProjectDetail,
     availableTranslationMemories,
     draftTranslationMemories,
     hasPendingTranslationMemoryChanges,
@@ -33,6 +38,20 @@ export function ProjectDetailPage() {
     handleDropOnRow,
     handleSaveTranslationMemories,
   } = useProjectDetail({ projectId })
+  const {
+    segments,
+    hasSegments,
+    isLoadingSegments,
+    isGeneratingSegments,
+    segmentsError,
+    handleTargetChange,
+    handleGenerateSegments,
+  } = useProjectTranslations({
+    projectId,
+    projectDetail,
+    isActive: activeTab === 1,
+    onProjectDetailChange: setProjectDetail,
+  })
 
   return (
     <Box className="project-page">
@@ -54,9 +73,9 @@ export function ProjectDetailPage() {
         </Tabs>
       </Box>
 
-      {error ? (
+      {error || segmentsError ? (
         <Typography component="p" className="status error">
-          {error}
+          {error ?? segmentsError}
         </Typography>
       ) : null}
 
@@ -91,8 +110,23 @@ export function ProjectDetailPage() {
           />
         </Box>
       ) : (
-        <Box className="empty-state detail-translations-placeholder">
-          <Typography component="p">Translations tab is ready for the next implementation step.</Typography>
+        <Box className="translations-tab-grid">
+          {projectDetail.segmentCount > 0 || hasSegments || isLoadingSegments ? (
+            <>
+              <AlignmentTool
+                segments={segments}
+                isLoading={isLoadingSegments}
+                onTargetChange={handleTargetChange}
+              />
+              <DocumentPreviewPlaceholder />
+            </>
+          ) : (
+            <GenerateSegmentsCard
+              canGenerate={Boolean(projectDetail.documentFileName)}
+              isGenerating={isGeneratingSegments}
+              onGenerate={() => void handleGenerateSegments()}
+            />
+          )}
         </Box>
       )}
     </Box>

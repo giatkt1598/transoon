@@ -411,6 +411,7 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
 
   return {
     projectDetail,
+    setProjectDetail,
     translationMemories,
     availableTranslationMemories,
     draftTranslationMemories,

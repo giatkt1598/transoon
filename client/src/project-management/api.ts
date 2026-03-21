@@ -2,6 +2,8 @@ import { apiBaseUrl } from '../app/config'
 import type {
   LanguagesResponse,
   ProjectDetail,
+  ProjectSegment,
+  ProjectSegmentsResponse,
   ProjectSummary,
   ProjectsResponse,
   ProjectTranslationMemoryConfig,
@@ -89,6 +91,34 @@ export async function fetchProjectDetail(projectId: string, signal?: AbortSignal
   }
 
   return data as ProjectDetail
+}
+
+export async function fetchProjectSegments(projectId: string, signal?: AbortSignal) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/segments`, { signal })
+  const data = await readJsonResponse<ProjectSegmentsResponse | { error?: string }>(response)
+
+  if (!response.ok || 'error' in data) {
+    throw new Error('error' in data ? data.error ?? 'Could not load project segments.' : 'Could not load project segments.')
+  }
+
+  return (data as ProjectSegmentsResponse).segments
+}
+
+export async function generateProjectSegments(projectId: string) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/generate-segments`, {
+    method: 'POST',
+  })
+  const data = await readJsonResponse<{ project: ProjectDetail | null; segments: ProjectSegment[] } | { error?: string }>(
+    response,
+  )
+
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data ? data.error ?? 'Could not generate project segments.' : 'Could not generate project segments.',
+    )
+  }
+
+  return data as { project: ProjectDetail | null; segments: ProjectSegment[] }
 }
 
 export async function fetchTranslationMemories(signal?: AbortSignal) {

@@ -1,0 +1,142 @@
+@media (max-width: 1180px) {
+  .sidebar {
+    display: none;
+  }
+
+  .dashboard-shell,
+  .dashboard-shell.sidebar-collapsed {
+    margin-left: 0;
+  }
+
+  .topbar,
+  .topbar.sidebar-collapsed {
+    left: 0;
+  }
+}
+
+@media (max-width: 920px) {
+  .dashboard-content {
+    padding: calc(var(--header-height) + 18px) 14px 24px;
+  }
+
+  .hero-panel,
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbar-actions {
+    width: 100%;
+  }
+
+  .search-shell {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .field-grid,
+  .result-metrics,
+  .hero-stat-row,
+  .project-upload-field,
+  .project-editor-grid,
+  .detail-info-grid,
+  .project-table-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .project-table-head {
+    display: none;
+  }
+
+  .project-table-row {
+    grid-template-columns: 1fr;
+  }
+
+  .project-action-cell {
+    justify-content: flex-start;
+  }
+
+  .project-editor-actions {
+    flex-direction: column-reverse;
+  }
+
+  .detail-progress-copy,
+  .detail-memory-row,
+  .detail-memory-actions {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .project-editor-actions .secondary-button.MuiButton-root,
+  .project-editor-actions .submit-button.MuiButton-root,
+  .detail-memory-actions .secondary-button.MuiButton-root,
+  .detail-memory-actions .submit-button.MuiButton-root {
+    width: 100%;
+  }
+
+  .detail-memory-row .project-action-cell {
+    justify-content: flex-start;
+  }
+
+  .detail-memory-table-head {
+    display: none;
+  }
+
+  .detail-memory-table-row {
+    grid-template-columns: 1fr;
+  }
+
+  .translations-tab-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .alignment-grid-head {
+    display: none;
+  }
+
+  .alignment-grid-row {
+    grid-template-columns: 1fr;
+  }
+
+  .alignment-index-cell,
+  .alignment-source-cell,
+  .alignment-target-field {
+    border-right: none;
+  }
+
+  .alignment-source-cell,
+  .alignment-target-field {
+    border-top: 1px solid rgba(58, 44, 30, 0.08);
+  }
+
+  .detail-memory-save-row .submit-button.MuiButton-root {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    padding-inline: 14px;
+  }
+
+  .hero-panel,
+  .panel {
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .hero-panel h1 {
+    max-width: none;
+    font-size: 2rem;
+  }
+}

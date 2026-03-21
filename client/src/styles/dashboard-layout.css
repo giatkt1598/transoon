@@ -1,0 +1,398 @@
+.app-shell {
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 92px;
+  --header-height: 88px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(244, 172, 102, 0.2), transparent 20%),
+    linear-gradient(180deg, #f8f3eb 0%, #efe5d6 100%);
+}
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 1200;
+  width: var(--sidebar-width);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 28px 18px 18px;
+  border-right: 1px solid rgba(58, 44, 30, 0.08);
+  background: rgba(255, 252, 247, 0.86);
+  backdrop-filter: blur(16px);
+  transition: width 220ms ease, padding 220ms ease;
+}
+
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed-width);
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.sidebar-toggle.MuiIconButton-root {
+  position: absolute;
+  top: 28px;
+  right: -16px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(58, 44, 30, 0.08);
+  background: rgba(255, 252, 247, 0.96);
+  box-shadow: 0 10px 24px rgba(73, 52, 34, 0.12);
+}
+
+.sidebar-toggle svg {
+  transition: transform 220ms ease;
+}
+
+.sidebar-toggle.collapsed svg {
+  transform: rotate(180deg);
+}
+
+.sidebar-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(140, 150, 161, 0.5) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(140, 150, 161, 0.45);
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 10px 12px;
+  min-height: 58px;
+}
+
+.brand-glyph {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2f7f76 0%, #255751 100%);
+  color: #fff7ef;
+  box-shadow: 0 12px 24px rgba(37, 87, 81, 0.24);
+}
+
+.brand-name {
+  font-weight: 700;
+  color: #24170f;
+}
+
+.brand-subtitle {
+  font-size: 0.85rem;
+  color: #7d634f;
+}
+
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nav-group-label {
+  padding: 6px 12px 0;
+}
+
+.nav-group-label p {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.76rem;
+  color: #9a7f69;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px;
+  border-radius: 16px;
+  color: #5c4635;
+  text-decoration: none;
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.nav-item.collapsed {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.nav-item svg {
+  color: #7f8d9a;
+  flex-shrink: 0;
+}
+
+.nav-item p {
+  margin: 0;
+  font-weight: 500;
+}
+
+.nav-item:hover {
+  background: rgba(217, 127, 55, 0.08);
+  transform: translateX(2px);
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(150, 201, 255, 0.42), rgba(199, 228, 255, 0.72));
+  color: #0e5298;
+}
+
+.nav-item.active svg {
+  color: #0d67c8;
+}
+
+.sidebar-card {
+  margin-top: auto;
+  padding: 18px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 204, 153, 0.28), transparent 30%),
+    linear-gradient(180deg, #fffaf2 0%, #f4e8d8 100%);
+  border: 1px solid rgba(58, 44, 30, 0.08);
+}
+
+.sidebar-card-title {
+  font-family: "Iowan Old Style", "Georgia", serif;
+  font-size: 1.15rem;
+  color: #261910;
+}
+
+.sidebar-card-copy {
+  margin-top: 8px;
+  color: #6f5846;
+  font-size: 0.95rem;
+}
+
+.sidebar-chip.MuiChip-root {
+  margin-top: 14px;
+  background: rgba(40, 90, 83, 0.12);
+  color: #255751;
+  font-weight: 700;
+}
+
+.dashboard-shell {
+  min-width: 0;
+  margin-left: var(--sidebar-width);
+  transition: margin-left 220ms ease;
+}
+
+.dashboard-shell.sidebar-collapsed {
+  margin-left: var(--sidebar-collapsed-width);
+}
+
+.dashboard-content {
+  padding: calc(var(--header-height) + 22px) 24px 32px;
+}
+
+.topbar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: var(--sidebar-width);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: var(--header-height);
+  padding: 18px 24px;
+  background: rgba(248, 243, 235, 0.7);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(58, 44, 30, 0.08);
+  transition: left 220ms ease;
+}
+
+.topbar.sidebar-collapsed {
+  left: var(--sidebar-collapsed-width);
+}
+
+.team-chip.MuiChip-root {
+  background: #ffffff;
+  border: 1px solid rgba(58, 44, 30, 0.08);
+  color: #453123;
+  font-weight: 700;
+}
+
+.topbar-title {
+  font-weight: 700;
+  color: #2b1d14;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-shell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 320px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(58, 44, 30, 0.08);
+}
+
+.search-shell svg {
+  color: #7e6653;
+}
+
+.search-shell input {
+  width: 100%;
+  color: #35261b;
+}
+
+.topbar-icon-button.MuiIconButton-root {
+  width: 42px;
+  height: 42px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(58, 44, 30, 0.08);
+  color: #5d4736;
+}
+
+.user-avatar.MuiAvatar-root {
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, #f3bc7b 0%, #d97f37 100%);
+  color: #fff7ef;
+  font-weight: 700;
+}
+
+.hero-panel,
+.panel {
+  border: 1px solid rgba(58, 44, 30, 0.14);
+  background: rgba(255, 250, 242, 0.88);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 45px rgba(73, 52, 34, 0.1);
+}
+
+.hero-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+  gap: 24px;
+  margin: 0 auto 24px;
+  padding: 28px 30px;
+  border-radius: 28px;
+}
+
+.hero-copy {
+  min-width: 0;
+}
+
+.eyebrow,
+.panel-kicker {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.78rem;
+  color: #8d5e34;
+}
+
+.hero-panel h1,
+.panel h2,
+.preview-block h3,
+.warning-block h3 {
+  font-family: "Iowan Old Style", "Georgia", serif;
+  color: #22170f;
+}
+
+.hero-panel h1 {
+  margin: 12px 0 16px;
+  max-width: 12ch;
+  font-size: clamp(2.2rem, 4vw, 4.2rem);
+  line-height: 0.96;
+}
+
+.lead {
+  margin: 0;
+  max-width: 60ch;
+  color: #594534;
+  font-size: 1.02rem;
+}
+
+.hero-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.hero-notes span,
+.badge {
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: #efe2cf;
+  color: #5a4028;
+  font-size: 0.92rem;
+}
+
+.hero-stat-card {
+  padding: 22px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.06), transparent 30%),
+    linear-gradient(135deg, #1d2233 0%, #20283d 100%);
+  color: #f3f5fb;
+  box-shadow: 0 18px 36px rgba(22, 27, 39, 0.22);
+}
+
+.hero-stat-label {
+  color: rgba(241, 245, 251, 0.72);
+  font-size: 0.9rem;
+}
+
+.hero-stat-value {
+  margin-top: 10px;
+  font-size: clamp(2rem, 3vw, 2.8rem);
+  font-weight: 700;
+}
+
+.hero-stat-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.hero-stat-kicker {
+  color: rgba(241, 245, 251, 0.62);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.hero-stat-copy {
+  margin-top: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 24px;
+}

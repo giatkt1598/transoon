@@ -83,6 +83,20 @@ export type ProjectDetail = ProjectSummary & {
   translationMemories: ProjectTranslationMemoryConfig[]
 }
 
+export type ProjectSegment = {
+  id: string
+  documentId: string
+  externalSegmentId: string
+  sourceText: string
+  targetText: string
+  position: number
+  translationStatus: 'pending' | 'translated' | 'reviewed' | 'rejected'
+}
+
+export type ProjectSegmentsResponse = {
+  segments: ProjectSegment[]
+}
+
 export type TranslationMemorySummary = {
   id: string
   name: string

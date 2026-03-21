@@ -7,8 +7,10 @@ import { extractDocument } from "../document-service";
 import {
   createProject,
   deleteProject,
+  generateProjectSegments,
   getProjectDetailById,
   getProjectById,
+  listProjectSegments,
   listProjects,
   updateProject,
 } from "../translation-memory/project-service";
@@ -96,6 +98,26 @@ export function createApiRouter() {
     }
   });
 
+  router.get("/api/projects/:projectId/segments", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      res.json({
+        segments: listProjectSegments(projectId),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
   router.post("/api/projects", upload.single("file"), (req, res) => {
     try {
       const validationError = validateProjectInput(req.body);
@@ -157,6 +179,25 @@ export function createApiRouter() {
 
       deleteProject(projectId);
       res.status(204).send();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.post("/api/projects/:projectId/generate-segments", async (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      const result = await generateProjectSegments(projectId);
+      res.json(result);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unexpected server error.";

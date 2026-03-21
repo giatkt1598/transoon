@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from "crypto";
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import { appConfig } from "../config/app-config";
+import { extractDocument } from "../document-service";
 import { getTranslationMemoryDatabase } from "./database";
-import type { DocumentEntity, ProjectEntity } from "./entities";
+import type { DocumentEntity, ProjectEntity, SegmentEntity } from "./entities";
 import { listProjectTranslationMemories } from "./translation-memory-service";
 import { createTranslationMemoryRepositories } from "./repositories/repository-service";
 
@@ -18,6 +19,17 @@ export type ProjectSummary = ProjectEntity & {
 export type ProjectDetail = ProjectSummary & {
   translationMemories: ReturnType<typeof listProjectTranslationMemories>;
 };
+
+export type ProjectSegment = Pick<
+  SegmentEntity,
+  | "id"
+  | "documentId"
+  | "externalSegmentId"
+  | "sourceText"
+  | "targetText"
+  | "position"
+  | "translationStatus"
+>;
 
 export type UpsertProjectInput = {
   name: string;
@@ -80,6 +92,105 @@ export function getProjectDetailById(projectId: string) {
     ...project,
     translationMemories: listProjectTranslationMemories(projectId),
   } satisfies ProjectDetail;
+}
+
+export function listProjectSegments(projectId: string) {
+  const database = getTranslationMemoryDatabase();
+  const sql = `
+    SELECT
+      s.id,
+      s.documentId,
+      s.externalSegmentId,
+      s.sourceText,
+      s.targetText,
+      s.position,
+      s.translationStatus
+    FROM segments s
+    INNER JOIN documents d ON d.id = s.documentId
+    WHERE d.projectId = ?
+    ORDER BY s.position ASC
+  `;
+
+  return database.prepare(sql).all(projectId) as ProjectSegment[];
+}
+
+export async function generateProjectSegments(projectId: string) {
+  const repositories = createTranslationMemoryRepositories();
+  const document = repositories.documents
+    .query()
+    .where("projectId", projectId)
+    .orderBy("createdAt", "asc")
+    .firstOrDefault();
+
+  if (!document) {
+    throw new Error("No document is attached to this project.");
+  }
+
+  if (!document.storagePath) {
+    throw new Error("The project document is missing its storage path.");
+  }
+
+  const absoluteStoragePath = path.resolve(process.cwd(), document.storagePath);
+  const fileBuffer = readFileSync(absoluteStoragePath);
+  const extractedDocument = await extractDocument(document.fileName, fileBuffer);
+  const database = getTranslationMemoryDatabase();
+  const now = new Date().toISOString();
+
+  database.exec("BEGIN");
+
+  try {
+    database.prepare(`DELETE FROM "segment_tokens" WHERE "segmentId" IN (
+      SELECT "id" FROM "segments" WHERE "documentId" = ?
+    )`).run(document.id);
+    database.prepare(`DELETE FROM "segments" WHERE "documentId" = ?`).run(document.id);
+
+    for (const [index, segment] of extractedDocument.segments.entries()) {
+      const sourceText = segment.text.trim();
+      if (!sourceText) {
+        continue;
+      }
+
+      const segmentId = randomUUID();
+      const sourceTextNormalized = normalizeText(sourceText);
+      repositories.segments.insert({
+        id: segmentId,
+        documentId: document.id,
+        externalSegmentId: segment.id,
+        sourceLanguage: getProjectById(projectId)?.sourceLang ?? appConfig.defaultSourceLanguage,
+        targetLanguage: getProjectById(projectId)?.targetLang ?? appConfig.defaultTargetLanguage,
+        sourceText,
+        sourceTextNormalized,
+        sourceTextHash: hashText(sourceText),
+        targetText: "",
+        targetTextNormalized: "",
+        targetTextHash: null,
+        tokensJson: JSON.stringify([{ type: "text", value: sourceText }]),
+        position: index + 1,
+        translationStatus: "pending",
+        providerName: null,
+        reviewedByHuman: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      repositories.segmentTokens.insert({
+        segmentId,
+        tokenIndex: 0,
+        tokenType: "text",
+        tokenValue: sourceText,
+      });
+    }
+
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  return {
+    project: getProjectDetailById(projectId),
+    segments: listProjectSegments(projectId),
+  };
 }
 
 export function createProject(input: UpsertProjectInput, options: CreateProjectOptions = {}) {
@@ -171,4 +282,12 @@ function storeProjectDocument(
     storagePath: relativeStoragePath.replace(/\\/g, "/"),
     createdAt: new Date().toISOString(),
   };
+}
+
+function normalizeText(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function hashText(value: string) {
+  return createHash("sha256").update(value).digest("hex");
 }
