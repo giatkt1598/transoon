@@ -602,6 +602,12 @@ body.pane-resizing {
   color: #8a705c;
   font-weight: 600;
   background: #fffaf2;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.alignment-index-cell.active {
+  background: rgba(255, 220, 163, 0.88);
+  color: #9a4f12;
 }
 
 .alignment-source-cell {

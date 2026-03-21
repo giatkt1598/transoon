@@ -14,6 +14,7 @@ type AlignmentToolProps = {
   isSaving: boolean
   isExporting: boolean
   hasPendingChanges: boolean
+  activeSegmentExternalId: string | null
   restoreScrollKey?: number
   onTargetChange: (segmentId: string, targetText: string) => void
   onActiveSegmentChange: (segmentExternalId: string | null) => void
@@ -32,6 +33,7 @@ export function AlignmentTool({
   isSaving,
   isExporting,
   hasPendingChanges,
+  activeSegmentExternalId,
   restoreScrollKey = 0,
   onTargetChange,
   onActiveSegmentChange,
@@ -49,6 +51,7 @@ export function AlignmentTool({
   const rowData: RowData = {
     segments,
     isReadOnly,
+    activeSegmentExternalId,
     onTargetChange,
     onActiveSegmentChange,
   }
@@ -122,6 +125,7 @@ export function AlignmentTool({
 type RowData = {
   segments: ProjectSegment[]
   isReadOnly: boolean
+  activeSegmentExternalId: string | null
   onTargetChange: (segmentId: string, targetText: string) => void
   onActiveSegmentChange: (segmentExternalId: string | null) => void
 }
@@ -131,14 +135,16 @@ function AlignmentVirtualRow({
   style,
   segments,
   isReadOnly,
+  activeSegmentExternalId,
   onTargetChange,
   onActiveSegmentChange,
 }: RowComponentProps<RowData>) {
   const segment = segments[index]
+  const isActive = activeSegmentExternalId === segment.externalSegmentId
   return (
     <div style={style}>
-      <Box className="alignment-grid-row">
-        <Box className="alignment-index-cell">{segment.position}.</Box>
+      <Box className={`alignment-grid-row${isActive ? ' active' : ''}`}>
+        <Box className={`alignment-index-cell${isActive ? ' active' : ''}`}>{segment.position}.</Box>
 
         <Box className="alignment-source-cell">
           <Typography component="p">{segment.sourceText}</Typography>
@@ -151,6 +157,7 @@ function AlignmentVirtualRow({
           value={segment.targetText}
           onChange={(event) => onTargetChange(segment.id, event.target.value)}
           onFocus={() => onActiveSegmentChange(segment.externalSegmentId)}
+          onBlur={() => onActiveSegmentChange(null)}
           placeholder="Type target translation..."
           disabled={isReadOnly}
           className="alignment-target-field"

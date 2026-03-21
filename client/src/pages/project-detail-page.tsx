@@ -161,6 +161,7 @@ export function ProjectDetailPage() {
                   isSaving={isSavingSegments}
                   isExporting={isExportingDocument}
                   hasPendingChanges={hasPendingSegmentChanges}
+                  activeSegmentExternalId={activeSegmentExternalId}
                   restoreScrollKey={segmentSaveRevision}
                   onTargetChange={handleTargetChange}
                   onActiveSegmentChange={handleActiveSegmentChange}
