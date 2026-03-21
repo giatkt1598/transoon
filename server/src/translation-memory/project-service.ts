@@ -4,6 +4,7 @@ import path from "path";
 import { appConfig } from "../config/app-config";
 import { extractDocument } from "../document-service";
 import { Log } from "../logger";
+import { setProjectAutoTranslateProgress } from "../project-auto-translate-progress";
 import { TranslateProvider } from "../translate-provider";
 import { getTranslationMemoryDatabase } from "./database";
 import type {
@@ -37,6 +38,11 @@ export type ProjectSegment = Pick<
   | "position"
   | "translationStatus"
 >;
+
+export type SaveProjectSegmentInput = {
+  id: string;
+  targetText: string;
+};
 
 export type UpsertProjectInput = {
   name: string;
@@ -206,6 +212,63 @@ export async function generateProjectSegments(projectId: string) {
   };
 }
 
+export function saveProjectSegments(
+  projectId: string,
+  inputSegments: SaveProjectSegmentInput[],
+) {
+  assertProjectIsEditable(projectId);
+
+  if (inputSegments.length === 0) {
+    return {
+      project: getProjectDetailById(projectId),
+      segments: listProjectSegments(projectId),
+    };
+  }
+
+  const existingSegments = listProjectSegments(projectId);
+  const existingSegmentMap = new Map(
+    existingSegments.map((segment) => [segment.id, segment] as const),
+  );
+  const database = getTranslationMemoryDatabase();
+  const repositories = createTranslationMemoryRepositories(database);
+  const now = new Date().toISOString();
+
+  database.exec("BEGIN");
+
+  try {
+    for (const inputSegment of inputSegments) {
+      const segment = existingSegmentMap.get(inputSegment.id);
+      if (!segment) {
+        throw new Error(`Segment ${inputSegment.id} was not found in this project.`);
+      }
+
+      const targetText = inputSegment.targetText ?? "";
+      const trimmedTargetText = targetText.trim();
+      repositories.segments.updateById(segment.id, {
+        targetText,
+        targetTextNormalized: trimmedTargetText
+          ? normalizeText(targetText)
+          : "",
+        targetTextHash: trimmedTargetText ? hashText(targetText) : null,
+        translationStatus: trimmedTargetText ? "reviewed" : "pending",
+        providerName: null,
+        reviewedByHuman: trimmedTargetText ? 1 : 0,
+        updatedAt: now,
+      });
+    }
+
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  return {
+    project: getProjectDetailById(projectId),
+    segments: listProjectSegments(projectId),
+  };
+}
+
 export function createProject(input: UpsertProjectInput, options: CreateProjectOptions = {}) {
   const repositories = createTranslationMemoryRepositories();
   const project: ProjectEntity = {
@@ -261,8 +324,19 @@ export async function startProjectAutoTranslate(
   if (segments.length === 0) {
     throw new Error("Generate segments before running auto translate.");
   }
+  const translatedSegmentCount = segments.filter(isSegmentAlreadyTranslated).length;
 
   setProjectStatus(projectId, "auto-translate-processing");
+  setProjectAutoTranslateProgress(projectId, {
+    phase: "queued",
+    completedSegments: translatedSegmentCount,
+    totalSegments: segments.length,
+    progressPercent:
+      segments.length === 0
+        ? 0
+        : Math.round((translatedSegmentCount / segments.length) * 100),
+    message: "Preparing background auto translate.",
+  });
 
   queueMicrotask(() => {
     void runProjectAutoTranslate(projectId, providerName);
@@ -301,6 +375,8 @@ function setProjectStatus(projectId: string, status: ProjectStatus) {
 
 async function runProjectAutoTranslate(projectId: string, providerName: string) {
   const logger = Log.forContext({ projectId, providerName, job: "project-auto-translate" });
+  let totalSegments = 0;
+  let translatedSegmentCount = 0;
 
   try {
     const project = getProjectById(projectId);
@@ -308,13 +384,39 @@ async function runProjectAutoTranslate(projectId: string, providerName: string) 
       throw new Error("Project not found.");
     }
 
-    const segments = listProjectSegments(projectId);
-    if (segments.length === 0) {
+    const allSegments = listProjectSegments(projectId);
+    totalSegments = allSegments.length;
+    if (allSegments.length === 0) {
       throw new Error("Project has no generated segments.");
+    }
+    translatedSegmentCount = allSegments.filter(isSegmentAlreadyTranslated).length;
+    const initialTranslatedSegmentCount = translatedSegmentCount;
+    const segments = allSegments.filter(
+      (segment) => !isSegmentAlreadyTranslated(segment),
+    );
+
+    if (segments.length === 0) {
+      await logger.information("Skipped background auto translate because all segments were already translated.", {
+        totalSegments,
+      });
+      setProjectStatus(projectId, "idle");
+      setProjectAutoTranslateProgress(projectId, {
+        phase: "completed",
+        completedSegments: translatedSegmentCount,
+        totalSegments,
+        progressPercent:
+          totalSegments === 0
+            ? 100
+            : Math.round((translatedSegmentCount / totalSegments) * 100),
+        message: "All segments are already translated.",
+      });
+      return;
     }
 
     await logger.information("Starting background auto translate for {projectId}", {
-      segmentCount: segments.length,
+      segmentCount: totalSegments,
+      pendingSegmentCount: segments.length,
+      translatedSegmentCount,
       sourceLanguage: project.sourceLang,
       targetLanguage: project.targetLang,
     });
@@ -323,6 +425,43 @@ async function runProjectAutoTranslate(projectId: string, providerName: string) 
       segments: segments.map((segment) => segment.sourceText),
       sourceLanguage: project.sourceLang,
       targetLanguage: project.targetLang,
+      onProgress: (progress) => {
+        const currentTranslatedSegmentCount = Math.min(
+          totalSegments,
+          Math.max(
+            translatedSegmentCount,
+            initialTranslatedSegmentCount + progress.completedChunks,
+          ),
+        );
+        setProjectAutoTranslateProgress(projectId, {
+          phase: "translating",
+          completedSegments: currentTranslatedSegmentCount,
+          totalSegments,
+          progressPercent:
+            totalSegments === 0
+              ? 100
+              : Math.round((currentTranslatedSegmentCount / totalSegments) * 100),
+          message: `Auto translated ${currentTranslatedSegmentCount} of ${totalSegments} segments.`,
+        });
+      },
+      onTranslatedSegments: async (batch) => {
+        translatedSegmentCount = persistAutoTranslatedSegments(
+          segments,
+          batch,
+          providerName,
+          translatedSegmentCount,
+        );
+        setProjectAutoTranslateProgress(projectId, {
+          phase: "translating",
+          completedSegments: translatedSegmentCount,
+          totalSegments,
+          progressPercent:
+            totalSegments === 0
+              ? 100
+              : Math.round((translatedSegmentCount / totalSegments) * 100),
+          message: `Auto translated ${translatedSegmentCount} of ${totalSegments} segments.`,
+        });
+      },
     });
 
     if (result.translatedSegments.length !== segments.length) {
@@ -331,39 +470,42 @@ async function runProjectAutoTranslate(projectId: string, providerName: string) 
       );
     }
 
-    const database = getTranslationMemoryDatabase();
-    const repositories = createTranslationMemoryRepositories(database);
-    const now = new Date().toISOString();
-
-    database.exec("BEGIN");
-
-    try {
-      for (const [index, segment] of segments.entries()) {
-        const targetText = result.translatedSegments[index] ?? "";
-        repositories.segments.updateById(segment.id, {
-          targetText,
-          targetTextNormalized: normalizeText(targetText),
-          targetTextHash: targetText ? hashText(targetText) : null,
-          translationStatus: targetText.trim() ? "translated" : "pending",
-          providerName,
-          updatedAt: now,
-        });
-      }
-
-      database.exec("COMMIT");
-    } catch (error) {
-      database.exec("ROLLBACK");
-      throw error;
-    }
-
     await logger.information("Completed background auto translate for {projectId}", {
       warnings: result.warnings,
-      translatedCount: result.translatedSegments.length,
+      translatedCount: translatedSegmentCount,
+    });
+    setProjectStatus(projectId, "idle");
+    setProjectAutoTranslateProgress(projectId, {
+      phase: "completed",
+      completedSegments: translatedSegmentCount,
+      totalSegments,
+      progressPercent:
+        totalSegments === 0
+          ? 100
+          : Math.round((translatedSegmentCount / totalSegments) * 100),
+      message:
+        translatedSegmentCount >= totalSegments
+          ? "Auto translate completed."
+          : `Auto translate completed with partial results. ${translatedSegmentCount} of ${totalSegments} segments are now translated.`,
     });
   } catch (error) {
     await logger.error("Background auto translate failed for {projectId}", error);
-  } finally {
     setProjectStatus(projectId, "idle");
+    setProjectAutoTranslateProgress(projectId, {
+      phase: "failed",
+      completedSegments: translatedSegmentCount,
+      totalSegments,
+      progressPercent:
+        totalSegments === 0
+          ? 0
+          : Math.round((translatedSegmentCount / totalSegments) * 100),
+      message:
+        error instanceof Error
+          ? error.message
+          : "Auto translate failed unexpectedly.",
+    });
+  } finally {
+    // Status is finalized in success/failure branches before completion events are emitted.
   }
 }
 
@@ -412,4 +554,70 @@ function normalizeText(value: string) {
 
 function hashText(value: string) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function isSegmentAlreadyTranslated(
+  segment: Pick<ProjectSegment, "targetText" | "translationStatus">,
+) {
+  return (
+    ["translated", "reviewed"].includes(segment.translationStatus) ||
+    segment.targetText.trim().length > 0
+  );
+}
+
+function persistAutoTranslatedSegments(
+  segments: ProjectSegment[],
+  translatedSegments: Array<{ index: number; text: string }>,
+  providerName: string,
+  currentTranslatedSegmentCount: number,
+) {
+  if (translatedSegments.length === 0) {
+    return currentTranslatedSegmentCount;
+  }
+
+  const segmentByIndex = new Map(
+    segments.map((segment, index) => [index, segment] as const),
+  );
+  const database = getTranslationMemoryDatabase();
+  const repositories = createTranslationMemoryRepositories(database);
+  const now = new Date().toISOString();
+  let nextTranslatedSegmentCount = currentTranslatedSegmentCount;
+
+  database.exec("BEGIN");
+
+  try {
+    for (const translatedSegment of translatedSegments) {
+      const segment = segmentByIndex.get(translatedSegment.index);
+      const targetText = translatedSegment.text ?? "";
+
+      if (!segment || !targetText.trim()) {
+        continue;
+      }
+
+      const wasAlreadyTranslated = isSegmentAlreadyTranslated(segment);
+
+      repositories.segments.updateById(segment.id, {
+        targetText,
+        targetTextNormalized: normalizeText(targetText),
+        targetTextHash: hashText(targetText),
+        translationStatus: "translated",
+        providerName,
+        updatedAt: now,
+      });
+
+      segment.targetText = targetText;
+      segment.translationStatus = "translated";
+
+      if (!wasAlreadyTranslated) {
+        nextTranslatedSegmentCount += 1;
+      }
+    }
+
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  return nextTranslatedSegmentCount;
 }

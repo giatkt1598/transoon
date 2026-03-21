@@ -13,6 +13,7 @@ import {
   getProjectById,
   listProjectSegments,
   listProjects,
+  saveProjectSegments,
   startProjectAutoTranslate,
   updateProject,
 } from "../translation-memory/project-service";
@@ -113,6 +114,32 @@ export function createApiRouter() {
       res.json({
         segments: listProjectSegments(projectId),
       });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.put("/api/projects/:projectId/segments", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      assertProjectIsEditable(projectId);
+      const validationError = validateProjectSegmentsInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const result = saveProjectSegments(projectId, req.body.segments);
+      res.json(result);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unexpected server error.";
@@ -595,6 +622,34 @@ function validateProjectInput(body: unknown) {
 
   if (description !== undefined && typeof description !== "string") {
     return "Description must be a string.";
+  }
+
+  return null;
+}
+
+function validateProjectSegmentsInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A project segments payload is required.";
+  }
+
+  const { segments } = body as Record<string, unknown>;
+  if (!Array.isArray(segments)) {
+    return "Segments must be an array.";
+  }
+
+  for (const segment of segments) {
+    if (!segment || typeof segment !== "object") {
+      return "Each segment must be an object.";
+    }
+
+    const { id, targetText } = segment as Record<string, unknown>;
+    if (typeof id !== "string" || id.trim().length === 0) {
+      return "Each segment must include a valid id.";
+    }
+
+    if (typeof targetText !== "string") {
+      return "Each segment must include targetText as a string.";
+    }
   }
 
   return null;

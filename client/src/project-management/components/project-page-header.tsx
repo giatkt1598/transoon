@@ -1,5 +1,6 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded'
+import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
 import { Box, Button, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 
@@ -13,6 +14,7 @@ type ProjectPageHeaderProps = {
   breadcrumbs: BreadcrumbItem[]
   actionLabel?: string
   actionTo?: string
+  onActionClick?: () => void
   actionDisabled?: boolean
 }
 
@@ -21,6 +23,7 @@ export function ProjectPageHeader({
   breadcrumbs,
   actionLabel,
   actionTo,
+  onActionClick,
   actionDisabled = false,
 }: ProjectPageHeaderProps) {
   return (
@@ -47,14 +50,15 @@ export function ProjectPageHeader({
         </Box>
       </Box>
 
-      {actionLabel && actionTo ? (
+      {actionLabel && (actionTo || onActionClick) ? (
         <Button
-          component={RouterLink}
+          component={actionTo ? RouterLink : 'button'}
           to={actionTo}
           variant="contained"
           className="page-header-action"
-          startIcon={<AddRoundedIcon />}
+          startIcon={onActionClick ? <SaveRoundedIcon /> : <AddRoundedIcon />}
           disabled={actionDisabled}
+          onClick={onActionClick}
         >
           {actionLabel}
         </Button>

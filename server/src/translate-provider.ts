@@ -22,6 +22,9 @@ export type TranslateRequest = {
   sourceLanguage: string;
   targetLanguage: string;
   onProgress?: (progress: TranslateProgress) => void | Promise<void>;
+  onTranslatedSegments?: (
+    translatedSegments: Array<{ index: number; text: string }>,
+  ) => void | Promise<void>;
 };
 
 export type TranslateProviderDefinition = {

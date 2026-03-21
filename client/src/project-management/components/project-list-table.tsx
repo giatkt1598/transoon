@@ -158,6 +158,7 @@ export function ProjectListTable({
                   />
                   <Typography component="span">
                     {project.translatedSegmentCount}/{project.segmentCount || 0} translated
+                    {project.status === 'auto-translate-processing' ? ' (auto translating...)' : ''}
                   </Typography>
                 </Box>
 

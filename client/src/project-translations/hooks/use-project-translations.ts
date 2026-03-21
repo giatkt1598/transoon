@@ -1,14 +1,26 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { toast } from 'react-toastify'
-import type { ProjectDetail, ProjectSegment, TranslateProviderOption } from '../../app/types'
-import { autoTranslateProject, fetchProjectSegments, generateProjectSegments } from '../../project-management/api'
+import type {
+  ProjectAutoTranslateProgressResponse,
+  ProjectDetail,
+  ProjectSegment,
+  TranslateProviderOption,
+} from '../../app/types'
+import { getAppSocket } from '../../app/socket'
+import {
+  autoTranslateProject,
+  fetchProjectDetail,
+  fetchProjectSegments,
+  generateProjectSegments,
+  saveProjectSegments,
+} from '../../project-management/api'
 
 type UseProjectTranslationsOptions = {
   projectId?: string
   projectDetail: ProjectDetail | null
   translateProviders: TranslateProviderOption[]
   isActive: boolean
-  onProjectDetailChange: (projectDetail: ProjectDetail) => void
+  onProjectDetailChange: Dispatch<SetStateAction<ProjectDetail | null>>
 }
 
 export function useProjectTranslations({
@@ -21,10 +33,13 @@ export function useProjectTranslations({
   const [segments, setSegments] = useState<ProjectSegment[]>([])
   const [isLoadingSegments, setIsLoadingSegments] = useState(false)
   const [isGeneratingSegments, setIsGeneratingSegments] = useState(false)
+  const [isSavingSegments, setIsSavingSegments] = useState(false)
   const [isAutoTranslateDialogOpen, setIsAutoTranslateDialogOpen] = useState(false)
   const [isStartingAutoTranslate, setIsStartingAutoTranslate] = useState(false)
   const [selectedProviderName, setSelectedProviderName] = useState('')
+  const [autoTranslateProgress, setAutoTranslateProgress] = useState<ProjectAutoTranslateProgressResponse | null>(null)
   const [segmentsError, setSegmentsError] = useState<string | null>(null)
+  const [savedSegmentTargets, setSavedSegmentTargets] = useState<Record<string, string>>({})
   const projectStatus = projectDetail?.status
   const projectSegmentCount = projectDetail?.segmentCount ?? 0
 
@@ -48,6 +63,7 @@ export function useProjectTranslations({
         setSegmentsError(null)
         const nextSegments = await fetchProjectSegments(resolvedProjectId, controller.signal)
         setSegments(nextSegments)
+        setSavedSegmentTargets(createSavedSegmentTargetMap(nextSegments))
       } catch (loadError) {
         if (controller.signal.aborted) {
           return
@@ -80,23 +96,76 @@ export function useProjectTranslations({
   }, [translateProviders])
 
   useEffect(() => {
-    if (!projectId || !projectDetail || projectStatus !== 'auto-translate-processing') {
+    if (!projectId || projectStatus !== 'auto-translate-processing') {
       return
     }
 
-    const interval = window.setInterval(() => {
-      void fetchProjectSegments(projectId)
-        .then((nextSegments) => setSegments(nextSegments))
-        .catch(() => {
-          // Preserve the latest visible segments while the background job is running.
-        })
-    }, 3000)
+    const socket = getAppSocket()
+    const resolvedProjectId = projectId
+    const handleProgress = async (progress: ProjectAutoTranslateProgressResponse) => {
+      if (progress.projectId !== resolvedProjectId) {
+        return
+      }
 
-    return () => window.clearInterval(interval)
-  }, [projectDetail, projectId, projectStatus])
+      setAutoTranslateProgress(progress)
+      onProjectDetailChange((currentProjectDetail) => {
+        if (!currentProjectDetail) {
+          return currentProjectDetail
+        }
+
+        const translatedSegmentCount =
+          progress.phase === 'failed'
+            ? currentProjectDetail.translatedSegmentCount
+            : Math.max(currentProjectDetail.translatedSegmentCount, progress.completedSegments)
+        const progressPercent =
+          progress.totalSegments > 0
+            ? Math.round((translatedSegmentCount / progress.totalSegments) * 100)
+            : currentProjectDetail.progressPercent
+
+        return {
+          ...currentProjectDetail,
+          translatedSegmentCount,
+          progressPercent,
+        }
+      })
+
+      if (progress.phase === 'completed' || progress.phase === 'failed') {
+        try {
+          const [nextProjectDetail, nextSegments] = await Promise.all([
+            fetchProjectDetail(resolvedProjectId),
+            fetchProjectSegments(resolvedProjectId),
+          ])
+
+          onProjectDetailChange(nextProjectDetail)
+          setSegments(nextSegments)
+          setSavedSegmentTargets(createSavedSegmentTargetMap(nextSegments))
+
+          if (progress.phase === 'completed') {
+            toast.success('Auto translate finished successfully.')
+          } else {
+            toast.error(progress.message)
+          }
+        } catch {
+          // Preserve existing screen state if the final refresh fails.
+        }
+      }
+    }
+
+    socket.on('project-auto-translate-progress', handleProgress)
+    socket.emit('project-auto-translate:subscribe', resolvedProjectId)
+
+    return () => {
+      socket.emit('project-auto-translate:unsubscribe', resolvedProjectId)
+      socket.off('project-auto-translate-progress', handleProgress)
+    }
+  }, [onProjectDetailChange, projectId, projectStatus])
 
   const hasSegments = useMemo(() => segments.length > 0, [segments])
   const isReadOnly = projectStatus === 'auto-translate-processing'
+  const hasPendingSegmentChanges = useMemo(
+    () => segments.some((segment) => (savedSegmentTargets[segment.id] ?? '') !== segment.targetText),
+    [savedSegmentTargets, segments],
+  )
 
   function handleOpenAutoTranslateDialog() {
     if (isReadOnly || !hasSegments || !translateProviders.length) {
@@ -134,6 +203,7 @@ export function useProjectTranslations({
       setSegmentsError(null)
       const result = await generateProjectSegments(projectId)
       setSegments(result.segments)
+      setSavedSegmentTargets(createSavedSegmentTargetMap(result.segments))
 
       if (result.project) {
         onProjectDetailChange(result.project)
@@ -147,6 +217,40 @@ export function useProjectTranslations({
       toast.error(message)
     } finally {
       setIsGeneratingSegments(false)
+    }
+  }
+
+  async function handleSaveSegments() {
+    if (!projectId || isReadOnly || !hasPendingSegmentChanges) {
+      return
+    }
+
+    try {
+      setIsSavingSegments(true)
+      setSegmentsError(null)
+      const dirtySegments = segments
+        .filter((segment) => (savedSegmentTargets[segment.id] ?? '') !== segment.targetText)
+        .map((segment) => ({
+          id: segment.id,
+          targetText: segment.targetText,
+        }))
+
+      const result = await saveProjectSegments(projectId, dirtySegments)
+      setSegments(result.segments)
+      setSavedSegmentTargets(createSavedSegmentTargetMap(result.segments))
+
+      if (result.project) {
+        onProjectDetailChange(result.project)
+      }
+
+      toast.success('Project segments saved successfully.')
+    } catch (saveError) {
+      const message =
+        saveError instanceof Error ? saveError.message : 'Could not save project segments.'
+      setSegmentsError(message)
+      toast.error(message)
+    } finally {
+      setIsSavingSegments(false)
     }
   }
 
@@ -164,6 +268,15 @@ export function useProjectTranslations({
         onProjectDetailChange(result.project)
       }
 
+      setAutoTranslateProgress({
+        projectId,
+        phase: 'queued',
+        completedSegments: result.project?.translatedSegmentCount ?? projectDetail?.translatedSegmentCount ?? 0,
+        totalSegments: projectSegmentCount,
+        progressPercent: result.project?.progressPercent ?? projectDetail?.progressPercent ?? 0,
+        message: 'Preparing background auto translate.',
+        updatedAt: new Date().toISOString(),
+      })
       setIsAutoTranslateDialogOpen(false)
       toast.success('Auto translate started in the background.')
     } catch (autoTranslateError) {
@@ -182,15 +295,23 @@ export function useProjectTranslations({
     isReadOnly,
     isLoadingSegments,
     isGeneratingSegments,
+    isSavingSegments,
     isAutoTranslateDialogOpen,
     isStartingAutoTranslate,
     selectedProviderName,
+    autoTranslateProgress,
     segmentsError,
+    hasPendingSegmentChanges,
     setSelectedProviderName,
     handleTargetChange,
+    handleSaveSegments,
     handleGenerateSegments,
     handleOpenAutoTranslateDialog,
     handleCloseAutoTranslateDialog,
     handleConfirmAutoTranslate,
   }
+}
+
+function createSavedSegmentTargetMap(segments: ProjectSegment[]) {
+  return Object.fromEntries(segments.map((segment) => [segment.id, segment.targetText]))
 }

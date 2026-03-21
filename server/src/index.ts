@@ -7,6 +7,10 @@ import { createApiRouter } from "./http/api-router";
 import { createDownloadRouter } from "./http/download-router";
 import { initializeTranslationMemoryDatabase } from "./translation-memory/database";
 import {
+  attachProjectAutoTranslateSocket,
+  registerProjectAutoTranslateSocketHandlers,
+} from "./project-auto-translate-progress";
+import {
   attachTranslationProgressSocket,
   registerTranslationProgressSocketHandlers,
 } from "./translation-progress";
@@ -25,7 +29,9 @@ app.use(express.json());
 initializeTranslationMemoryDatabase();
 
 attachTranslationProgressSocket(io);
+attachProjectAutoTranslateSocket(io);
 registerTranslationProgressSocketHandlers(io);
+registerProjectAutoTranslateSocketHandlers(io);
 
 app.use(createApiRouter());
 app.use(createDownloadRouter());

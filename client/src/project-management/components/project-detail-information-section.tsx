@@ -54,6 +54,7 @@ export function ProjectDetailInformationSection({ projectDetail }: ProjectDetail
           </Box>
           <Typography component="p">
             {projectDetail.translatedSegmentCount}/{projectDetail.segmentCount} segments translated
+            {projectDetail.status === 'auto-translate-processing' ? ' (auto translating...)' : ''}
           </Typography>
         </Box>
 

@@ -96,6 +96,7 @@ export abstract class AITranslateProvider extends TranslateProvider {
       result.translatedSegments.forEach((item) => {
         translatedMap.set(item.index, item.text);
       });
+      await request.onTranslatedSegments?.(result.translatedSegments);
 
       const translatedIndexes = new Set(
         result.translatedSegments.map((item) => item.index),
@@ -146,6 +147,7 @@ export abstract class AITranslateProvider extends TranslateProvider {
           recovery.translatedSegments.forEach((item) => {
             translatedMap.set(item.index, item.text);
           });
+          await request.onTranslatedSegments?.(recovery.translatedSegments);
         } catch (error) {
           warnings.push(
             `Segment ${segment.index} could not be translated after ${this.recoveryAttempts} recovery attempts. The original text was kept.`,

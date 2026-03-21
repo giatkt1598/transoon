@@ -122,6 +122,28 @@ export async function generateProjectSegments(projectId: string) {
   return data as { project: ProjectDetail | null; segments: ProjectSegment[] }
 }
 
+export async function saveProjectSegments(
+  projectId: string,
+  segments: Array<{ id: string; targetText: string }>,
+) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/segments`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ segments }),
+  })
+  const data = await readJsonResponse<{ project: ProjectDetail | null; segments: ProjectSegment[] } | { error?: string }>(
+    response,
+  )
+
+  if (!response.ok || 'error' in data) {
+    throw new Error('error' in data ? data.error ?? 'Could not save project segments.' : 'Could not save project segments.')
+  }
+
+  return data as { project: ProjectDetail | null; segments: ProjectSegment[] }
+}
+
 export async function fetchTranslationMemories(signal?: AbortSignal) {
   const response = await fetch(`${apiBaseUrl}/api/translation-memories`, { signal })
   const data = await readJsonResponse<TranslationMemoriesResponse | { error?: string }>(response)

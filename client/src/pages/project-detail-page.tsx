@@ -46,12 +46,15 @@ export function ProjectDetailPage() {
     isReadOnly,
     isLoadingSegments,
     isGeneratingSegments,
+    isSavingSegments,
     isAutoTranslateDialogOpen,
     isStartingAutoTranslate,
     selectedProviderName,
     segmentsError,
+    hasPendingSegmentChanges,
     setSelectedProviderName,
     handleTargetChange,
+    handleSaveSegments,
     handleGenerateSegments,
     handleOpenAutoTranslateDialog,
     handleCloseAutoTranslateDialog,
@@ -73,9 +76,14 @@ export function ProjectDetailPage() {
           { label: 'Projects', to: '/projects' },
           { label: 'Detail' },
         ]}
-        actionLabel="Edit project"
-        actionTo={projectId ? `/projects/${projectId}/edit` : '/projects'}
-        actionDisabled={projectDetail?.status === 'auto-translate-processing'}
+        actionLabel="Save"
+        onActionClick={() => void handleSaveSegments()}
+        actionDisabled={
+          projectDetail?.status === 'auto-translate-processing' ||
+          activeTab !== 1 ||
+          !hasPendingSegmentChanges ||
+          isSavingSegments
+        }
       />
 
       <Box className="detail-tabs-shell">

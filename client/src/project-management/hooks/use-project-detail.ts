@@ -89,25 +89,6 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     return () => controller.abort()
   }, [projectId])
 
-  useEffect(() => {
-    if (!projectId || projectDetail?.status !== 'auto-translate-processing') {
-      return
-    }
-
-    const interval = window.setInterval(() => {
-      void fetchProjectDetail(projectId)
-        .then((nextProjectDetail) => {
-          setProjectDetail(nextProjectDetail)
-          setDraftTranslationMemories(nextProjectDetail.translationMemories)
-        })
-        .catch(() => {
-          // Keep the latest stable detail on screen while background work is running.
-        })
-    }, 3000)
-
-    return () => window.clearInterval(interval)
-  }, [projectDetail?.status, projectId])
-
   const availableTranslationMemories = useMemo(() => {
     if (!projectDetail) {
       return []

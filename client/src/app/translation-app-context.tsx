@@ -6,8 +6,8 @@ import {
   type FormEvent,
   type PropsWithChildren,
 } from 'react'
-import { io, type Socket } from 'socket.io-client'
-import { apiBaseUrl, socketUrl } from './config'
+import { apiBaseUrl } from './config'
+import { getAppSocket } from './socket'
 import type {
   LanguagesResponse,
   PromptPreviewResponse,
@@ -66,16 +66,6 @@ const emptyTranslateProviders: TranslateProvidersResponse = {
 }
 
 const TranslationAppContext = createContext<TranslationAppContextValue | null>(null)
-
-let progressSocket: Socket | null = null
-
-function getProgressSocket() {
-  progressSocket ??= io(socketUrl, {
-    transports: ['websocket', 'polling'],
-  })
-
-  return progressSocket
-}
 
 export function TranslationAppProvider({ children }: PropsWithChildren) {
   const [languagesData, setLanguagesData] = useState<LanguagesResponse>(fallbackLanguages)
@@ -198,7 +188,7 @@ export function TranslationAppProvider({ children }: PropsWithChildren) {
       return
     }
 
-    const socket = getProgressSocket()
+    const socket = getAppSocket()
     const requestId = activeRequestId
     const handleProgress = (nextProgress: TranslationProgressResponse) => {
       if (nextProgress.requestId === requestId) {

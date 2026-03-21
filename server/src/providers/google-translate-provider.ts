@@ -51,6 +51,12 @@ export class GoogleTranslateProvider extends TranslateProvider {
       response.forEach((result, index) => {
         translatedMap.set(chunk[index].index, result.text);
       });
+      await request.onTranslatedSegments?.(
+        response.map((result, index) => ({
+          index: chunk[index].index,
+          text: result.text,
+        })),
+      );
 
       await request.onProgress?.({
         phase: "translating",

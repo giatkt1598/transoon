@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
-import type { ProjectSummary } from '../../app/types'
+import { getAppSocket } from '../../app/socket'
+import type { ProjectAutoTranslateProgressResponse, ProjectSummary } from '../../app/types'
 import { deleteProject, fetchProjects } from '../api'
 
 export function useProjectList() {
@@ -35,6 +36,56 @@ export function useProjectList() {
     return () => controller.abort()
   }, [])
 
+  useEffect(() => {
+    const processingProjectIds = projects
+      .filter((project) => project.status === 'auto-translate-processing')
+      .map((project) => project.id)
+
+    if (processingProjectIds.length === 0) {
+      return
+    }
+
+    const socket = getAppSocket()
+    const processingProjectIdSet = new Set(processingProjectIds)
+
+    const handleProgress = (progress: ProjectAutoTranslateProgressResponse) => {
+      if (!processingProjectIdSet.has(progress.projectId)) {
+        return
+      }
+
+      setProjects((currentProjects) =>
+        currentProjects.map((project) => {
+          if (project.id !== progress.projectId) {
+            return project
+          }
+
+          return {
+            ...project,
+            status:
+              progress.phase === 'queued' || progress.phase === 'translating'
+                ? 'auto-translate-processing'
+                : 'idle',
+            translatedSegmentCount: progress.completedSegments,
+            segmentCount: progress.totalSegments || project.segmentCount,
+            progressPercent: progress.progressPercent,
+          }
+        }),
+      )
+    }
+
+    socket.on('project-auto-translate-progress', handleProgress)
+    processingProjectIds.forEach((projectId) => {
+      socket.emit('project-auto-translate:subscribe', projectId)
+    })
+
+    return () => {
+      processingProjectIds.forEach((projectId) => {
+        socket.emit('project-auto-translate:unsubscribe', projectId)
+      })
+      socket.off('project-auto-translate-progress', handleProgress)
+    }
+  }, [projects])
+
   const filteredProjects = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase()
     if (!normalizedSearch) {
@@ -42,7 +93,7 @@ export function useProjectList() {
     }
 
     return projects.filter((project) => {
-      const haystacks = [project.name, project.sourceLang, project.targetLang]
+      const haystacks = [project.name, project.documentFileName ?? '', project.sourceLang, project.targetLang]
       return haystacks.some((value) => value.toLowerCase().includes(normalizedSearch))
     })
   }, [projects, searchTerm])
