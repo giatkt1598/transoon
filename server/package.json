@@ -2,7 +2,7 @@
   "name": "server",
   "license": "MIT",
   "main": "src/index.ts",
-  "type": "module",
+  "type": "commonjs",
   "dependencies": {
     "@xmldom/xmldom": "^0.8.11",
     "cors": "^2.8.6",
@@ -16,7 +16,8 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "serve": "node dist/index.js --serve-static"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

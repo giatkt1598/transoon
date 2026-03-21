@@ -37,19 +37,25 @@ import {
 } from "../translation-memory/settings-service";
 import { TranslateProvider } from "../translation-service";
 import { translateDocument } from "../translation/document-translation-service";
-import { getTranslationProgress, setTranslationProgress } from "../translation-progress";
+import {
+  getTranslationProgress,
+  setTranslationProgress,
+} from "../translation-progress";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 export function createApiRouter() {
   const router = Router();
+  const shouldServeClientStatic = process.argv.includes("--serve-static");
 
-  router.get("/", (_req, res) => {
-    res.json({
-      name: "transoon-server",
-      status: "ok",
+  if (!shouldServeClientStatic) {
+    router.get("/", (_req, res) => {
+      res.json({
+        name: "transoon-server",
+        status: "ok",
+      });
     });
-  });
+  }
 
   router.get("/api/languages", (_req, res) => {
     res.json(languageCatalog);
@@ -199,25 +205,31 @@ export function createApiRouter() {
     }
   });
 
-  router.post("/api/projects/:projectId/segments/:segmentId/inline-translate", async (req, res) => {
-    try {
-      const projectId = String(req.params.projectId);
-      const segmentId = String(req.params.segmentId);
-      const existingProject = getProjectById(projectId);
+  router.post(
+    "/api/projects/:projectId/segments/:segmentId/inline-translate",
+    async (req, res) => {
+      try {
+        const projectId = String(req.params.projectId);
+        const segmentId = String(req.params.segmentId);
+        const existingProject = getProjectById(projectId);
 
-      if (!existingProject) {
-        res.status(404).json({ error: "Project not found." });
-        return;
+        if (!existingProject) {
+          res.status(404).json({ error: "Project not found." });
+          return;
+        }
+
+        const result = await inlineTranslateProjectSegment(
+          projectId,
+          segmentId,
+        );
+        res.json(result);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unexpected server error.";
+        res.status(500).json({ error: message });
       }
-
-      const result = await inlineTranslateProjectSegment(projectId, segmentId);
-      res.json(result);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
-      res.status(500).json({ error: message });
-    }
-  });
+    },
+  );
 
   router.post("/api/projects", upload.single("file"), (req, res) => {
     try {
@@ -289,25 +301,28 @@ export function createApiRouter() {
     }
   });
 
-  router.post("/api/projects/:projectId/generate-segments", async (req, res) => {
-    try {
-      const projectId = String(req.params.projectId);
-      const existingProject = getProjectById(projectId);
+  router.post(
+    "/api/projects/:projectId/generate-segments",
+    async (req, res) => {
+      try {
+        const projectId = String(req.params.projectId);
+        const existingProject = getProjectById(projectId);
 
-      if (!existingProject) {
-        res.status(404).json({ error: "Project not found." });
-        return;
+        if (!existingProject) {
+          res.status(404).json({ error: "Project not found." });
+          return;
+        }
+
+        assertProjectIsEditable(projectId);
+        const result = await generateProjectSegments(projectId);
+        res.json(result);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unexpected server error.";
+        res.status(500).json({ error: message });
       }
-
-      assertProjectIsEditable(projectId);
-      const result = await generateProjectSegments(projectId);
-      res.json(result);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
-      res.status(500).json({ error: message });
-    }
-  });
+    },
+  );
 
   router.post("/api/projects/:projectId/translation-memories", (req, res) => {
     try {
@@ -367,9 +382,9 @@ export function createApiRouter() {
           translationMemoryId,
         );
         if (!existingLink) {
-          res
-            .status(404)
-            .json({ error: "Project translation memory configuration not found." });
+          res.status(404).json({
+            error: "Project translation memory configuration not found.",
+          });
           return;
         }
 
@@ -416,9 +431,9 @@ export function createApiRouter() {
           translationMemoryId,
         );
         if (!existingLink) {
-          res
-            .status(404)
-            .json({ error: "Project translation memory configuration not found." });
+          res.status(404).json({
+            error: "Project translation memory configuration not found.",
+          });
           return;
         }
 
@@ -467,7 +482,8 @@ export function createApiRouter() {
         return;
       }
 
-      const { outputPath, downloadFileName } = await exportProjectDocument(projectId);
+      const { outputPath, downloadFileName } =
+        await exportProjectDocument(projectId);
       res.download(outputPath, downloadFileName);
     } catch (error) {
       const message =
@@ -527,9 +543,8 @@ export function createApiRouter() {
   router.put("/api/translation-memories/:translationMemoryId", (req, res) => {
     try {
       const translationMemoryId = String(req.params.translationMemoryId);
-      const existingTranslationMemory = getTranslationMemoryById(
-        translationMemoryId,
-      );
+      const existingTranslationMemory =
+        getTranslationMemoryById(translationMemoryId);
 
       if (!existingTranslationMemory) {
         res.status(404).json({ error: "Translation memory not found." });
@@ -554,26 +569,28 @@ export function createApiRouter() {
     }
   });
 
-  router.delete("/api/translation-memories/:translationMemoryId", (req, res) => {
-    try {
-      const translationMemoryId = String(req.params.translationMemoryId);
-      const existingTranslationMemory = getTranslationMemoryById(
-        translationMemoryId,
-      );
+  router.delete(
+    "/api/translation-memories/:translationMemoryId",
+    (req, res) => {
+      try {
+        const translationMemoryId = String(req.params.translationMemoryId);
+        const existingTranslationMemory =
+          getTranslationMemoryById(translationMemoryId);
 
-      if (!existingTranslationMemory) {
-        res.status(404).json({ error: "Translation memory not found." });
-        return;
+        if (!existingTranslationMemory) {
+          res.status(404).json({ error: "Translation memory not found." });
+          return;
+        }
+
+        deleteTranslationMemory(translationMemoryId);
+        res.status(204).send();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unexpected server error.";
+        res.status(500).json({ error: message });
       }
-
-      deleteTranslationMemory(translationMemoryId);
-      res.status(204).send();
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
-      res.status(500).json({ error: message });
-    }
-  });
+    },
+  );
 
   router.get("/api/translation-progress/:requestId", (req, res) => {
     const requestId = String(req.params.requestId);
@@ -602,9 +619,9 @@ export function createApiRouter() {
         const file = req.file;
 
         if (!file) {
-          res
-            .status(400)
-            .json({ error: "A document file is required to preview buildPrompt." });
+          res.status(400).json({
+            error: "A document file is required to preview buildPrompt.",
+          });
           return;
         }
 
@@ -612,7 +629,9 @@ export function createApiRouter() {
           file.originalname,
           file.buffer,
         );
-        const preview = TranslateProvider.resolve(providerName).getPromptPreview({
+        const preview = TranslateProvider.resolve(
+          providerName,
+        ).getPromptPreview({
           segments: extractedDocument.segments.map((segment) => segment.text),
           sourceLanguage,
           targetLanguage,
@@ -697,7 +716,10 @@ function validateProjectInput(body: unknown) {
     return "A project payload is required.";
   }
 
-  const { name, sourceLang, targetLang, description } = body as Record<string, unknown>;
+  const { name, sourceLang, targetLang, description } = body as Record<
+    string,
+    unknown
+  >;
 
   if (typeof name !== "string" || name.trim().length === 0) {
     return "Project name is required.";
@@ -751,7 +773,10 @@ function validateTranslationMemoryInput(body: unknown) {
     return "A translation memory payload is required.";
   }
 
-  const { name, sourceLanguage, targetLanguage } = body as Record<string, unknown>;
+  const { name, sourceLanguage, targetLanguage } = body as Record<
+    string,
+    unknown
+  >;
 
   if (typeof name !== "string" || name.trim().length === 0) {
     return "Translation memory name is required.";
