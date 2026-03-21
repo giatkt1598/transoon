@@ -15,8 +15,9 @@
   margin: 0;
   font-family: "Iowan Old Style", "Georgia", serif;
   color: #1f140d;
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(1rem, 4vw, 1.5rem) !important;
   line-height: 1;
+  font-weight: bold !important;
 }
 
 .breadcrumb-row {
@@ -86,14 +87,12 @@
   background: #ffffff;
 }
 
-.project-toolbar-search .MuiOutlinedInput-root {
-  min-height: 52px;
-}
-
 .project-table-head,
 .project-table-row {
   display: grid;
-  grid-template-columns: minmax(240px, 1.55fr) minmax(200px, 1.2fr) minmax(150px, 0.8fr) minmax(200px, 1fr) minmax(110px, 0.55fr) 72px;
+  grid-template-columns:
+    minmax(240px, 1.55fr) minmax(200px, 1.2fr) minmax(150px, 0.8fr)
+    minmax(200px, 1fr) minmax(110px, 0.55fr) 72px;
   gap: 16px;
   align-items: center;
 }
@@ -119,7 +118,9 @@
 
 .project-table-row-clickable {
   cursor: pointer;
-  transition: background 180ms ease, transform 180ms ease;
+  transition:
+    background 180ms ease,
+    transform 180ms ease;
 }
 
 .project-table-row-clickable:hover {
@@ -394,7 +395,9 @@
 
 .detail-memory-table-head,
 .detail-memory-table-row {
-  grid-template-columns: 46px minmax(220px, 1.45fr) minmax(140px, 0.8fr) minmax(80px, 0.45fr) 72px;
+  grid-template-columns:
+    46px minmax(220px, 1.45fr) minmax(140px, 0.8fr) minmax(80px, 0.45fr)
+    72px;
 }
 
 .detail-drag-cell {
@@ -466,7 +469,7 @@
 }
 
 .translations-split-pane-divider::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
 }
@@ -481,7 +484,9 @@
   border-radius: 999px;
   opacity: 0;
   background: rgba(217, 127, 55, 0.7);
-  transition: opacity 160ms ease, box-shadow 160ms ease;
+  transition:
+    opacity 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .translations-split-pane.dragging .translations-split-pane-divider-line,
@@ -655,7 +660,9 @@ body.pane-resizing {
   color: #8a705c;
   font-weight: 600;
   background: #fffaf2;
-  transition: background 160ms ease, color 160ms ease;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
 }
 
 .alignment-index-cell.active {
@@ -795,7 +802,10 @@ body.pane-resizing {
 .docx-preview-html-block {
   scroll-margin-block: 24px;
   border-radius: 6px;
-  transition: box-shadow 180ms ease, background 180ms ease, outline 180ms ease;
+  transition:
+    box-shadow 180ms ease,
+    background 180ms ease,
+    outline 180ms ease;
 }
 
 .docx-preview-html-block.active {
@@ -806,7 +816,9 @@ body.pane-resizing {
 
 .docx-preview-segment {
   border-radius: 4px;
-  transition: background 180ms ease, box-shadow 180ms ease;
+  transition:
+    background 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .docx-preview-segment.active {

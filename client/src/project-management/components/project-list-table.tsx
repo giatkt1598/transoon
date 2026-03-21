@@ -1,7 +1,7 @@
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
-import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
-import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded'
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
   Box,
   IconButton,
@@ -12,34 +12,34 @@ import {
   Paper,
   TextField,
   Typography,
-} from '@mui/material'
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import type { ProjectSummary } from '../../app/types'
-import { formatLanguageRoute } from '../../app/utils'
+} from "@mui/material";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { ProjectSummary } from "../../app/types";
+import { formatLanguageRoute } from "../../app/utils";
 
 type ProjectListTableProps = {
-  projects: ProjectSummary[]
-  searchTerm: string
-  isLoading: boolean
-  isDeleting: boolean
-  onSearchChange: (value: string) => void
-  onDeleteProject: (projectId: string) => Promise<void>
-}
+  projects: ProjectSummary[];
+  searchTerm: string;
+  isLoading: boolean;
+  isDeleting: boolean;
+  onSearchChange: (value: string) => void;
+  onDeleteProject: (projectId: string) => Promise<void>;
+};
 
 function formatCreatedAt(value: string) {
-  const createdAt = new Date(value)
+  const createdAt = new Date(value);
   return {
-    date: createdAt.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
+    date: createdAt.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     }),
-    time: createdAt.toLocaleTimeString('en-GB', {
-      hour: 'numeric',
-      minute: '2-digit',
+    time: createdAt.toLocaleTimeString("en-GB", {
+      hour: "numeric",
+      minute: "2-digit",
     }),
-  }
+  };
 }
 
 export function ProjectListTable({
@@ -50,29 +50,42 @@ export function ProjectListTable({
   onSearchChange,
   onDeleteProject,
 }: ProjectListTableProps) {
-  const navigate = useNavigate()
-  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null)
-  const [menuProject, setMenuProject] = useState<ProjectSummary | null>(null)
+  const navigate = useNavigate();
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [menuProject, setMenuProject] = useState<ProjectSummary | null>(null);
 
-  function handleOpenMenu(event: React.MouseEvent<HTMLElement>, project: ProjectSummary) {
-    event.stopPropagation()
-    setMenuAnchorEl(event.currentTarget)
-    setMenuProject(project)
+  function handleOpenMenu(
+    event: React.MouseEvent<HTMLElement>,
+    project: ProjectSummary,
+  ) {
+    event.stopPropagation();
+    setMenuAnchorEl(event.currentTarget);
+    setMenuProject(project);
   }
 
   function handleCloseMenu() {
-    setMenuAnchorEl(null)
-    setMenuProject(null)
+    setMenuAnchorEl(null);
+    setMenuProject(null);
   }
 
   return (
     <Paper className="project-table-shell" elevation={0}>
       <Box className="project-table-toolbar">
-        <TextField select defaultValue="all" size="small" className="project-toolbar-select">
+        <TextField
+          select
+          defaultValue="all"
+          size="small"
+          className="project-toolbar-select"
+        >
           <MenuItem value="all">All routes</MenuItem>
         </TextField>
 
-        <TextField select defaultValue="all" size="small" className="project-toolbar-select">
+        <TextField
+          select
+          defaultValue="all"
+          size="small"
+          className="project-toolbar-select"
+        >
           <MenuItem value="all">All status</MenuItem>
         </TextField>
 
@@ -108,12 +121,15 @@ export function ProjectListTable({
       ) : projects.length === 0 ? (
         <Box className="empty-state project-empty-state">
           <Typography component="p">No project matches this view.</Typography>
-          <Typography component="p">Create a project to manage translations, segments, and review progress.</Typography>
+          <Typography component="p">
+            Create a project to manage translations, segments, and review
+            progress.
+          </Typography>
         </Box>
       ) : (
         <Box className="project-table-body">
           {projects.map((project) => {
-            const createdAt = formatCreatedAt(project.createdAt)
+            const createdAt = formatCreatedAt(project.createdAt);
             return (
               <Box
                 key={project.id}
@@ -121,20 +137,31 @@ export function ProjectListTable({
                 onClick={() => navigate(`/projects/${project.id}`)}
               >
                 <Box className="project-primary-cell">
-                  <Box className="project-avatar-badge">{project.name.slice(0, 1).toUpperCase()}</Box>
+                  <Box className="project-avatar-badge">
+                    {project.name.slice(0, 1).toUpperCase()}
+                  </Box>
                   <Box>
                     <Typography component="p" className="project-row-title">
                       {project.name}
                     </Typography>
                     <Typography component="p" className="project-row-subtitle">
-                      {formatLanguageRoute(project.sourceLang, project.targetLang)}
+                      {formatLanguageRoute(
+                        project.sourceLang,
+                        project.targetLang,
+                      )}
                     </Typography>
                   </Box>
                 </Box>
 
                 <Box className="project-created-cell">
-                  <Typography component="p">{project.documentFileName ?? 'No document'}</Typography>
-                  <Typography component="span">{project.documentFileName ? 'source file' : 'not uploaded yet'}</Typography>
+                  <Typography component="p">
+                    {project.documentFileName ?? "No document"}
+                  </Typography>
+                  <Typography component="span">
+                    {project.documentFileName
+                      ? "source file"
+                      : "not uploaded yet"}
+                  </Typography>
                 </Box>
 
                 <Box className="project-created-cell">
@@ -148,23 +175,31 @@ export function ProjectListTable({
                     value={project.progressPercent}
                     sx={{
                       height: 8,
-                      borderRadius: '999px',
-                      backgroundColor: '#e6edf5',
-                      '& .MuiLinearProgress-bar': {
-                        borderRadius: 'inherit',
-                        background: project.progressPercent >= 100 ? '#22c55e' : '#0d67c8',
+                      borderRadius: "999px",
+                      backgroundColor: "#e6edf5",
+                      "& .MuiLinearProgress-bar": {
+                        borderRadius: "inherit",
+                        background:
+                          project.progressPercent >= 100
+                            ? "#22c55e"
+                            : "#0d67c8",
                       },
                     }}
                   />
                   <Typography component="span">
-                    {project.translatedSegmentCount}/{project.segmentCount || 0} translated
-                    {project.status === 'auto-translate-processing' ? ' (auto translating...)' : ''}
+                    {project.translatedSegmentCount}/{project.segmentCount || 0}{" "}
+                    translated
+                    {project.status === "auto-translate-processing"
+                      ? " (auto translating...)"
+                      : ""}
                   </Typography>
                 </Box>
 
                 <Box className="project-segment-cell">
                   <Typography component="p">{project.segmentCount}</Typography>
-                  <Typography component="span">{project.documentCount} documents</Typography>
+                  <Typography component="span">
+                    {project.documentCount} documents
+                  </Typography>
                 </Box>
 
                 <Box className="project-action-cell">
@@ -177,7 +212,7 @@ export function ProjectListTable({
                   </IconButton>
                 </Box>
               </Box>
-            )
+            );
           })}
         </Box>
       )}
@@ -187,22 +222,22 @@ export function ProjectListTable({
         open={Boolean(menuAnchorEl && menuProject)}
         onClose={handleCloseMenu}
         anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
+          vertical: "bottom",
+          horizontal: "right",
         }}
         transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
+          vertical: "top",
+          horizontal: "right",
         }}
       >
         <MenuItem
           onClick={() => {
             if (!menuProject) {
-              return
+              return;
             }
 
-            navigate(`/projects/${menuProject.id}/edit`)
-            handleCloseMenu()
+            navigate(`/projects/${menuProject.id}/edit`);
+            handleCloseMenu();
           }}
         >
           <EditOutlinedIcon fontSize="small" />
@@ -214,11 +249,11 @@ export function ProjectListTable({
           disabled={isDeleting}
           onClick={() => {
             if (!menuProject) {
-              return
+              return;
             }
 
-            void onDeleteProject(menuProject.id)
-            handleCloseMenu()
+            void onDeleteProject(menuProject.id);
+            handleCloseMenu();
           }}
         >
           <DeleteOutlineRoundedIcon fontSize="small" />
@@ -228,5 +263,5 @@ export function ProjectListTable({
         </MenuItem>
       </Menu>
     </Paper>
-  )
+  );
 }
