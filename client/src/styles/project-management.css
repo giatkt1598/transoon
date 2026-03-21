@@ -580,6 +580,26 @@ body.pane-resizing {
   border-top: 1px solid rgba(58, 44, 30, 0.13);
 }
 
+.alignment-grid-row.active {
+  background: rgba(255, 248, 228, 0.92);
+}
+
+.alignment-grid-row:hover .alignment-source-cell {
+  background: rgba(255, 248, 228, 0.92);
+}
+
+.alignment-grid-row:hover .alignment-target-field .MuiOutlinedInput-root {
+  background: rgba(255, 248, 228, 0.92);
+}
+
+.alignment-grid-row.active .alignment-source-cell {
+  background: rgba(255, 248, 228, 0.92);
+}
+
+.alignment-grid-row.active .alignment-target-field .MuiOutlinedInput-root {
+  background: rgba(255, 248, 228, 0.92);
+}
+
 .alignment-grid-row > * {
   min-width: 0;
 }
