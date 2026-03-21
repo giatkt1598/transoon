@@ -3,8 +3,15 @@ import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import { appConfig } from "../config/app-config";
 import { extractDocument } from "../document-service";
+import { Log } from "../logger";
+import { TranslateProvider } from "../translate-provider";
 import { getTranslationMemoryDatabase } from "./database";
-import type { DocumentEntity, ProjectEntity, SegmentEntity } from "./entities";
+import type {
+  DocumentEntity,
+  ProjectEntity,
+  ProjectStatus,
+  SegmentEntity,
+} from "./entities";
 import { listProjectTranslationMemories } from "./translation-memory-service";
 import { createTranslationMemoryRepositories } from "./repositories/repository-service";
 
@@ -54,6 +61,7 @@ export function listProjects() {
       p.description,
       p.sourceLang,
       p.targetLang,
+      p.status,
       p.createdAt,
       MIN(d.fileName) AS documentFileName,
       COUNT(DISTINCT d.id) AS documentCount,
@@ -62,7 +70,7 @@ export function listProjects() {
     FROM projects p
     LEFT JOIN documents d ON d.projectId = p.id
     LEFT JOIN segments s ON s.documentId = d.id
-    GROUP BY p.id, p.name, p.description, p.sourceLang, p.targetLang, p.createdAt
+    GROUP BY p.id, p.name, p.description, p.sourceLang, p.targetLang, p.status, p.createdAt
     ORDER BY p.createdAt DESC
   `;
 
@@ -80,6 +88,10 @@ export function listProjects() {
 
 export function getProjectById(projectId: string) {
   return listProjects().find((project) => project.id === projectId) ?? null;
+}
+
+export function isProjectProcessing(projectId: string) {
+  return getProjectById(projectId)?.status === "auto-translate-processing";
 }
 
 export function getProjectDetailById(projectId: string) {
@@ -115,6 +127,7 @@ export function listProjectSegments(projectId: string) {
 }
 
 export async function generateProjectSegments(projectId: string) {
+  assertProjectIsEditable(projectId);
   const repositories = createTranslationMemoryRepositories();
   const document = repositories.documents
     .query()
@@ -201,6 +214,7 @@ export function createProject(input: UpsertProjectInput, options: CreateProjectO
     description: input.description?.trim() ?? "",
     sourceLang: input.sourceLang,
     targetLang: input.targetLang,
+    status: "idle",
     createdAt: new Date().toISOString(),
   };
 
@@ -214,6 +228,7 @@ export function createProject(input: UpsertProjectInput, options: CreateProjectO
 }
 
 export function updateProject(projectId: string, input: UpsertProjectInput) {
+  assertProjectIsEditable(projectId);
   const repositories = createTranslationMemoryRepositories();
   repositories.projects.updateById(projectId, {
     name: input.name.trim(),
@@ -226,8 +241,34 @@ export function updateProject(projectId: string, input: UpsertProjectInput) {
 }
 
 export function deleteProject(projectId: string) {
+  assertProjectIsEditable(projectId);
   const repositories = createTranslationMemoryRepositories();
   repositories.projects.deleteById(projectId);
+}
+
+export async function startProjectAutoTranslate(
+  projectId: string,
+  providerName: string,
+) {
+  assertProjectIsEditable(projectId);
+
+  const project = getProjectById(projectId);
+  if (!project) {
+    throw new Error("Project not found.");
+  }
+
+  const segments = listProjectSegments(projectId);
+  if (segments.length === 0) {
+    throw new Error("Generate segments before running auto translate.");
+  }
+
+  setProjectStatus(projectId, "auto-translate-processing");
+
+  queueMicrotask(() => {
+    void runProjectAutoTranslate(projectId, providerName);
+  });
+
+  return getProjectDetailById(projectId);
 }
 
 function mapProjectSummary(
@@ -251,6 +292,87 @@ function mapProjectSummary(
     progressPercent,
     documentFileName: project.documentFileName,
   };
+}
+
+function setProjectStatus(projectId: string, status: ProjectStatus) {
+  const repositories = createTranslationMemoryRepositories();
+  repositories.projects.updateById(projectId, { status });
+}
+
+async function runProjectAutoTranslate(projectId: string, providerName: string) {
+  const logger = Log.forContext({ projectId, providerName, job: "project-auto-translate" });
+
+  try {
+    const project = getProjectById(projectId);
+    if (!project) {
+      throw new Error("Project not found.");
+    }
+
+    const segments = listProjectSegments(projectId);
+    if (segments.length === 0) {
+      throw new Error("Project has no generated segments.");
+    }
+
+    await logger.information("Starting background auto translate for {projectId}", {
+      segmentCount: segments.length,
+      sourceLanguage: project.sourceLang,
+      targetLanguage: project.targetLang,
+    });
+
+    const result = await TranslateProvider.resolve(providerName).translate({
+      segments: segments.map((segment) => segment.sourceText),
+      sourceLanguage: project.sourceLang,
+      targetLanguage: project.targetLang,
+    });
+
+    if (result.translatedSegments.length !== segments.length) {
+      throw new Error(
+        `Auto translate returned ${result.translatedSegments.length} segments, expected ${segments.length}.`,
+      );
+    }
+
+    const database = getTranslationMemoryDatabase();
+    const repositories = createTranslationMemoryRepositories(database);
+    const now = new Date().toISOString();
+
+    database.exec("BEGIN");
+
+    try {
+      for (const [index, segment] of segments.entries()) {
+        const targetText = result.translatedSegments[index] ?? "";
+        repositories.segments.updateById(segment.id, {
+          targetText,
+          targetTextNormalized: normalizeText(targetText),
+          targetTextHash: targetText ? hashText(targetText) : null,
+          translationStatus: targetText.trim() ? "translated" : "pending",
+          providerName,
+          updatedAt: now,
+        });
+      }
+
+      database.exec("COMMIT");
+    } catch (error) {
+      database.exec("ROLLBACK");
+      throw error;
+    }
+
+    await logger.information("Completed background auto translate for {projectId}", {
+      warnings: result.warnings,
+      translatedCount: result.translatedSegments.length,
+    });
+  } catch (error) {
+    await logger.error("Background auto translate failed for {projectId}", error);
+  } finally {
+    setProjectStatus(projectId, "idle");
+  }
+}
+
+export function assertProjectIsEditable(projectId: string) {
+  if (isProjectProcessing(projectId)) {
+    throw new Error(
+      "This project is currently running auto translate. Manual changes are disabled until the background job finishes.",
+    );
+  }
 }
 
 function storeProjectDocument(

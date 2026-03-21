@@ -8,10 +8,12 @@ import {
   createProject,
   deleteProject,
   generateProjectSegments,
+  assertProjectIsEditable,
   getProjectDetailById,
   getProjectById,
   listProjectSegments,
   listProjects,
+  startProjectAutoTranslate,
   updateProject,
 } from "../translation-memory/project-service";
 import {
@@ -158,6 +160,7 @@ export function createApiRouter() {
         return;
       }
 
+      assertProjectIsEditable(projectId);
       const project = updateProject(projectId, req.body);
       res.json(project);
     } catch (error) {
@@ -177,6 +180,7 @@ export function createApiRouter() {
         return;
       }
 
+      assertProjectIsEditable(projectId);
       deleteProject(projectId);
       res.status(204).send();
     } catch (error) {
@@ -196,6 +200,7 @@ export function createApiRouter() {
         return;
       }
 
+      assertProjectIsEditable(projectId);
       const result = await generateProjectSegments(projectId);
       res.json(result);
     } catch (error) {
@@ -215,6 +220,7 @@ export function createApiRouter() {
         return;
       }
 
+      assertProjectIsEditable(projectId);
       const validationError = validateProjectTranslationMemoryInput(req.body);
       if (validationError) {
         res.status(400).json({ error: validationError });
@@ -256,6 +262,7 @@ export function createApiRouter() {
           return;
         }
 
+        assertProjectIsEditable(projectId);
         const existingLink = getProjectTranslationMemory(
           projectId,
           translationMemoryId,
@@ -304,6 +311,7 @@ export function createApiRouter() {
           return;
         }
 
+        assertProjectIsEditable(projectId);
         const existingLink = getProjectTranslationMemory(
           projectId,
           translationMemoryId,
@@ -324,6 +332,31 @@ export function createApiRouter() {
       }
     },
   );
+
+  router.post("/api/projects/:projectId/auto-translate", async (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      const providerName = String(
+        req.body?.providerName ?? appConfig.defaultTranslateProvider,
+      );
+      const project = await startProjectAutoTranslate(projectId, providerName);
+      res.status(202).json({
+        message: "Auto translate started.",
+        project,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
 
   router.get("/api/translation-memories", (_req, res) => {
     try {

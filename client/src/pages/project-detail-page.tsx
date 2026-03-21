@@ -1,4 +1,5 @@
-import { Box, Tab, Tabs, Typography } from '@mui/material'
+import { Alert, Box, Tab, Tabs, Typography } from '@mui/material'
+import { AutoTranslateDialog } from '../project-translations/components/auto-translate-dialog'
 import { useParams } from 'react-router-dom'
 import { AlignmentTool } from '../project-translations/components/alignment-tool'
 import { DocumentPreviewPlaceholder } from '../project-translations/components/document-preview-placeholder'
@@ -15,6 +16,7 @@ export function ProjectDetailPage() {
     projectDetail,
     setProjectDetail,
     availableTranslationMemories,
+    translateProviders,
     draftTranslationMemories,
     hasPendingTranslationMemoryChanges,
     configForm,
@@ -41,14 +43,23 @@ export function ProjectDetailPage() {
   const {
     segments,
     hasSegments,
+    isReadOnly,
     isLoadingSegments,
     isGeneratingSegments,
+    isAutoTranslateDialogOpen,
+    isStartingAutoTranslate,
+    selectedProviderName,
     segmentsError,
+    setSelectedProviderName,
     handleTargetChange,
     handleGenerateSegments,
+    handleOpenAutoTranslateDialog,
+    handleCloseAutoTranslateDialog,
+    handleConfirmAutoTranslate,
   } = useProjectTranslations({
     projectId,
     projectDetail,
+    translateProviders,
     isActive: activeTab === 1,
     onProjectDetailChange: setProjectDetail,
   })
@@ -64,6 +75,7 @@ export function ProjectDetailPage() {
         ]}
         actionLabel="Edit project"
         actionTo={projectId ? `/projects/${projectId}/edit` : '/projects'}
+        actionDisabled={projectDetail?.status === 'auto-translate-processing'}
       />
 
       <Box className="detail-tabs-shell">
@@ -77,6 +89,13 @@ export function ProjectDetailPage() {
         <Typography component="p" className="status error">
           {error ?? segmentsError}
         </Typography>
+      ) : null}
+
+      {projectDetail?.status === 'auto-translate-processing' ? (
+        <Alert severity="warning" className="project-processing-warning">
+          This project is running auto translate in the background. Manual editing is temporarily disabled until the
+          job finishes.
+        </Alert>
       ) : null}
 
       {isLoading || !projectDetail ? (
@@ -96,6 +115,7 @@ export function ProjectDetailPage() {
             hasPendingChanges={hasPendingTranslationMemoryChanges}
             draggedTranslationMemoryId={draggedTranslationMemoryId}
             isSaving={isSaving}
+            isReadOnly={projectDetail.status === 'auto-translate-processing'}
             onFieldChange={handleConfigFieldChange}
             onOpenAddDialog={handleOpenAddDialog}
             onOpenEditDialog={handleOpenEditDialog}
@@ -116,7 +136,10 @@ export function ProjectDetailPage() {
               <AlignmentTool
                 segments={segments}
                 isLoading={isLoadingSegments}
+                isReadOnly={isReadOnly}
+                isBusy={isStartingAutoTranslate}
                 onTargetChange={handleTargetChange}
+                onOpenAutoTranslate={handleOpenAutoTranslateDialog}
               />
               <DocumentPreviewPlaceholder />
             </>
@@ -129,6 +152,16 @@ export function ProjectDetailPage() {
           )}
         </Box>
       )}
+
+      <AutoTranslateDialog
+        open={isAutoTranslateDialogOpen}
+        isSubmitting={isStartingAutoTranslate}
+        providerName={selectedProviderName}
+        providers={translateProviders}
+        onProviderChange={setSelectedProviderName}
+        onClose={handleCloseAutoTranslateDialog}
+        onConfirm={() => void handleConfirmAutoTranslate()}
+      />
     </Box>
   )
 }

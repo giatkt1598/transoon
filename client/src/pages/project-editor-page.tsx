@@ -12,6 +12,7 @@ export function ProjectEditorPage() {
     formValues,
     documentFile,
     isEditMode,
+    isReadOnly,
     isLoading,
     isSaving,
     error,
@@ -43,6 +44,7 @@ export function ProjectEditorPage() {
         documentFileName={documentFile?.name ?? project?.documentFileName ?? ''}
         showDocumentWarning={!isEditMode && Boolean(documentFile)}
         isEditMode={isEditMode}
+        isReadOnly={isReadOnly}
         isLoading={isLoading}
         isSaving={isSaving}
         onFieldChange={handleFieldChange}

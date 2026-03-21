@@ -13,6 +13,7 @@ type ProjectPageHeaderProps = {
   breadcrumbs: BreadcrumbItem[]
   actionLabel?: string
   actionTo?: string
+  actionDisabled?: boolean
 }
 
 export function ProjectPageHeader({
@@ -20,6 +21,7 @@ export function ProjectPageHeader({
   breadcrumbs,
   actionLabel,
   actionTo,
+  actionDisabled = false,
 }: ProjectPageHeaderProps) {
   return (
     <Box className="page-header">
@@ -52,6 +54,7 @@ export function ProjectPageHeader({
           variant="contained"
           className="page-header-action"
           startIcon={<AddRoundedIcon />}
+          disabled={actionDisabled}
         >
           {actionLabel}
         </Button>

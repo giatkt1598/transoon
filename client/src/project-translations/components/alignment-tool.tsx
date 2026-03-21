@@ -5,13 +5,23 @@ import { AlignmentToolToolbar } from './alignment-tool-toolbar'
 type AlignmentToolProps = {
   segments: ProjectSegment[]
   isLoading: boolean
+  isReadOnly: boolean
+  isBusy: boolean
   onTargetChange: (segmentId: string, targetText: string) => void
+  onOpenAutoTranslate: () => void
 }
 
-export function AlignmentTool({ segments, isLoading, onTargetChange }: AlignmentToolProps) {
+export function AlignmentTool({
+  segments,
+  isLoading,
+  isReadOnly,
+  isBusy,
+  onTargetChange,
+  onOpenAutoTranslate,
+}: AlignmentToolProps) {
   return (
     <Paper className="detail-section-card alignment-tool-shell" elevation={0}>
-      <AlignmentToolToolbar />
+      <AlignmentToolToolbar isReadOnly={isReadOnly} isBusy={isBusy} onOpenAutoTranslate={onOpenAutoTranslate} />
 
       <Box className="alignment-grid-shell">
         <Box className="alignment-grid-head">
@@ -46,6 +56,7 @@ export function AlignmentTool({ segments, isLoading, onTargetChange }: Alignment
                   value={segment.targetText}
                   onChange={(event) => onTargetChange(segment.id, event.target.value)}
                   placeholder="Type target translation..."
+                  disabled={isReadOnly}
                   className="alignment-target-field"
                 />
               </Box>

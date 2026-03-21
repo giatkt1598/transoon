@@ -2,7 +2,7 @@ import DragIndicatorRoundedIcon from '@mui/icons-material/DragIndicatorRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Paper, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Paper, TextField, Typography } from '@mui/material'
 import type { ProjectDetail, ProjectTranslationMemoryConfig, TranslationMemorySummary } from '../../app/types'
 
 type TranslationMemoryConfigForm = {
@@ -22,6 +22,7 @@ type ProjectDetailTranslationMemoriesSectionProps = {
   hasPendingChanges: boolean
   draggedTranslationMemoryId: string | null
   isSaving: boolean
+  isReadOnly: boolean
   onFieldChange: <K extends keyof TranslationMemoryConfigForm>(field: K, value: TranslationMemoryConfigForm[K]) => void
   onOpenAddDialog: () => void
   onOpenEditDialog: (translationMemoryId: string) => void
@@ -45,6 +46,7 @@ export function ProjectDetailTranslationMemoriesSection({
   hasPendingChanges,
   draggedTranslationMemoryId,
   isSaving,
+  isReadOnly,
   onFieldChange,
   onOpenAddDialog,
   onOpenEditDialog,
@@ -72,12 +74,18 @@ export function ProjectDetailTranslationMemoriesSection({
           className="page-header-action"
           variant="contained"
           startIcon={<AddRoundedIcon />}
-          disabled={isSaving}
+          disabled={isSaving || isReadOnly}
           onClick={onOpenAddDialog}
         >
           Add TM
         </Button>
       </Box>
+
+      {isReadOnly ? (
+        <Alert severity="warning" className="project-processing-warning">
+          Translation memories are locked while auto translate is processing this project in the background.
+        </Alert>
+      ) : null}
 
       <Box className="project-table-shell detail-memory-table-shell">
         <Box className="project-table-head detail-memory-table-head">
@@ -100,7 +108,7 @@ export function ProjectDetailTranslationMemoriesSection({
                 className={`project-table-row detail-memory-table-row${
                   draggedTranslationMemoryId === config.translationMemoryId ? ' dragging' : ''
                 }`}
-                draggable={!isSaving}
+                draggable={!isSaving && !isReadOnly}
                 onDragStart={() => onDragStart(config.translationMemoryId)}
                 onDragEnd={onDragEnd}
                 onDragOver={(event) => event.preventDefault()}
@@ -129,7 +137,7 @@ export function ProjectDetailTranslationMemoriesSection({
                   onChange={(event) =>
                     onAccessModeChange(config.translationMemoryId, event.target.value as 'read' | 'write')
                   }
-                  disabled={isSaving}
+                  disabled={isSaving || isReadOnly}
                   className="detail-access-select"
                 >
                   <MenuItem value="read">Read</MenuItem>
@@ -142,10 +150,10 @@ export function ProjectDetailTranslationMemoriesSection({
                 </Box>
 
                 <Box className="project-action-cell">
-                  <IconButton size="small" disabled={isSaving} onClick={() => onOpenEditDialog(config.translationMemoryId)}>
+                  <IconButton size="small" disabled={isSaving || isReadOnly} onClick={() => onOpenEditDialog(config.translationMemoryId)}>
                     <EditOutlinedIcon fontSize="small" />
                   </IconButton>
-                  <IconButton size="small" disabled={isSaving} onClick={() => void onDelete(config.translationMemoryId)}>
+                  <IconButton size="small" disabled={isSaving || isReadOnly} onClick={() => void onDelete(config.translationMemoryId)}>
                     <DeleteOutlineRoundedIcon fontSize="small" />
                   </IconButton>
                 </Box>
@@ -159,7 +167,7 @@ export function ProjectDetailTranslationMemoriesSection({
         <Button
           className="submit-button"
           variant="contained"
-          disabled={isSaving || !hasPendingChanges}
+          disabled={isSaving || isReadOnly || !hasPendingChanges}
           onClick={() => void onSaveAll()}
         >
           Save TM

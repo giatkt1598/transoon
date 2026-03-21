@@ -13,6 +13,7 @@ type ProjectEditorFormProps = {
   documentFileName: string
   showDocumentWarning: boolean
   isEditMode: boolean
+  isReadOnly: boolean
   isLoading: boolean
   isSaving: boolean
   onFieldChange: <K extends keyof ProjectFormValues>(field: K, value: ProjectFormValues[K]) => void
@@ -28,6 +29,7 @@ export function ProjectEditorForm({
   documentFileName,
   showDocumentWarning,
   isEditMode,
+  isReadOnly,
   isLoading,
   isSaving,
   onFieldChange,
@@ -48,13 +50,20 @@ export function ProjectEditorForm({
       </Box>
 
       <Box className="project-editor-form">
+        {isReadOnly ? (
+          <Alert severity="warning" className="project-document-warning">
+            This project is currently running auto translate. Manual edits are temporarily disabled until the background
+            job finishes.
+          </Alert>
+        ) : null}
+
         <TextField
           label="Project name"
           value={formValues.name}
           onChange={(event) => onFieldChange('name', event.target.value)}
           placeholder="Panasonic manuals, EN -> JA"
           fullWidth
-          disabled={isLoading || isSaving}
+          disabled={isLoading || isSaving || isReadOnly}
         />
 
         <TextField
@@ -65,12 +74,12 @@ export function ProjectEditorForm({
           fullWidth
           multiline
           minRows={4}
-          disabled={isLoading || isSaving}
+          disabled={isLoading || isSaving || isReadOnly}
         />
 
         <ProjectDocumentUploadField
           value={documentFileName}
-          disabled={isEditMode || isLoading || isSaving}
+          disabled={isEditMode || isLoading || isSaving || isReadOnly}
           onFileChange={onDocumentFileChange}
         />
 
@@ -86,7 +95,7 @@ export function ProjectEditorForm({
             label="Source language"
             value={formValues.sourceLang}
             onChange={(event) => onFieldChange('sourceLang', event.target.value)}
-            disabled={isLoading || isSaving}
+            disabled={isLoading || isSaving || isReadOnly}
           >
             {languagesData.languages.map((language) => (
               <MenuItem key={language.code} value={language.code}>
@@ -100,7 +109,7 @@ export function ProjectEditorForm({
             label="Target language"
             value={formValues.targetLang}
             onChange={(event) => onFieldChange('targetLang', event.target.value)}
-            disabled={isLoading || isSaving}
+            disabled={isLoading || isSaving || isReadOnly}
           >
             {languagesData.languages
               .filter((language) => language.code !== 'auto')
@@ -128,7 +137,7 @@ export function ProjectEditorForm({
           variant="contained"
           className="submit-button"
           onClick={() => void onSave()}
-          disabled={isLoading || isSaving}
+          disabled={isLoading || isSaving || isReadOnly}
         >
           {isSaving ? 'Saving project...' : isEditMode ? 'Save project' : 'Create project'}
         </Button>

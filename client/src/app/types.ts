@@ -59,6 +59,7 @@ export type ProjectSummary = {
   description: string
   sourceLang: string
   targetLang: string
+  status: 'idle' | 'auto-translate-processing'
   createdAt: string
   documentCount: number
   segmentCount: number

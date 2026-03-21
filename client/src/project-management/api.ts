@@ -7,6 +7,7 @@ import type {
   ProjectSummary,
   ProjectsResponse,
   ProjectTranslationMemoryConfig,
+  TranslateProvidersResponse,
   TranslationMemoriesResponse,
 } from '../app/types'
 import type { ProjectFormValues } from './types'
@@ -134,6 +135,19 @@ export async function fetchTranslationMemories(signal?: AbortSignal) {
   return (data as TranslationMemoriesResponse).translationMemories
 }
 
+export async function fetchTranslateProviders(signal?: AbortSignal) {
+  const response = await fetch(`${apiBaseUrl}/api/translate-providers`, { signal })
+  const data = await readJsonResponse<TranslateProvidersResponse | { error?: string }>(response)
+
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data ? data.error ?? 'Could not load translate providers.' : 'Could not load translate providers.',
+    )
+  }
+
+  return data as TranslateProvidersResponse
+}
+
 export async function saveProject(projectId: string | null, formValues: ProjectFormValues, documentFile?: File | null) {
   const requestInit: RequestInit = projectId
     ? {
@@ -170,6 +184,25 @@ export async function deleteProject(projectId: string) {
     const data = await readJsonResponse<{ error?: string }>(response)
     throw new Error(data.error ?? 'Could not delete project.')
   }
+}
+
+export async function autoTranslateProject(projectId: string, providerName: string) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/auto-translate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ providerName }),
+  })
+
+  const data = await readJsonResponse<{ message: string; project: ProjectDetail | null } | { error?: string }>(response)
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data ? data.error ?? 'Could not start auto translate.' : 'Could not start auto translate.',
+    )
+  }
+
+  return data as { message: string; project: ProjectDetail | null }
 }
 
 export async function attachProjectTranslationMemory(

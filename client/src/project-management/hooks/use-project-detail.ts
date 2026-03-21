@@ -5,10 +5,12 @@ import {
   attachProjectTranslationMemory,
   deleteProjectTranslationMemory,
   fetchProjectDetail,
+  fetchTranslateProviders,
   fetchTranslationMemories,
   updateProjectTranslationMemory,
 } from '../api'
 import { saveTranslationMemory } from '../../translation-memory-management/api'
+import type { TranslateProviderOption } from '../../app/types'
 
 type TranslationMemoryConfigForm = {
   mode: 'create' | 'existing'
@@ -35,6 +37,7 @@ type UseProjectDetailOptions = {
 export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
   const [projectDetail, setProjectDetail] = useState<ProjectDetail | null>(null)
   const [translationMemories, setTranslationMemories] = useState<TranslationMemorySummary[]>([])
+  const [translateProviders, setTranslateProviders] = useState<TranslateProviderOption[]>([])
   const [draftTranslationMemories, setDraftTranslationMemories] = useState<DraftProjectTranslationMemoryConfig[]>([])
   const [configForm, setConfigForm] = useState<TranslationMemoryConfigForm>(initialConfigForm)
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false)
@@ -58,14 +61,16 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     async function loadData() {
       try {
         setIsLoading(true)
-        const [project, memories] = await Promise.all([
+        const [project, memories, providersResponse] = await Promise.all([
           fetchProjectDetail(resolvedProjectId, controller.signal),
           fetchTranslationMemories(controller.signal),
+          fetchTranslateProviders(controller.signal),
         ])
 
         setProjectDetail(project)
         setDraftTranslationMemories(project.translationMemories)
         setTranslationMemories(memories)
+        setTranslateProviders(providersResponse.translateProviders)
       } catch (loadError) {
         if (controller.signal.aborted) {
           return
@@ -83,6 +88,25 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
 
     return () => controller.abort()
   }, [projectId])
+
+  useEffect(() => {
+    if (!projectId || projectDetail?.status !== 'auto-translate-processing') {
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      void fetchProjectDetail(projectId)
+        .then((nextProjectDetail) => {
+          setProjectDetail(nextProjectDetail)
+          setDraftTranslationMemories(nextProjectDetail.translationMemories)
+        })
+        .catch(() => {
+          // Keep the latest stable detail on screen while background work is running.
+        })
+    }, 3000)
+
+    return () => window.clearInterval(interval)
+  }, [projectDetail?.status, projectId])
 
   const availableTranslationMemories = useMemo(() => {
     if (!projectDetail) {
@@ -142,12 +166,18 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
   }
 
   function handleOpenAddDialog() {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      return
+    }
     setEditingConfigId(null)
     setConfigForm(initialConfigForm)
     setIsConfigDialogOpen(true)
   }
 
   function handleOpenEditDialog(translationMemoryId: string) {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      return
+    }
     const existingConfig = draftTranslationMemories.find((item) => item.translationMemoryId === translationMemoryId)
     if (!existingConfig) {
       return
@@ -170,6 +200,10 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
   }
 
   function handleAddTranslationMemory() {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      return
+    }
+
     if (editingConfigId) {
       setDraftTranslationMemories((current) =>
         applySingleWriteRule(
@@ -209,7 +243,7 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
   }
 
   async function handleDeleteConfig(translationMemoryId: string) {
-    if (!projectDetail) {
+    if (!projectDetail || projectDetail.status === 'auto-translate-processing') {
       return
     }
 
@@ -233,6 +267,10 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
   }
 
   function handleAccessModeChange(translationMemoryId: string, accessMode: 'read' | 'write') {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      return
+    }
+
     setDraftTranslationMemories((current) =>
       applySingleWriteRule(
         current.map((item) =>
@@ -244,6 +282,9 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
   }
 
   function handleDragStart(translationMemoryId: string) {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      return
+    }
     setDraggedTranslationMemoryId(translationMemoryId)
   }
 
@@ -252,6 +293,11 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
   }
 
   function handleDropOnRow(targetTranslationMemoryId: string) {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      setDraggedTranslationMemoryId(null)
+      return
+    }
+
     if (!draggedTranslationMemoryId || draggedTranslationMemoryId === targetTranslationMemoryId) {
       setDraggedTranslationMemoryId(null)
       return
@@ -279,6 +325,11 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
 
   async function handleSaveTranslationMemories() {
     if (!projectId || !projectDetail) {
+      return
+    }
+
+    if (projectDetail.status === 'auto-translate-processing') {
+      setError('This project is currently running auto translate. Manual changes are temporarily disabled.')
       return
     }
 
@@ -413,6 +464,7 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     projectDetail,
     setProjectDetail,
     translationMemories,
+    translateProviders,
     availableTranslationMemories,
     draftTranslationMemories,
     hasPendingTranslationMemoryChanges,

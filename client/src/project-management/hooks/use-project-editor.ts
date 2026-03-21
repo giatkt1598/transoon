@@ -20,6 +20,7 @@ export function useProjectEditor({ projectId }: UseProjectEditorOptions) {
   const [error, setError] = useState<string | null>(null)
 
   const isEditMode = useMemo(() => Boolean(projectId), [projectId])
+  const isReadOnly = project?.status === 'auto-translate-processing'
 
   useEffect(() => {
     const controller = new AbortController()
@@ -75,6 +76,11 @@ export function useProjectEditor({ projectId }: UseProjectEditorOptions) {
   }
 
   async function handleSaveProject() {
+    if (isReadOnly) {
+      setError('This project is currently running auto translate. Manual edits are temporarily disabled.')
+      return
+    }
+
     setIsSaving(true)
     setError(null)
 
@@ -103,6 +109,7 @@ export function useProjectEditor({ projectId }: UseProjectEditorOptions) {
     formValues,
     documentFile,
     isEditMode,
+    isReadOnly,
     isLoading,
     isSaving,
     error,

@@ -268,6 +268,10 @@
   font-size: 0.92rem;
 }
 
+.project-processing-warning.MuiAlert-root {
+  border-radius: 16px;
+}
+
 .detail-home-grid {
   display: grid;
   gap: 18px;
@@ -609,4 +613,21 @@
 .generate-segments-note {
   color: #8a705c;
   font-size: 0.88rem;
+}
+
+.auto-translate-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auto-translate-dialog-copy {
+  margin: 0;
+  color: #5d4838;
+  line-height: 1.55;
+}
+
+.auto-translate-provider-copy {
+  color: #7a644f;
+  font-size: 0.9rem;
 }

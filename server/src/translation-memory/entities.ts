@@ -1,4 +1,5 @@
 export type TranslationStatus = "pending" | "translated" | "reviewed" | "rejected";
+export type ProjectStatus = "idle" | "auto-translate-processing";
 
 export type SegmentTokenType =
   | "text"
@@ -22,6 +23,7 @@ export type ProjectEntity = {
   description: string;
   sourceLang: string;
   targetLang: string;
+  status: ProjectStatus;
   createdAt: string;
 };
 
