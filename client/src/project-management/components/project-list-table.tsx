@@ -1,9 +1,20 @@
-import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
-import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
-import { Box, IconButton, InputAdornment, LinearProgress, MenuItem, Paper, TextField, Typography } from '@mui/material'
-import { Link as RouterLink } from 'react-router-dom'
+import {
+  Box,
+  IconButton,
+  InputAdornment,
+  LinearProgress,
+  Menu,
+  MenuItem,
+  Paper,
+  TextField,
+  Typography,
+} from '@mui/material'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { ProjectSummary } from '../../app/types'
 
 type ProjectListTableProps = {
@@ -38,6 +49,21 @@ export function ProjectListTable({
   onSearchChange,
   onDeleteProject,
 }: ProjectListTableProps) {
+  const navigate = useNavigate()
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null)
+  const [menuProject, setMenuProject] = useState<ProjectSummary | null>(null)
+
+  function handleOpenMenu(event: React.MouseEvent<HTMLElement>, project: ProjectSummary) {
+    event.stopPropagation()
+    setMenuAnchorEl(event.currentTarget)
+    setMenuProject(project)
+  }
+
+  function handleCloseMenu() {
+    setMenuAnchorEl(null)
+    setMenuProject(null)
+  }
+
   return (
     <Paper className="project-table-shell" elevation={0}>
       <Box className="project-table-toolbar">
@@ -87,7 +113,11 @@ export function ProjectListTable({
           {projects.map((project) => {
             const createdAt = formatCreatedAt(project.createdAt)
             return (
-              <Box key={project.id} className="project-table-row">
+              <Box
+                key={project.id}
+                className="project-table-row project-table-row-clickable"
+                onClick={() => navigate(`/projects/${project.id}`)}
+              >
                 <Box className="project-primary-cell">
                   <Box className="project-avatar-badge">{project.name.slice(0, 1).toUpperCase()}</Box>
                   <Box>
@@ -131,28 +161,11 @@ export function ProjectListTable({
 
                 <Box className="project-action-cell">
                   <IconButton
-                    component={RouterLink}
-                    to={`/projects/${project.id}`}
                     size="small"
-                    aria-label={`Open ${project.name}`}
+                    aria-label={`More actions for ${project.name}`}
+                    onClick={(event) => handleOpenMenu(event, project)}
                   >
-                    <OpenInNewRoundedIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    component={RouterLink}
-                    to={`/projects/${project.id}/edit`}
-                    size="small"
-                    aria-label={`Edit ${project.name}`}
-                  >
-                    <EditOutlinedIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    disabled={isDeleting}
-                    aria-label={`Delete ${project.name}`}
-                    onClick={() => void onDeleteProject(project.id)}
-                  >
-                    <DeleteOutlineRoundedIcon fontSize="small" />
+                    <MoreVertRoundedIcon fontSize="small" />
                   </IconButton>
                 </Box>
               </Box>
@@ -160,6 +173,52 @@ export function ProjectListTable({
           })}
         </Box>
       )}
+
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl && menuProject)}
+        onClose={handleCloseMenu}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <MenuItem
+          onClick={() => {
+            if (!menuProject) {
+              return
+            }
+
+            navigate(`/projects/${menuProject.id}/edit`)
+            handleCloseMenu()
+          }}
+        >
+          <EditOutlinedIcon fontSize="small" />
+          <Typography component="span" sx={{ ml: 1 }}>
+            Edit project
+          </Typography>
+        </MenuItem>
+        <MenuItem
+          disabled={isDeleting}
+          onClick={() => {
+            if (!menuProject) {
+              return
+            }
+
+            void onDeleteProject(menuProject.id)
+            handleCloseMenu()
+          }}
+        >
+          <DeleteOutlineRoundedIcon fontSize="small" />
+          <Typography component="span" sx={{ ml: 1 }}>
+            Delete project
+          </Typography>
+        </MenuItem>
+      </Menu>
     </Paper>
   )
 }

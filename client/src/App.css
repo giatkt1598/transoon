@@ -511,28 +511,38 @@
 }
 
 .project-table-row {
-  padding: 18px;
+  padding: 14px 18px;
   border-top: 1px solid rgba(58, 44, 30, 0.08);
   background: rgba(255, 255, 255, 0.65);
+}
+
+.project-table-row-clickable {
+  cursor: pointer;
+  transition: background 180ms ease, transform 180ms ease;
+}
+
+.project-table-row-clickable:hover {
+  background: rgba(255, 255, 255, 0.88);
+  transform: translateY(-1px);
 }
 
 .project-primary-cell {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
 }
 
 .project-avatar-badge {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #2f7f76 0%, #255751 100%);
   color: #fffaf2;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.92rem;
   box-shadow: 0 12px 24px rgba(37, 87, 81, 0.18);
   flex-shrink: 0;
 }
@@ -543,6 +553,7 @@
   margin: 0;
   color: #24170f;
   font-weight: 600;
+  font-size: 0.95rem;
 }
 
 .project-row-subtitle,
@@ -550,9 +561,9 @@
 .project-progress-cell span,
 .project-segment-cell span {
   display: block;
-  margin-top: 4px;
+  margin-top: 2px;
   color: #728397;
-  font-size: 0.92rem;
+  font-size: 0.84rem;
 }
 
 .project-progress-cell,
@@ -587,19 +598,20 @@
   margin: 0;
   font-family: "Iowan Old Style", "Georgia", serif;
   color: #22170f;
-  font-size: 1.9rem;
+  font-size: 1.55rem;
 }
 
 .project-editor-copy {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: #6e5a4c;
+  font-size: 0.94rem;
 }
 
 .project-editor-form {
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  padding: 28px;
+  gap: 18px;
+  padding: 22px 24px;
 }
 
 .project-upload-field {
@@ -634,7 +646,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 14px;
-  padding: 0 28px 28px;
+  padding: 0 24px 22px;
 }
 
 .project-editor-actions .secondary-button.MuiButton-root,
@@ -649,20 +661,21 @@
 }
 
 .detail-tabs .MuiTab-root {
-  min-height: 52px;
+  min-height: 44px;
   text-transform: none;
   font-weight: 700;
+  font-size: 0.92rem;
 }
 
 .detail-home-grid {
   display: grid;
-  gap: 24px;
+  gap: 18px;
 }
 
 .detail-section-card {
   border: 1px solid rgba(58, 44, 30, 0.12);
-  border-radius: 28px;
-  padding: 28px;
+  border-radius: 24px;
+  padding: 20px;
   background: rgba(255, 250, 242, 0.92);
   box-shadow: 0 18px 45px rgba(73, 52, 34, 0.1);
 }
@@ -670,15 +683,15 @@
 .detail-info-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .detail-info-item,
 .detail-description-block,
 .detail-progress-block {
-  border-radius: 20px;
+  border-radius: 16px;
   background: #fffaf2;
-  padding: 18px;
+  padding: 14px;
 }
 
 .detail-info-item span,
@@ -694,23 +707,24 @@
 .detail-info-item strong,
 .detail-progress-copy strong {
   display: block;
-  margin-top: 8px;
+  margin-top: 6px;
   color: #24170f;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .detail-description-block p,
 .detail-progress-copy p {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: #5f4938;
+  font-size: 0.9rem;
 }
 
 .detail-progress-copy {
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .detail-memory-priority-grid {
@@ -759,12 +773,12 @@
 }
 
 .detail-memory-table-shell {
-  margin-top: 22px;
+  margin-top: 16px;
 }
 
 .detail-memory-table-head,
 .detail-memory-table-row {
-  grid-template-columns: 56px minmax(260px, 1.6fr) minmax(180px, 0.9fr) minmax(100px, 0.6fr) 88px;
+  grid-template-columns: 46px minmax(220px, 1.45fr) minmax(140px, 0.8fr) minmax(80px, 0.45fr) 72px;
 }
 
 .detail-drag-cell {
@@ -787,12 +801,13 @@
 .detail-memory-save-row {
   display: flex;
   justify-content: flex-end;
-  margin-top: 20px;
+  margin-top: 14px;
 }
 
 .detail-memory-save-row .submit-button.MuiButton-root {
   width: auto;
-  min-width: 180px;
+  min-width: 150px;
+  min-height: 46px;
 }
 
 .detail-memory-dialog-body {
