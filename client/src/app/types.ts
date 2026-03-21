@@ -77,6 +77,9 @@ export type ProjectSummary = {
   createdAt: string
   documentCount: number
   segmentCount: number
+  wordCount: number
+  characterCount: number
+  lastModifiedAt: string | null
   translatedSegmentCount: number
   progressPercent: number
   documentFileName: string | null

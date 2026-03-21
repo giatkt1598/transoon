@@ -30,7 +30,10 @@ export type ProjectEntity = {
   sourceLang: string;
   targetLang: string;
   status: ProjectStatus;
+  wordCount: number;
+  characterCount: number;
   createdAt: string;
+  lastModifiedAt: string | null;
 };
 
 export type DocumentEntity = {

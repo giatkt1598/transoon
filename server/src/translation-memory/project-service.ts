@@ -22,6 +22,9 @@ import { createTranslationMemoryRepositories } from "./repositories/repository-s
 export type ProjectSummary = ProjectEntity & {
   documentCount: number;
   segmentCount: number;
+  wordCount: number;
+  characterCount: number;
+  lastModifiedAt: string | null;
   translatedSegmentCount: number;
   progressPercent: number;
   documentFileName: string | null;
@@ -105,7 +108,10 @@ export function listProjects() {
       p.sourceLang,
       p.targetLang,
       p.status,
+      p.wordCount,
+      p.characterCount,
       p.createdAt,
+      p.lastModifiedAt,
       MIN(d.fileName) AS documentFileName,
       COUNT(DISTINCT d.id) AS documentCount,
       COUNT(DISTINCT s.id) AS segmentCount,
@@ -113,7 +119,7 @@ export function listProjects() {
     FROM projects p
     LEFT JOIN documents d ON d.projectId = p.id
     LEFT JOIN segments s ON s.documentId = d.id
-    GROUP BY p.id, p.name, p.description, p.sourceLang, p.targetLang, p.status, p.createdAt
+    GROUP BY p.id, p.name, p.description, p.sourceLang, p.targetLang, p.status, p.createdAt, p.lastModifiedAt
     ORDER BY p.createdAt DESC
   `;
 
@@ -125,7 +131,6 @@ export function listProjects() {
       documentFileName: string | null;
     }
   >;
-
   return rows.map(mapProjectSummary);
 }
 
@@ -371,6 +376,8 @@ export function saveProjectSegments(
       });
     }
 
+    touchProject(projectId, now);
+
     database.exec("COMMIT");
   } catch (error) {
     database.exec("ROLLBACK");
@@ -429,8 +436,15 @@ export async function inlineTranslateProjectSegment(
   } satisfies InlineTranslatedProjectSegment;
 }
 
-export function createProject(input: UpsertProjectInput, options: CreateProjectOptions = {}) {
+export async function createProject(input: UpsertProjectInput, options: CreateProjectOptions = {}) {
   const repositories = createTranslationMemoryRepositories();
+  const now = new Date().toISOString();
+  const contentCounts = options.documentFile
+    ? await buildProjectContentCounts(
+        options.documentFile.originalName,
+        options.documentFile.buffer,
+      )
+    : { wordCount: 0, characterCount: 0 };
   const project: ProjectEntity = {
     id: randomUUID(),
     name: input.name.trim(),
@@ -438,7 +452,10 @@ export function createProject(input: UpsertProjectInput, options: CreateProjectO
     sourceLang: input.sourceLang,
     targetLang: input.targetLang,
     status: "idle",
-    createdAt: new Date().toISOString(),
+    wordCount: contentCounts.wordCount,
+    characterCount: contentCounts.characterCount,
+    createdAt: now,
+    lastModifiedAt: null,
   };
 
   repositories.projects.insert(project);
@@ -453,11 +470,13 @@ export function createProject(input: UpsertProjectInput, options: CreateProjectO
 export function updateProject(projectId: string, input: UpsertProjectInput) {
   assertProjectIsEditable(projectId);
   const repositories = createTranslationMemoryRepositories();
+  const now = new Date().toISOString();
   repositories.projects.updateById(projectId, {
     name: input.name.trim(),
     description: input.description?.trim() ?? "",
     sourceLang: input.sourceLang,
     targetLang: input.targetLang,
+    lastModifiedAt: now,
   });
 
   return getProjectById(projectId);
@@ -522,6 +541,7 @@ export function cancelProjectAutoTranslate(projectId: string) {
   }
 
   setProjectStatus(projectId, "idle");
+  touchProject(projectId);
 
   const latestProject = getProjectById(projectId);
   setProjectAutoTranslateProgress(projectId, {
@@ -540,6 +560,9 @@ function mapProjectSummary(
     documentFileName: string | null;
     documentCount: number;
     segmentCount: number;
+    wordCount?: number;
+    characterCount?: number;
+    lastModifiedAt?: string | null;
     translatedSegmentCount: number;
   },
 ): ProjectSummary {
@@ -552,6 +575,9 @@ function mapProjectSummary(
     ...project,
     documentCount: Number(project.documentCount ?? 0),
     segmentCount: Number(project.segmentCount ?? 0),
+    wordCount: Number(project.wordCount ?? 0),
+    characterCount: Number(project.characterCount ?? 0),
+    lastModifiedAt: project.lastModifiedAt ?? null,
     translatedSegmentCount: Number(project.translatedSegmentCount ?? 0),
     progressPercent,
     documentFileName: project.documentFileName,
@@ -615,6 +641,7 @@ async function runProjectAutoTranslate(
         totalSegments,
       });
       setProjectStatus(projectId, "idle");
+      touchProject(projectId);
       setProjectAutoTranslateProgress(projectId, {
         phase: "completed",
         completedSegments: translatedSegmentCount,
@@ -695,6 +722,7 @@ async function runProjectAutoTranslate(
       translatedCount: translatedSegmentCount,
     });
     setProjectStatus(projectId, "idle");
+    touchProject(projectId);
     setProjectAutoTranslateProgress(projectId, {
       phase: "completed",
       completedSegments: translatedSegmentCount,
@@ -716,6 +744,7 @@ async function runProjectAutoTranslate(
 
     await logger.error("Background auto translate failed for {projectId}", error);
     setProjectStatus(projectId, "idle");
+    touchProject(projectId);
     setProjectAutoTranslateProgress(projectId, {
       phase: "failed",
       completedSegments: translatedSegmentCount,
@@ -783,6 +812,42 @@ function normalizeText(value: string) {
 
 function hashText(value: string) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function countWords(value: string) {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return 0;
+  }
+
+  return trimmedValue.split(/\s+/u).length;
+}
+
+function countCharacters(value: string) {
+  return Array.from(value).length;
+}
+
+async function buildProjectContentCounts(fileName: string, buffer: Buffer) {
+  const extractedDocument = await extractDocument(fileName, buffer);
+  const nonEmptySegments = extractedDocument.segments
+    .map((segment) => segment.text.trim())
+    .filter((segment) => segment.length > 0);
+
+  return {
+    wordCount: nonEmptySegments.reduce(
+      (total, segment) => total + countWords(segment),
+      0,
+    ),
+    characterCount: nonEmptySegments.reduce(
+      (total, segment) => total + countCharacters(segment),
+      0,
+    ),
+  };
+}
+
+function touchProject(projectId: string, value = new Date().toISOString()) {
+  const repositories = createTranslationMemoryRepositories();
+  repositories.projects.updateById(projectId, { lastModifiedAt: value });
 }
 
 function buildExportDownloadFileName(

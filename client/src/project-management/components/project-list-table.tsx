@@ -27,7 +27,14 @@ type ProjectListTableProps = {
   onDeleteProject: (projectId: string) => Promise<void>;
 };
 
-function formatCreatedAt(value: string) {
+function formatDateTime(value: string | null) {
+  if (!value) {
+    return {
+      date: "-",
+      time: "-",
+    };
+  }
+
   const createdAt = new Date(value);
   return {
     date: createdAt.toLocaleDateString("en-GB", {
@@ -107,7 +114,7 @@ export function ProjectListTable({
 
       <Box className="project-table-head">
         <span>Project</span>
-        <span>Document file</span>
+        <span>Last modified</span>
         <span>Created at</span>
         <span>Progress</span>
         <span>Segments</span>
@@ -129,7 +136,8 @@ export function ProjectListTable({
       ) : (
         <Box className="project-table-body">
           {projects.map((project) => {
-            const createdAt = formatCreatedAt(project.createdAt);
+            const createdAt = formatDateTime(project.createdAt);
+            const lastModifiedAt = formatDateTime(project.lastModifiedAt);
             return (
               <Box
                 key={project.id}
@@ -154,14 +162,12 @@ export function ProjectListTable({
                 </Box>
 
                 <Box className="project-created-cell">
-                  <Typography component="p">
-                    {project.documentFileName ?? "No document"}
-                  </Typography>
-                  <Typography component="span">
-                    {project.documentFileName
-                      ? "source file"
-                      : "not uploaded yet"}
-                  </Typography>
+                  <Typography component="p">{lastModifiedAt.date}</Typography>
+                  {project.lastModifiedAt && (
+                    <Typography component="span">
+                      {lastModifiedAt.time}
+                    </Typography>
+                  )}
                 </Box>
 
                 <Box className="project-created-cell">
@@ -196,9 +202,14 @@ export function ProjectListTable({
                 </Box>
 
                 <Box className="project-segment-cell">
-                  <Typography component="p">{project.segmentCount}</Typography>
+                  <Typography component="p">
+                    {project.segmentCount > 0 ? project.segmentCount : "-"}
+                  </Typography>
+
                   <Typography component="span">
-                    {project.documentCount} documents
+                    {project.segmentCount > 0
+                      ? `${project.wordCount} words • ${project.characterCount} characters`
+                      : ""}
                   </Typography>
                 </Box>
 

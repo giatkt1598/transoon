@@ -232,7 +232,7 @@ export function createApiRouter() {
     },
   );
 
-  router.post("/api/projects", upload.single("file"), (req, res) => {
+  router.post("/api/projects", upload.single("file"), async (req, res) => {
     try {
       const validationError = validateProjectInput(req.body);
       if (validationError) {
@@ -240,7 +240,7 @@ export function createApiRouter() {
         return;
       }
 
-      const project = createProject(req.body, {
+      const project = await createProject(req.body, {
         documentFile: req.file
           ? {
               originalName: req.file.originalname,

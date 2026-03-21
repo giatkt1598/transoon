@@ -91,8 +91,8 @@
 .project-table-row {
   display: grid;
   grid-template-columns:
-    minmax(240px, 1.55fr) minmax(200px, 1.2fr) minmax(150px, 0.8fr)
-    minmax(200px, 1fr) minmax(110px, 0.55fr) 72px;
+    minmax(240px, 1.55fr) minmax(120px, 0.6fr) minmax(120px, 0.6fr)
+    minmax(200px, 1fr) minmax(180px, 0.8fr) 72px;
   gap: 16px;
   align-items: center;
 }
