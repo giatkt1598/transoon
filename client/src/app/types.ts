@@ -56,6 +56,7 @@ export type TranslationProgressResponse = {
 export type ProjectSummary = {
   id: string
   name: string
+  description: string
   sourceLang: string
   targetLang: string
   createdAt: string
@@ -63,6 +64,7 @@ export type ProjectSummary = {
   segmentCount: number
   translatedSegmentCount: number
   progressPercent: number
+  documentFileName: string | null
 }
 
 export type ProjectsResponse = {

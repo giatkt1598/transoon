@@ -20,6 +20,7 @@ const fallbackLanguages: LanguagesResponse = {
 
 export const defaultProjectFormValues: ProjectFormValues = {
   name: '',
+  description: '',
   sourceLang: fallbackLanguages.defaultSourceLanguage,
   targetLang: fallbackLanguages.defaultTargetLanguage,
 }
@@ -72,16 +73,23 @@ export async function fetchProject(projectId: string, signal?: AbortSignal) {
   return data as ProjectSummary
 }
 
-export async function saveProject(projectId: string | null, formValues: ProjectFormValues) {
+export async function saveProject(projectId: string | null, formValues: ProjectFormValues, documentFile?: File | null) {
+  const requestInit: RequestInit = projectId
+    ? {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formValues),
+      }
+    : {
+        method: 'POST',
+        body: createProjectFormData(formValues, documentFile),
+      }
+
   const response = await fetch(
     projectId ? `${apiBaseUrl}/api/projects/${projectId}` : `${apiBaseUrl}/api/projects`,
-    {
-      method: projectId ? 'PUT' : 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(formValues),
-    },
+    requestInit,
   )
 
   const data = await readJsonResponse<ProjectSummary | { error?: string }>(response)
@@ -101,4 +109,18 @@ export async function deleteProject(projectId: string) {
     const data = await readJsonResponse<{ error?: string }>(response)
     throw new Error(data.error ?? 'Could not delete project.')
   }
+}
+
+function createProjectFormData(formValues: ProjectFormValues, documentFile?: File | null) {
+  const formData = new FormData()
+  formData.append('name', formValues.name)
+  formData.append('description', formValues.description)
+  formData.append('sourceLang', formValues.sourceLang)
+  formData.append('targetLang', formValues.targetLang)
+
+  if (documentFile) {
+    formData.append('file', documentFile)
+  }
+
+  return formData
 }

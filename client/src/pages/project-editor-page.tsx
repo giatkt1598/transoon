@@ -6,8 +6,19 @@ import { useProjectEditor } from '../project-management/hooks/use-project-editor
 
 export function ProjectEditorPage() {
   const { projectId } = useParams()
-  const { languagesData, project, formValues, isEditMode, isLoading, isSaving, error, handleFieldChange, handleSaveProject } =
-    useProjectEditor({ projectId })
+  const {
+    languagesData,
+    project,
+    formValues,
+    documentFile,
+    isEditMode,
+    isLoading,
+    isSaving,
+    error,
+    handleFieldChange,
+    setDocumentFile,
+    handleSaveProject,
+  } = useProjectEditor({ projectId })
 
   return (
     <Box className="project-page">
@@ -29,9 +40,13 @@ export function ProjectEditorPage() {
         }
         languagesData={languagesData}
         formValues={formValues}
+        documentFileName={documentFile?.name ?? project?.documentFileName ?? ''}
+        showDocumentWarning={!isEditMode && Boolean(documentFile)}
+        isEditMode={isEditMode}
         isLoading={isLoading}
         isSaving={isSaving}
         onFieldChange={handleFieldChange}
+        onDocumentFileChange={setDocumentFile}
         onSave={handleSaveProject}
       />
 

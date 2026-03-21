@@ -2,6 +2,7 @@ export const translationMemorySchemaSql = `
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
   sourceLang TEXT NOT NULL,
   targetLang TEXT NOT NULL,
   createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -13,6 +14,7 @@ CREATE TABLE IF NOT EXISTS documents (
   fileName TEXT NOT NULL,
   documentType TEXT,
   contentSha256 TEXT,
+  storagePath TEXT,
   createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

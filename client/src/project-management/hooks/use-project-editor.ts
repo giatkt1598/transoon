@@ -13,6 +13,7 @@ export function useProjectEditor({ projectId }: UseProjectEditorOptions) {
   const [languagesData, setLanguagesData] = useState<LanguagesResponse>(getFallbackLanguages())
   const [project, setProject] = useState<ProjectSummary | null>(null)
   const [formValues, setFormValues] = useState<ProjectFormValues>(defaultProjectFormValues)
+  const [documentFile, setDocumentFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,15 +36,18 @@ export function useProjectEditor({ projectId }: UseProjectEditorOptions) {
           existingProject
             ? {
                 name: existingProject.name,
+                description: existingProject.description,
                 sourceLang: existingProject.sourceLang,
                 targetLang: existingProject.targetLang,
               }
             : {
                 name: '',
+                description: '',
                 sourceLang: languages.defaultSourceLanguage,
                 targetLang: languages.defaultTargetLanguage,
               },
         )
+        setDocumentFile(null)
       } catch (loadError) {
         if (controller.signal.aborted) {
           return
@@ -74,16 +78,18 @@ export function useProjectEditor({ projectId }: UseProjectEditorOptions) {
     setError(null)
 
     try {
-      const savedProject = await saveProject(projectId ?? null, formValues)
+      const savedProject = await saveProject(projectId ?? null, formValues, documentFile)
       navigate(`/projects/${savedProject.id}/edit`, {
         replace: !projectId,
       })
       setProject(savedProject)
       setFormValues({
         name: savedProject.name,
+        description: savedProject.description,
         sourceLang: savedProject.sourceLang,
         targetLang: savedProject.targetLang,
       })
+      setDocumentFile(null)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not save project.')
     } finally {
@@ -95,11 +101,13 @@ export function useProjectEditor({ projectId }: UseProjectEditorOptions) {
     languagesData,
     project,
     formValues,
+    documentFile,
     isEditMode,
     isLoading,
     isSaving,
     error,
     handleFieldChange,
+    setDocumentFile,
     handleSaveProject,
   }
 }

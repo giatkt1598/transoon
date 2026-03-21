@@ -1,7 +1,8 @@
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
-import { Box, Button, MenuItem, Paper, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, MenuItem, Paper, TextField, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import type { LanguagesResponse } from '../../app/types'
+import { ProjectDocumentUploadField } from './project-document-upload-field'
 import type { ProjectFormValues } from '../types'
 
 type ProjectEditorFormProps = {
@@ -9,9 +10,13 @@ type ProjectEditorFormProps = {
   description: string
   languagesData: LanguagesResponse
   formValues: ProjectFormValues
+  documentFileName: string
+  showDocumentWarning: boolean
+  isEditMode: boolean
   isLoading: boolean
   isSaving: boolean
   onFieldChange: <K extends keyof ProjectFormValues>(field: K, value: ProjectFormValues[K]) => void
+  onDocumentFileChange: (file: File | null) => void
   onSave: () => Promise<void>
 }
 
@@ -20,9 +25,13 @@ export function ProjectEditorForm({
   description,
   languagesData,
   formValues,
+  documentFileName,
+  showDocumentWarning,
+  isEditMode,
   isLoading,
   isSaving,
   onFieldChange,
+  onDocumentFileChange,
   onSave,
 }: ProjectEditorFormProps) {
   return (
@@ -47,6 +56,29 @@ export function ProjectEditorForm({
           fullWidth
           disabled={isLoading || isSaving}
         />
+
+        <TextField
+          label="Description"
+          value={formValues.description}
+          onChange={(event) => onFieldChange('description', event.target.value)}
+          placeholder="Project notes, scope, reviewer guidance, or terminology hints"
+          fullWidth
+          multiline
+          minRows={4}
+          disabled={isLoading || isSaving}
+        />
+
+        <ProjectDocumentUploadField
+          value={documentFileName}
+          disabled={isEditMode || isLoading || isSaving}
+          onFileChange={onDocumentFileChange}
+        />
+
+        {showDocumentWarning ? (
+          <Alert severity="warning" className="project-document-warning">
+            After the project is created, the uploaded document cannot be changed from the edit screen.
+          </Alert>
+        ) : null}
 
         <Box className="project-editor-grid">
           <TextField
@@ -98,7 +130,7 @@ export function ProjectEditorForm({
           onClick={() => void onSave()}
           disabled={isLoading || isSaving}
         >
-          {isSaving ? 'Saving project...' : 'Save project'}
+          {isSaving ? 'Saving project...' : isEditMode ? 'Save project' : 'Create project'}
         </Button>
       </Box>
     </Paper>

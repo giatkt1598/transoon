@@ -67,7 +67,7 @@ export function createApiRouter() {
     }
   });
 
-  router.post("/api/projects", (req, res) => {
+  router.post("/api/projects", upload.single("file"), (req, res) => {
     try {
       const validationError = validateProjectInput(req.body);
       if (validationError) {
@@ -75,7 +75,14 @@ export function createApiRouter() {
         return;
       }
 
-      const project = createProject(req.body);
+      const project = createProject(req.body, {
+        documentFile: req.file
+          ? {
+              originalName: req.file.originalname,
+              buffer: req.file.buffer,
+            }
+          : undefined,
+      });
       res.status(201).json(project);
     } catch (error) {
       const message =
@@ -250,7 +257,7 @@ function validateProjectInput(body: unknown) {
     return "A project payload is required.";
   }
 
-  const { name, sourceLang, targetLang } = body as Record<string, unknown>;
+  const { name, sourceLang, targetLang, description } = body as Record<string, unknown>;
 
   if (typeof name !== "string" || name.trim().length === 0) {
     return "Project name is required.";
@@ -262,6 +269,10 @@ function validateProjectInput(body: unknown) {
 
   if (typeof targetLang !== "string" || targetLang.trim().length === 0) {
     return "Target language is required.";
+  }
+
+  if (description !== undefined && typeof description !== "string") {
+    return "Description must be a string.";
   }
 
   return null;

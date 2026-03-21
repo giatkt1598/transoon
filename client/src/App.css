@@ -602,6 +602,28 @@
   padding: 28px;
 }
 
+.project-upload-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+}
+
+.project-upload-input {
+  display: none;
+}
+
+.project-upload-button.MuiButton-root {
+  min-width: 164px;
+  min-height: 56px;
+  border-radius: 16px;
+  align-self: stretch;
+}
+
+.project-document-warning.MuiAlert-root {
+  border-radius: 16px;
+}
+
 .project-editor-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -988,6 +1010,7 @@
   .field-grid,
   .result-metrics,
   .hero-stat-row,
+  .project-upload-field,
   .project-editor-grid,
   .project-table-toolbar {
     grid-template-columns: 1fr;

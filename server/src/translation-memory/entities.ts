@@ -17,6 +17,7 @@ export type MatchQuality =
 export type ProjectEntity = {
   id: string;
   name: string;
+  description: string;
   sourceLang: string;
   targetLang: string;
   createdAt: string;
@@ -28,6 +29,7 @@ export type DocumentEntity = {
   fileName: string;
   documentType: string | null;
   contentSha256: string | null;
+  storagePath: string | null;
   createdAt: string;
 };
 

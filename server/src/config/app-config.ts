@@ -5,4 +5,6 @@ export const appConfig = {
   defaultTranslateProvider: "Google Translate",
   translationMemoryDatabasePath:
     process.env.TRANSLATION_MEMORY_DATABASE_PATH ?? "storage/translation-memory.sqlite",
+  projectDocumentsStoragePath:
+    process.env.PROJECT_DOCUMENTS_STORAGE_PATH ?? "storage/project-documents",
 } as const;
