@@ -1,25 +1,44 @@
 import { Box, Paper, TextField, Typography } from '@mui/material'
-import { List, useDynamicRowHeight, type RowComponentProps } from 'react-window'
+import { useLayoutEffect, useRef } from 'react'
+import { List, useDynamicRowHeight, useListRef, type RowComponentProps } from 'react-window'
 import type { ProjectSegment } from '../../app/types'
 import { AlignmentToolToolbar } from './alignment-tool-toolbar'
 
 type AlignmentToolProps = {
   segments: ProjectSegment[]
+  sourceLanguageLabel: string
+  targetLanguageLabel: string
   isLoading: boolean
   isReadOnly: boolean
   isBusy: boolean
+  isSaving: boolean
+  isExporting: boolean
+  hasPendingChanges: boolean
+  restoreScrollKey?: number
   onTargetChange: (segmentId: string, targetText: string) => void
+  onSaveAll: () => void
+  onExport: () => void
   onOpenAutoTranslate: () => void
 }
 
 export function AlignmentTool({
   segments,
+  sourceLanguageLabel,
+  targetLanguageLabel,
   isLoading,
   isReadOnly,
   isBusy,
+  isSaving,
+  isExporting,
+  hasPendingChanges,
+  restoreScrollKey = 0,
   onTargetChange,
+  onSaveAll,
+  onExport,
   onOpenAutoTranslate,
 }: AlignmentToolProps) {
+  const listRef = useListRef(null)
+  const scrollTopRef = useRef(0)
   const rowHeight = useDynamicRowHeight({
     defaultRowHeight: 96,
     key: `${segments.length}:${segments.map((segment) => segment.id).join('|')}`,
@@ -31,15 +50,39 @@ export function AlignmentTool({
     onTargetChange,
   }
 
+  useLayoutEffect(() => {
+    if (restoreScrollKey === 0 || segments.length === 0) {
+      return
+    }
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      const element = listRef.current?.element
+      if (element) {
+        element.scrollTop = scrollTopRef.current
+      }
+    })
+
+    return () => window.cancelAnimationFrame(animationFrameId)
+  }, [listRef, restoreScrollKey, segments.length])
+
   return (
     <Paper className="detail-section-card alignment-tool-shell" elevation={0}>
-      <AlignmentToolToolbar isReadOnly={isReadOnly} isBusy={isBusy} onOpenAutoTranslate={onOpenAutoTranslate} />
+      <AlignmentToolToolbar
+        isReadOnly={isReadOnly}
+        isBusy={isBusy}
+        isSaving={isSaving}
+        isExporting={isExporting}
+        hasPendingChanges={hasPendingChanges}
+        onSaveAll={onSaveAll}
+        onExport={onExport}
+        onOpenAutoTranslate={onOpenAutoTranslate}
+      />
 
       <Box className="alignment-grid-shell">
         <Box className="alignment-grid-head">
           <span>No.</span>
-          <span>Source</span>
-          <span>Target</span>
+          <span>{`Source (${sourceLanguageLabel})`}</span>
+          <span>{`Target (${targetLanguageLabel})`}</span>
         </Box>
 
         {isLoading ? (
@@ -54,12 +97,16 @@ export function AlignmentTool({
           <Box className="alignment-grid-body">
             <List
               className="alignment-virtual-list"
+              listRef={listRef}
               rowComponent={AlignmentVirtualRow}
               rowCount={segments.length}
               rowHeight={rowHeight}
               rowProps={rowData}
               overscanCount={6}
               defaultHeight={480}
+              onScroll={(event) => {
+                scrollTopRef.current = event.currentTarget.scrollTop
+              }}
               style={{ height: '100%' }}
             />
           </Box>

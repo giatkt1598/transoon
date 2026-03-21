@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import { appConfig } from "../config/app-config";
-import { extractDocument } from "../document-service";
+import { extractDocument, writeOutputFile } from "../document-service";
 import { Log } from "../logger";
 import { setProjectAutoTranslateProgress } from "../project-auto-translate-progress";
 import { TranslateProvider } from "../translate-provider";
@@ -42,6 +42,12 @@ export type ProjectSegment = Pick<
 export type SaveProjectSegmentInput = {
   id: string;
   targetText: string;
+};
+
+export type ExportProjectDocumentResult = {
+  outputPath: string;
+  outputFileName: string;
+  documentType: string | null;
 };
 
 export type UpsertProjectInput = {
@@ -135,11 +141,7 @@ export function listProjectSegments(projectId: string) {
 export async function generateProjectSegments(projectId: string) {
   assertProjectIsEditable(projectId);
   const repositories = createTranslationMemoryRepositories();
-  const document = repositories.documents
-    .query()
-    .where("projectId", projectId)
-    .orderBy("createdAt", "asc")
-    .firstOrDefault();
+  const document = getPrimaryProjectDocument(projectId);
 
   if (!document) {
     throw new Error("No document is attached to this project.");
@@ -209,6 +211,44 @@ export async function generateProjectSegments(projectId: string) {
   return {
     project: getProjectDetailById(projectId),
     segments: listProjectSegments(projectId),
+  };
+}
+
+export async function exportProjectDocument(
+  projectId: string,
+): Promise<ExportProjectDocumentResult> {
+  const document = getPrimaryProjectDocument(projectId);
+
+  if (!document) {
+    throw new Error("No document is attached to this project.");
+  }
+
+  if (!document.storagePath) {
+    throw new Error("The project document is missing its storage path.");
+  }
+
+  const absoluteStoragePath = path.resolve(process.cwd(), document.storagePath);
+  const fileBuffer = readFileSync(absoluteStoragePath);
+  const extractedDocument = await extractDocument(document.fileName, fileBuffer);
+  const savedSegmentMap = new Map(
+    listProjectSegments(projectId).map((segment) => [
+      segment.externalSegmentId,
+      segment.targetText.trim().length > 0 ? segment.targetText : segment.sourceText,
+    ] as const),
+  );
+  const nextSegments = extractedDocument.segments.map(
+    (segment) => savedSegmentMap.get(segment.id) ?? segment.text,
+  );
+  const outputBuffer = await extractedDocument.replaceSegments(nextSegments);
+  const { outputPath, outputFileName } = await writeOutputFile(
+    document.fileName,
+    outputBuffer,
+  );
+
+  return {
+    outputPath,
+    outputFileName,
+    documentType: document.documentType,
   };
 }
 
@@ -371,6 +411,15 @@ function mapProjectSummary(
 function setProjectStatus(projectId: string, status: ProjectStatus) {
   const repositories = createTranslationMemoryRepositories();
   repositories.projects.updateById(projectId, { status });
+}
+
+function getPrimaryProjectDocument(projectId: string) {
+  const repositories = createTranslationMemoryRepositories();
+  return repositories.documents
+    .query()
+    .where("projectId", projectId)
+    .orderBy("createdAt", "asc")
+    .firstOrDefault();
 }
 
 async function runProjectAutoTranslate(projectId: string, providerName: string) {

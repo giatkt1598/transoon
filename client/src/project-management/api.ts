@@ -227,6 +227,29 @@ export async function autoTranslateProject(projectId: string, providerName: stri
   return data as { message: string; project: ProjectDetail | null }
 }
 
+export async function exportProjectDocument(projectId: string) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/export`)
+
+  if (!response.ok) {
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.includes('application/json')) {
+      const data = await readJsonResponse<{ error?: string }>(response)
+      throw new Error(data.error ?? 'Could not export project document.')
+    }
+
+    throw new Error('Could not export project document.')
+  }
+
+  const blob = await response.blob()
+  const disposition = response.headers.get('content-disposition') ?? ''
+  const fileNameMatch = disposition.match(/filename="?([^"]+)"?/i)
+
+  return {
+    blob,
+    fileName: fileNameMatch?.[1] ?? 'project.translated',
+  }
+}
+
 export async function attachProjectTranslationMemory(
   projectId: string,
   payload: {

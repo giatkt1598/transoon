@@ -9,6 +9,7 @@ import { ProjectDetailInformationSection } from '../project-management/component
 import { ProjectDetailTranslationMemoriesSection } from '../project-management/components/project-detail-translation-memories-section'
 import { useProjectDetail } from '../project-management/hooks/use-project-detail'
 import { useProjectTranslations } from '../project-translations/hooks/use-project-translations'
+import { getLanguageLabel } from '../app/utils'
 
 export function ProjectDetailPage() {
   const { projectId } = useParams()
@@ -47,6 +48,8 @@ export function ProjectDetailPage() {
     isLoadingSegments,
     isGeneratingSegments,
     isSavingSegments,
+    isExportingDocument,
+    segmentSaveRevision,
     isAutoTranslateDialogOpen,
     isStartingAutoTranslate,
     selectedProviderName,
@@ -55,6 +58,7 @@ export function ProjectDetailPage() {
     setSelectedProviderName,
     handleTargetChange,
     handleSaveSegments,
+    handleExportDocument,
     handleGenerateSegments,
     handleOpenAutoTranslateDialog,
     handleCloseAutoTranslateDialog,
@@ -76,14 +80,6 @@ export function ProjectDetailPage() {
           { label: 'Projects', to: '/projects' },
           { label: 'Detail' },
         ]}
-        actionLabel="Save"
-        onActionClick={() => void handleSaveSegments()}
-        actionDisabled={
-          projectDetail?.status === 'auto-translate-processing' ||
-          activeTab !== 1 ||
-          !hasPendingSegmentChanges ||
-          isSavingSegments
-        }
       />
 
       <Box className="detail-tabs-shell">
@@ -143,10 +139,18 @@ export function ProjectDetailPage() {
             <>
               <AlignmentTool
                 segments={segments}
+                sourceLanguageLabel={getLanguageLabel(projectDetail.sourceLang)}
+                targetLanguageLabel={getLanguageLabel(projectDetail.targetLang)}
                 isLoading={isLoadingSegments}
                 isReadOnly={isReadOnly}
                 isBusy={isStartingAutoTranslate}
+                isSaving={isSavingSegments}
+                isExporting={isExportingDocument}
+                hasPendingChanges={hasPendingSegmentChanges}
+                restoreScrollKey={segmentSaveRevision}
                 onTargetChange={handleTargetChange}
+                onSaveAll={() => void handleSaveSegments()}
+                onExport={() => void handleExportDocument()}
                 onOpenAutoTranslate={handleOpenAutoTranslateDialog}
               />
               <DocumentPreviewPlaceholder />

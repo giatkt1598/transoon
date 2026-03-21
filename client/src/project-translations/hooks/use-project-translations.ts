@@ -9,6 +9,7 @@ import type {
 import { getAppSocket } from '../../app/socket'
 import {
   autoTranslateProject,
+  exportProjectDocument,
   fetchProjectDetail,
   fetchProjectSegments,
   generateProjectSegments,
@@ -34,6 +35,8 @@ export function useProjectTranslations({
   const [isLoadingSegments, setIsLoadingSegments] = useState(false)
   const [isGeneratingSegments, setIsGeneratingSegments] = useState(false)
   const [isSavingSegments, setIsSavingSegments] = useState(false)
+  const [isExportingDocument, setIsExportingDocument] = useState(false)
+  const [segmentSaveRevision, setSegmentSaveRevision] = useState(0)
   const [isAutoTranslateDialogOpen, setIsAutoTranslateDialogOpen] = useState(false)
   const [isStartingAutoTranslate, setIsStartingAutoTranslate] = useState(false)
   const [selectedProviderName, setSelectedProviderName] = useState('')
@@ -44,7 +47,7 @@ export function useProjectTranslations({
   const projectSegmentCount = projectDetail?.segmentCount ?? 0
 
   useEffect(() => {
-    if (!projectId || !projectDetail || !isActive) {
+    if (!projectId || !isActive) {
       return
     }
 
@@ -80,7 +83,7 @@ export function useProjectTranslations({
     void loadSegments()
 
     return () => controller.abort()
-  }, [isActive, projectDetail, projectSegmentCount, projectStatus, projectId])
+  }, [isActive, projectId, projectSegmentCount, projectStatus])
 
   useEffect(() => {
     if (!translateProviders.length) {
@@ -220,30 +223,47 @@ export function useProjectTranslations({
     }
   }
 
-  async function handleSaveSegments() {
+  async function saveDirtySegments() {
     if (!projectId || isReadOnly || !hasPendingSegmentChanges) {
-      return
+      return null
     }
 
+    const windowScrollY = window.scrollY
+    const dirtySegments = segments
+      .filter((segment) => (savedSegmentTargets[segment.id] ?? '') !== segment.targetText)
+      .map((segment) => ({
+        id: segment.id,
+        targetText: segment.targetText,
+      }))
+
+    const result = await saveProjectSegments(projectId, dirtySegments)
+    setSegments(result.segments)
+    setSavedSegmentTargets(createSavedSegmentTargetMap(result.segments))
+
+    if (result.project) {
+      onProjectDetailChange(result.project)
+    }
+
+    setSegmentSaveRevision((current) => current + 1)
+    window.requestAnimationFrame(() => {
+      window.scrollTo({
+        top: windowScrollY,
+        behavior: 'instant',
+      })
+    })
+
+    return result
+  }
+
+  async function handleSaveSegments() {
     try {
       setIsSavingSegments(true)
       setSegmentsError(null)
-      const dirtySegments = segments
-        .filter((segment) => (savedSegmentTargets[segment.id] ?? '') !== segment.targetText)
-        .map((segment) => ({
-          id: segment.id,
-          targetText: segment.targetText,
-        }))
+      const result = await saveDirtySegments()
 
-      const result = await saveProjectSegments(projectId, dirtySegments)
-      setSegments(result.segments)
-      setSavedSegmentTargets(createSavedSegmentTargetMap(result.segments))
-
-      if (result.project) {
-        onProjectDetailChange(result.project)
+      if (result) {
+        toast.success('Project segments saved successfully.')
       }
-
-      toast.success('Project segments saved successfully.')
     } catch (saveError) {
       const message =
         saveError instanceof Error ? saveError.message : 'Could not save project segments.'
@@ -251,6 +271,39 @@ export function useProjectTranslations({
       toast.error(message)
     } finally {
       setIsSavingSegments(false)
+    }
+  }
+
+  async function handleExportDocument() {
+    if (!projectId || isReadOnly || isExportingDocument) {
+      return
+    }
+
+    try {
+      setIsExportingDocument(true)
+      setSegmentsError(null)
+
+      if (hasPendingSegmentChanges) {
+        await saveDirtySegments()
+      }
+
+      const { blob, fileName } = await exportProjectDocument(projectId)
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(downloadUrl)
+      toast.success('Translated document exported successfully.')
+    } catch (exportError) {
+      const message =
+        exportError instanceof Error ? exportError.message : 'Could not export project document.'
+      setSegmentsError(message)
+      toast.error(message)
+    } finally {
+      setIsExportingDocument(false)
     }
   }
 
@@ -296,6 +349,8 @@ export function useProjectTranslations({
     isLoadingSegments,
     isGeneratingSegments,
     isSavingSegments,
+    isExportingDocument,
+    segmentSaveRevision,
     isAutoTranslateDialogOpen,
     isStartingAutoTranslate,
     selectedProviderName,
@@ -305,6 +360,7 @@ export function useProjectTranslations({
     setSelectedProviderName,
     handleTargetChange,
     handleSaveSegments,
+    handleExportDocument,
     handleGenerateSegments,
     handleOpenAutoTranslateDialog,
     handleCloseAutoTranslateDialog,

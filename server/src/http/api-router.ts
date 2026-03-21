@@ -13,6 +13,7 @@ import {
   getProjectById,
   listProjectSegments,
   listProjects,
+  exportProjectDocument,
   saveProjectSegments,
   startProjectAutoTranslate,
   updateProject,
@@ -378,6 +379,25 @@ export function createApiRouter() {
         message: "Auto translate started.",
         project,
       });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.get("/api/projects/:projectId/export", async (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      const { outputPath, outputFileName } = await exportProjectDocument(projectId);
+      res.download(outputPath, outputFileName);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unexpected server error.";
