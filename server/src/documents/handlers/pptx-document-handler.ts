@@ -158,7 +158,7 @@ function collectParagraphDescriptors(
     }
 
     const text = getParagraphText(paragraph);
-    if (text.trim().length === 0) {
+    if (!isTranslatablePptxText(text)) {
       return;
     }
 
@@ -189,7 +189,7 @@ function collectTextElementDescriptors(
 
   elements.forEach((element) => {
     const text = normalizeText(element.textContent ?? "");
-    if (text.trim().length === 0) {
+    if (!isTranslatablePptxText(text)) {
       return;
     }
 
@@ -224,7 +224,7 @@ function applyParagraphReplacements(
     }
 
     const text = getParagraphText(paragraph);
-    if (text.trim().length === 0) {
+    if (!isTranslatablePptxText(text)) {
       return;
     }
 
@@ -257,7 +257,7 @@ function applyTextElementReplacements(
 
   elements.forEach((element) => {
     const currentText = normalizeText(element.textContent ?? "");
-    if (currentText.trim().length === 0) {
+    if (!isTranslatablePptxText(currentText)) {
       return;
     }
 
@@ -345,6 +345,43 @@ function requiresPreserveWhitespace(value: string) {
 
 function normalizeText(value: string) {
   return value.replace(/\r\n/g, "\n");
+}
+
+function isTranslatablePptxText(value: string) {
+  const trimmedValue = value.trim();
+  if (trimmedValue.length === 0) {
+    return false;
+  }
+
+  // Skip internal placeholder markers such as <#> / <#1> / ‹#› that are not user-visible text.
+  if (/^<#[^>]*>$/.test(trimmedValue) || /^‹#[^›]*›$/.test(trimmedValue)) {
+    return false;
+  }
+
+  // Skip short Office-style placeholder tokens enclosed by angle brackets, e.g. <date>, <footer>, <number>.
+  if (
+    trimmedValue.length <= 40 &&
+    (/^<[A-Za-z0-9_:/.-]+>$/.test(trimmedValue) ||
+      /^‹[A-Za-z0-9_:/.-]+›$/.test(trimmedValue))
+  ) {
+    return false;
+  }
+
+  // Skip internal chart/object marker tokens such as #MQprvI#11# that are not display text.
+  if (/^#[A-Za-z0-9_-]+(?:#\d+)+#?$/.test(trimmedValue)) {
+    return false;
+  }
+
+  // Skip tokens that are made only of punctuation/marker characters and have no readable text.
+  if (
+    trimmedValue.length <= 24 &&
+    !/[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/u.test(trimmedValue) &&
+    /^[<>{}\[\]#*~^|\\/._:+\-=\d]+$/u.test(trimmedValue)
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function buildDescriptorKey(
