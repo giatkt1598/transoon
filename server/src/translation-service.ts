@@ -1,9 +1,14 @@
-import { TranslateProvider, type TranslationResult } from "./translate-provider";
+import {
+  TranslateProvider,
+  type TranslationResult,
+} from "./translate-provider";
 import "./providers/google-translate-provider";
 import "./providers/deepseek-r1-provider";
 import "./providers/gemma3-1b-provider";
 import "./providers/gemma3-4b-provider";
 import "./providers/qwen2.5-coder-7b-provider";
+import "./providers/qwen3-coder-30b-provider";
+import "./providers/qwen3-8b-provider";
 
 export type { TranslationResult } from "./translate-provider";
 export { TranslateProvider } from "./translate-provider";
