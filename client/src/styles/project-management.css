@@ -694,6 +694,8 @@ body.pane-resizing {
 }
 
 .alignment-grid-head {
+  --scrollbar-width: 15px;
+  padding-right: var(--scrollbar-width);
   background: #f3f0ea;
   color: #6f5b4c;
   font-size: 0.82rem;
@@ -756,6 +758,7 @@ body.pane-resizing {
 
 .alignment-virtual-list {
   overflow-x: hidden !important;
+  overflow-y: scroll !important;
 }
 
 .alignment-index-cell,
