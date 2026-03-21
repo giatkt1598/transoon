@@ -602,11 +602,19 @@ body.pane-resizing {
   background: rgba(255, 248, 228, 0.92);
 }
 
+.alignment-grid-row:hover .alignment-target-field {
+  background: rgba(255, 248, 228, 0.92);
+}
+
 .alignment-grid-row:hover .alignment-target-field .MuiOutlinedInput-root {
   background: rgba(255, 248, 228, 0.92);
 }
 
 .alignment-grid-row.active .alignment-source-cell {
+  background: rgba(255, 248, 228, 0.92);
+}
+
+.alignment-grid-row.active .alignment-target-field {
   background: rgba(255, 248, 228, 0.92);
 }
 
@@ -663,6 +671,7 @@ body.pane-resizing {
   border-right: none;
   align-self: stretch;
   min-width: 0;
+  background: #ffffff;
 }
 
 .alignment-target-field .MuiOutlinedInput-root {
