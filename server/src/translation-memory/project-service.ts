@@ -83,6 +83,18 @@ type CreateProjectOptions = {
   };
 };
 
+class AutoTranslateCancelledError extends Error {
+  constructor() {
+    super("Auto translate was cancelled.");
+    this.name = "AutoTranslateCancelledError";
+  }
+}
+
+const runningAutoTranslateJobs = new Map<
+  string,
+  { runId: string; controller: AbortController }
+>();
+
 export function listProjects() {
   const database = getTranslationMemoryDatabase();
   const sql = `
@@ -486,8 +498,38 @@ export async function startProjectAutoTranslate(
     message: "Preparing background auto translate.",
   });
 
+  const runId = randomUUID();
+  const controller = new AbortController();
+  runningAutoTranslateJobs.set(projectId, { runId, controller });
+
   queueMicrotask(() => {
-    void runProjectAutoTranslate(projectId, providerName);
+    void runProjectAutoTranslate(projectId, providerName, runId, controller);
+  });
+
+  return getProjectDetailById(projectId);
+}
+
+export function cancelProjectAutoTranslate(projectId: string) {
+  const project = getProjectById(projectId);
+  if (!project) {
+    throw new Error("Project not found.");
+  }
+
+  const runningJob = runningAutoTranslateJobs.get(projectId);
+  if (runningJob) {
+    runningJob.controller.abort();
+    runningAutoTranslateJobs.delete(projectId);
+  }
+
+  setProjectStatus(projectId, "idle");
+
+  const latestProject = getProjectById(projectId);
+  setProjectAutoTranslateProgress(projectId, {
+    phase: "cancelled",
+    completedSegments: latestProject?.translatedSegmentCount ?? 0,
+    totalSegments: latestProject?.segmentCount ?? 0,
+    progressPercent: latestProject?.progressPercent ?? 0,
+    message: "Auto translate was cancelled.",
   });
 
   return getProjectDetailById(projectId);
@@ -530,12 +572,28 @@ function getPrimaryProjectDocument(projectId: string) {
     .firstOrDefault();
 }
 
-async function runProjectAutoTranslate(projectId: string, providerName: string) {
+async function runProjectAutoTranslate(
+  projectId: string,
+  providerName: string,
+  runId: string,
+  controller: AbortController,
+) {
   const logger = Log.forContext({ projectId, providerName, job: "project-auto-translate" });
   let totalSegments = 0;
   let translatedSegmentCount = 0;
+  const ensureJobIsActive = () => {
+    const runningJob = runningAutoTranslateJobs.get(projectId);
+    if (
+      controller.signal.aborted ||
+      !runningJob ||
+      runningJob.runId !== runId
+    ) {
+      throw new AutoTranslateCancelledError();
+    }
+  };
 
   try {
+    ensureJobIsActive();
     const project = getProjectById(projectId);
     if (!project) {
       throw new Error("Project not found.");
@@ -582,7 +640,9 @@ async function runProjectAutoTranslate(projectId: string, providerName: string) 
       segments: segments.map((segment) => segment.sourceText),
       sourceLanguage: project.sourceLang,
       targetLanguage: project.targetLang,
+      signal: controller.signal,
       onProgress: (progress) => {
+        ensureJobIsActive();
         const currentTranslatedSegmentCount = Math.min(
           totalSegments,
           Math.max(
@@ -602,6 +662,7 @@ async function runProjectAutoTranslate(projectId: string, providerName: string) 
         });
       },
       onTranslatedSegments: async (batch) => {
+        ensureJobIsActive();
         translatedSegmentCount = persistAutoTranslatedSegments(
           segments,
           batch,
@@ -620,6 +681,8 @@ async function runProjectAutoTranslate(projectId: string, providerName: string) 
         });
       },
     });
+
+    ensureJobIsActive();
 
     if (result.translatedSegments.length !== segments.length) {
       throw new Error(
@@ -646,6 +709,11 @@ async function runProjectAutoTranslate(projectId: string, providerName: string) 
           : `Auto translate completed with partial results. ${translatedSegmentCount} of ${totalSegments} segments are now translated.`,
     });
   } catch (error) {
+    if (error instanceof AutoTranslateCancelledError) {
+      await logger.information("Background auto translate was cancelled for {projectId}");
+      return;
+    }
+
     await logger.error("Background auto translate failed for {projectId}", error);
     setProjectStatus(projectId, "idle");
     setProjectAutoTranslateProgress(projectId, {
@@ -662,7 +730,10 @@ async function runProjectAutoTranslate(projectId: string, providerName: string) 
           : "Auto translate failed unexpectedly.",
     });
   } finally {
-    // Status is finalized in success/failure branches before completion events are emitted.
+    const runningJob = runningAutoTranslateJobs.get(projectId);
+    if (runningJob?.runId === runId) {
+      runningAutoTranslateJobs.delete(projectId);
+    }
   }
 }
 

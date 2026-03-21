@@ -27,6 +27,7 @@ export type TranslateRequest = {
   segments: string[];
   sourceLanguage: string;
   targetLanguage: string;
+  signal?: AbortSignal;
   promptMode?: "all-segments" | "inline";
   buildPromptOverride?: (context: TranslatePromptContext) => string;
   onProgress?: (progress: TranslateProgress) => void | Promise<void>;

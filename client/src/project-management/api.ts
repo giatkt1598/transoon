@@ -242,6 +242,21 @@ export async function autoTranslateProject(projectId: string, providerName: stri
   return data as { message: string; project: ProjectDetail | null }
 }
 
+export async function cancelAutoTranslateProject(projectId: string) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/auto-translate/cancel`, {
+    method: 'POST',
+  })
+
+  const data = await readJsonResponse<{ message: string; project: ProjectDetail | null } | { error?: string }>(response)
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data ? data.error ?? 'Could not cancel auto translate.' : 'Could not cancel auto translate.',
+    )
+  }
+
+  return data as { message: string; project: ProjectDetail | null }
+}
+
 export async function inlineTranslateProjectSegment(projectId: string, segmentId: string, signal?: AbortSignal) {
   const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/segments/${segmentId}/inline-translate`, {
     method: 'POST',

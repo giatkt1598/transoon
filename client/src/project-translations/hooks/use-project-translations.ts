@@ -10,6 +10,7 @@ import { getAppSocket } from '../../app/socket'
 import { fetchSettings } from '../../settings-management/api'
 import {
   autoTranslateProject,
+  cancelAutoTranslateProject,
   exportProjectDocument,
   fetchProjectDetail,
   fetchProjectSegments,
@@ -42,6 +43,7 @@ export function useProjectTranslations({
   const [activeSegmentExternalId, setActiveSegmentExternalId] = useState<string | null>(null)
   const [isAutoTranslateDialogOpen, setIsAutoTranslateDialogOpen] = useState(false)
   const [isStartingAutoTranslate, setIsStartingAutoTranslate] = useState(false)
+  const [isCancellingAutoTranslate, setIsCancellingAutoTranslate] = useState(false)
   const [selectedProviderName, setSelectedProviderName] = useState('')
   const [autoTranslateProgress, setAutoTranslateProgress] = useState<ProjectAutoTranslateProgressResponse | null>(null)
   const [segmentsError, setSegmentsError] = useState<string | null>(null)
@@ -161,7 +163,7 @@ export function useProjectTranslations({
         }
       })
 
-      if (progress.phase === 'completed' || progress.phase === 'failed') {
+      if (progress.phase === 'completed' || progress.phase === 'failed' || progress.phase === 'cancelled') {
         try {
           const [nextProjectDetail, nextSegments] = await Promise.all([
             fetchProjectDetail(resolvedProjectId),
@@ -174,6 +176,8 @@ export function useProjectTranslations({
 
           if (progress.phase === 'completed') {
             toast.success('Auto translate finished successfully.')
+          } else if (progress.phase === 'cancelled') {
+            toast.info('Auto translate was cancelled.')
           } else {
             toast.error(progress.message)
           }
@@ -449,6 +453,39 @@ export function useProjectTranslations({
     }
   }
 
+  async function handleCancelAutoTranslate() {
+    if (!projectId || projectStatus !== 'auto-translate-processing') {
+      return
+    }
+
+    try {
+      setIsCancellingAutoTranslate(true)
+      setSegmentsError(null)
+      const result = await cancelAutoTranslateProject(projectId)
+
+      if (result.project) {
+        onProjectDetailChange(result.project)
+      }
+
+      setAutoTranslateProgress({
+        projectId,
+        phase: 'cancelled',
+        completedSegments: result.project?.translatedSegmentCount ?? projectDetail?.translatedSegmentCount ?? 0,
+        totalSegments: projectSegmentCount,
+        progressPercent: result.project?.progressPercent ?? projectDetail?.progressPercent ?? 0,
+        message: 'Auto translate was cancelled.',
+        updatedAt: new Date().toISOString(),
+      })
+    } catch (cancelError) {
+      const message =
+        cancelError instanceof Error ? cancelError.message : 'Could not cancel auto translate.'
+      setSegmentsError(message)
+      toast.error(message)
+    } finally {
+      setIsCancellingAutoTranslate(false)
+    }
+  }
+
   return {
     segments,
     hasSegments,
@@ -461,6 +498,7 @@ export function useProjectTranslations({
     activeSegmentExternalId,
     isAutoTranslateDialogOpen,
     isStartingAutoTranslate,
+    isCancellingAutoTranslate,
     selectedProviderName,
     autoTranslateProgress,
     segmentsError,
@@ -479,6 +517,7 @@ export function useProjectTranslations({
     handleOpenAutoTranslateDialog,
     handleCloseAutoTranslateDialog,
     handleConfirmAutoTranslate,
+    handleCancelAutoTranslate,
   }
 }
 

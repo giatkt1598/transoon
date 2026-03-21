@@ -1,4 +1,4 @@
-import { Alert, Box, Tab, Tabs, Typography } from '@mui/material'
+import { Alert, Box, Button, Tab, Tabs, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { AutoTranslateDialog } from '../project-translations/components/auto-translate-dialog'
 import { useParams } from 'react-router-dom'
@@ -62,6 +62,7 @@ export function ProjectDetailPage() {
     activeSegmentExternalId,
     isAutoTranslateDialogOpen,
     isStartingAutoTranslate,
+    isCancellingAutoTranslate,
     selectedProviderName,
     segmentsError,
     hasPendingSegmentChanges,
@@ -79,6 +80,7 @@ export function ProjectDetailPage() {
     handleOpenAutoTranslateDialog,
     handleCloseAutoTranslateDialog,
     handleConfirmAutoTranslate,
+    handleCancelAutoTranslate,
   } = useProjectTranslations({
     projectId,
     projectDetail,
@@ -134,7 +136,21 @@ export function ProjectDetailPage() {
       ) : null}
 
       {projectDetail?.status === 'auto-translate-processing' ? (
-        <Alert severity="warning" className="project-processing-warning">
+        <Alert
+          severity="warning"
+          className="project-processing-warning"
+          action={
+            <Button
+              type="button"
+              variant="text"
+              className="project-processing-cancel"
+              disabled={isCancellingAutoTranslate}
+              onClick={() => void handleCancelAutoTranslate()}
+            >
+              {isCancellingAutoTranslate ? 'Cancelling...' : 'Cancel'}
+            </Button>
+          }
+        >
           This project is running auto translate in the background. Manual editing is temporarily disabled until the
           job finishes.
         </Alert>

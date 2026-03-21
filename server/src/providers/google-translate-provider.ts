@@ -41,6 +41,7 @@ export class GoogleTranslateProvider extends TranslateProvider {
     });
 
     for (const [chunkIndex, chunk] of chunks.entries()) {
+      throwIfAborted(request.signal);
       const inputs = chunk.map((item) => item.text);
       const response = await translate(inputs, {
         from: request.sourceLanguage,
@@ -77,6 +78,12 @@ export class GoogleTranslateProvider extends TranslateProvider {
       warnings: [],
       provider: this.name,
     };
+  }
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) {
+    throw new Error("Auto translate was cancelled.");
   }
 }
 

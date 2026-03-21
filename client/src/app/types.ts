@@ -59,7 +59,7 @@ export type TranslationProgressResponse = {
 
 export type ProjectAutoTranslateProgressResponse = {
   projectId: string
-  phase: 'queued' | 'translating' | 'completed' | 'failed'
+  phase: 'queued' | 'translating' | 'completed' | 'failed' | 'cancelled'
   completedSegments: number
   totalSegments: number
   progressPercent: number

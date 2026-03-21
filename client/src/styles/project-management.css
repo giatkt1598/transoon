@@ -284,6 +284,20 @@
   border-radius: 16px;
 }
 
+.project-processing-cancel.MuiButton-root {
+  min-width: 0;
+  padding: 0;
+  color: #8f4c12;
+  font-weight: 700;
+  text-transform: none;
+  text-decoration: underline;
+}
+
+.project-processing-cancel.MuiButton-root:hover {
+  background: transparent;
+  text-decoration-thickness: 2px;
+}
+
 .detail-home-grid {
   display: grid;
   gap: 18px;

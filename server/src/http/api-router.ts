@@ -5,6 +5,7 @@ import { appConfig } from "../config/app-config";
 import { languageCatalog } from "../config/language-catalog";
 import { extractDocument } from "../document-service";
 import {
+  cancelProjectAutoTranslate,
   createProject,
   deleteProject,
   generateProjectSegments,
@@ -463,6 +464,28 @@ export function createApiRouter() {
       const project = await startProjectAutoTranslate(projectId, providerName);
       res.status(202).json({
         message: "Auto translate started.",
+        project,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.post("/api/projects/:projectId/auto-translate/cancel", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      const project = cancelProjectAutoTranslate(projectId);
+      res.json({
+        message: "Auto translate cancelled.",
         project,
       });
     } catch (error) {

@@ -81,6 +81,7 @@ export abstract class AITranslateProvider extends TranslateProvider {
     );
 
     for (const [chunkIndex, chunk] of chunks.entries()) {
+      throwIfAborted(request.signal);
       const payload = chunk.map((item) => ({
         index: item.index,
         text: item.text,
@@ -92,6 +93,7 @@ export abstract class AITranslateProvider extends TranslateProvider {
         payload,
         request.sourceLanguage,
         request.targetLanguage,
+        request.signal,
         request.promptMode,
         request.buildPromptOverride,
       );
@@ -138,12 +140,14 @@ export abstract class AITranslateProvider extends TranslateProvider {
 
       for (const segment of unresolvedSegments) {
         try {
+          throwIfAborted(request.signal);
           const recovery = await this.translateChunkWithRetry(
             logger,
             "recovery",
             [segment],
             request.sourceLanguage,
             request.targetLanguage,
+            request.signal,
             request.promptMode,
             request.buildPromptOverride,
             this.recoveryAttempts,
@@ -384,6 +388,7 @@ export abstract class AITranslateProvider extends TranslateProvider {
     payload: Array<{ index: number; text: string }>,
     sourceLanguage: string,
     targetLanguage: string,
+    signal: AbortSignal | undefined,
     promptMode: TranslateRequest["promptMode"],
     buildPromptOverride: TranslateRequest["buildPromptOverride"],
     maxAttempts = this.maxRetries + 1,
@@ -392,11 +397,13 @@ export abstract class AITranslateProvider extends TranslateProvider {
     const translatedMap = new Map<number, string>();
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      throwIfAborted(signal);
       const messages = this.buildMessages(
         {
           segments: payload.map((item) => item.text),
           sourceLanguage,
           targetLanguage,
+          signal,
           promptMode,
           buildPromptOverride,
         },
@@ -414,7 +421,7 @@ export abstract class AITranslateProvider extends TranslateProvider {
           payload,
         });
 
-        const response = await this.requestOllama(messages);
+        const response = await this.requestOllama(messages, signal);
 
         if (!response.ok) {
           throw new Error(
@@ -567,9 +574,13 @@ export abstract class AITranslateProvider extends TranslateProvider {
     }
   }
 
-  private async requestOllama(messages: AIMessage[]) {
+  private async requestOllama(messages: AIMessage[], signal?: AbortSignal) {
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), this.timeoutMs);
+    const requestSignal =
+      signal && typeof AbortSignal.any === "function"
+        ? AbortSignal.any([abortController.signal, signal])
+        : signal ?? abortController.signal;
 
     try {
       return await fetch(this.endpoint, {
@@ -582,7 +593,7 @@ export abstract class AITranslateProvider extends TranslateProvider {
           messages,
           stream: false,
         }),
-        signal: abortController.signal,
+        signal: requestSignal,
       });
     } catch (error) {
       throw createNetworkError(
@@ -595,6 +606,12 @@ export abstract class AITranslateProvider extends TranslateProvider {
     } finally {
       clearTimeout(timeout);
     }
+  }
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) {
+    throw new Error("Auto translate was cancelled.");
   }
 }
 

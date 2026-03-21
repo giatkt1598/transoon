@@ -3,7 +3,7 @@ import type { Server as SocketIOServer } from "socket.io";
 
 export type ProjectAutoTranslateProgress = {
   projectId: string;
-  phase: "queued" | "translating" | "completed" | "failed";
+  phase: "queued" | "translating" | "completed" | "failed" | "cancelled";
   completedSegments: number;
   totalSegments: number;
   progressPercent: number;
