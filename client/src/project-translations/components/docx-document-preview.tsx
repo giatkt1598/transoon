@@ -94,10 +94,10 @@ export function DocxDocumentPreview({
         return
       }
 
-      const replacementText = block.segmentIds
+      const replacementSegments = block.segmentIds
         .map((segmentId) => renderedTextMap.get(segmentId))
         .filter((text): text is string => typeof text === 'string')
-        .join('')
+      const replacementText = buildReplacementText(block, replacementSegments)
 
       if (!replacementText) {
         return
@@ -154,4 +154,23 @@ function collectBlockElements(root: HTMLElement) {
   }
 
   return blockElements
+}
+
+function buildReplacementText(
+  block: Extract<ProjectDocumentPreview, { documentType: 'docx' }>['blocks'][number],
+  replacementSegments: string[],
+) {
+  if (replacementSegments.length === 0) {
+    return ''
+  }
+
+  let nextText = block.prefixText ?? ''
+
+  replacementSegments.forEach((segmentText, index) => {
+    nextText += segmentText
+    nextText += block.separatorTexts?.[index] ?? ''
+  })
+
+  nextText += block.suffixText ?? ''
+  return nextText
 }

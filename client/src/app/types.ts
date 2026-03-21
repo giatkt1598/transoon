@@ -112,6 +112,9 @@ export type DocxPreviewBlock = {
   blockId: string
   segmentIds: string[]
   kind: 'paragraph' | 'table'
+  prefixText?: string
+  separatorTexts?: string[]
+  suffixText?: string
 }
 
 export type ProjectDocumentPreview =
