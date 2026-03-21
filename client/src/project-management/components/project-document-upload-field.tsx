@@ -23,7 +23,7 @@ export function ProjectDocumentUploadField({
         ref={inputRef}
         type="file"
         className="project-upload-input"
-        accept=".txt,.docx,.xlsx,.pptx"
+        accept=".txt,.docx,.xlsx,.csv,.pptx"
         disabled={disabled}
         onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
       />

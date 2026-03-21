@@ -94,14 +94,14 @@ export function DocumentIntakePanel() {
           <input
             hidden
             type="file"
-            accept=".txt,.docx,.xlsx,.pptx"
+            accept=".txt,.docx,.xlsx,.csv,.pptx"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
         </Button>
         <Typography component="small">
           {file
             ? `Selected file: ${file.name}`
-            : "Supported in this version: `.txt`, `.docx`, `.xlsx`, `.pptx`"}
+            : "Supported in this version: `.txt`, `.docx`, `.xlsx`, `.csv`, `.pptx`"}
         </Typography>
       </Box>
 

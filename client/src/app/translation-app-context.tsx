@@ -208,7 +208,7 @@ export function TranslationAppProvider({ children }: PropsWithChildren) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!file) {
-      setError('Please choose a .txt or .docx file first.')
+      setError('Please choose a supported document file first (.txt, .docx, .xlsx, .csv, .pptx).')
       return
     }
     if (!providerName) {
@@ -288,7 +288,7 @@ export function TranslationAppProvider({ children }: PropsWithChildren) {
 
   async function handleCopyBuildPrompt() {
     if (!file) {
-      setError('Please choose a .txt or .docx file first.')
+      setError('Please choose a supported document file first (.txt, .docx, .xlsx, .csv, .pptx).')
       return
     }
     if (!providerName) {
