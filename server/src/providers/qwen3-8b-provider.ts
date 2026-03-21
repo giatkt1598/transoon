@@ -11,7 +11,7 @@ type QwenResponse = {
 
 @RegisterTranslateProvider({
   name: "Qwen3 8B",
-  description: "Local Ollama model qwen3:4b adapted for translation tasks.",
+  description: "Local Ollama model qwen3:8b adapted for translation tasks.",
 })
 export class Qwen38BProvider extends AITranslateProvider {
   readonly name = "Qwen3 8B";

@@ -196,7 +196,7 @@
   width: 100%;
   padding: 16px 20px;
   background: linear-gradient(135deg, #285a53 0%, #1d403b 100%);
-  color: #fef7ee;
+  color: #fef7ee !important;
   font: inherit;
   font-weight: 700;
   box-shadow: 0 14px 26px rgba(29, 64, 59, 0.2);
