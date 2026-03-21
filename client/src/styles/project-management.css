@@ -93,7 +93,7 @@
 .project-table-head,
 .project-table-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1.8fr) minmax(160px, 0.9fr) minmax(220px, 1fr) minmax(120px, 0.7fr) 104px;
+  grid-template-columns: minmax(240px, 1.55fr) minmax(200px, 1.2fr) minmax(150px, 0.8fr) minmax(200px, 1fr) minmax(110px, 0.55fr) 72px;
   gap: 16px;
   align-items: center;
 }
@@ -505,12 +505,17 @@
 }
 
 .alignment-grid-body {
-  max-height: 68vh;
-  overflow: auto;
+  height: min(68vh, 780px);
+  min-height: 360px;
+  overflow: hidden;
 }
 
 .alignment-grid-row {
   border-top: 1px solid rgba(58, 44, 30, 0.08);
+}
+
+.alignment-virtual-list {
+  overflow-x: hidden !important;
 }
 
 .alignment-index-cell,

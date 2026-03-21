@@ -1,5 +1,17 @@
 import type { LanguageOption } from './types'
 
+const fallbackLanguageLabels: Record<string, string> = {
+  auto: 'Auto detect',
+  en: 'English',
+  ja: 'Japanese',
+  vi: 'Vietnamese',
+  'zh-CN': 'Chinese (Simplified)',
+  ko: 'Korean',
+  fr: 'French',
+  de: 'German',
+  es: 'Spanish',
+}
+
 export function formatProcessingTime(processingTimeMs: number) {
   if (processingTimeMs < 1000) {
     return `${processingTimeMs} ms`
@@ -25,4 +37,12 @@ export function hasLanguageOption(
   selectedCode: string,
 ) {
   return languages.some((language) => language.code === selectedCode)
+}
+
+export function getLanguageLabel(languageCode: string) {
+  return fallbackLanguageLabels[languageCode] ?? languageCode
+}
+
+export function formatLanguageRoute(sourceLanguage: string, targetLanguage: string) {
+  return `${getLanguageLabel(sourceLanguage)} to ${getLanguageLabel(targetLanguage)}`
 }

@@ -75,6 +75,34 @@ export function useProjectEditor({ projectId }: UseProjectEditorOptions) {
     }))
   }
 
+  function handleDocumentFileChange(file: File | null) {
+    setDocumentFile(file)
+
+    if (!file) {
+      return
+    }
+
+    const suggestedProjectName = file.name
+    setFormValues((currentValues) => {
+      if (
+        isEditMode &&
+        currentValues.name.trim().length > 0 &&
+        currentValues.name.trim() !== (project?.documentFileName ?? '')
+      ) {
+        return currentValues
+      }
+
+      if (!isEditMode && currentValues.name.trim().length > 0) {
+        return currentValues
+      }
+
+      return {
+        ...currentValues,
+        name: suggestedProjectName,
+      }
+    })
+  }
+
   async function handleSaveProject() {
     if (isReadOnly) {
       setError('This project is currently running auto translate. Manual edits are temporarily disabled.')
@@ -114,7 +142,7 @@ export function useProjectEditor({ projectId }: UseProjectEditorOptions) {
     isSaving,
     error,
     handleFieldChange,
-    setDocumentFile,
+    handleDocumentFileChange,
     handleSaveProject,
   }
 }

@@ -4,6 +4,7 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import { Box, IconButton, InputAdornment, MenuItem, Paper, TextField, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import type { TranslationMemorySummary } from '../../app/types'
+import { formatLanguageRoute } from '../../app/utils'
 
 type TranslationMemoryListTableProps = {
   translationMemories: TranslationMemorySummary[]
@@ -105,7 +106,7 @@ export function TranslationMemoryListTable({
                       {translationMemory.name}
                     </Typography>
                     <Typography component="p" className="project-row-subtitle">
-                      {translationMemory.sourceLanguage} to {translationMemory.targetLanguage}
+                      {formatLanguageRoute(translationMemory.sourceLanguage, translationMemory.targetLanguage)}
                     </Typography>
                   </Box>
                 </Box>

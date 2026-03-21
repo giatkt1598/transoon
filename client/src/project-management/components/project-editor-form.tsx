@@ -57,6 +57,18 @@ export function ProjectEditorForm({
           </Alert>
         ) : null}
 
+        <ProjectDocumentUploadField
+          value={documentFileName}
+          disabled={isEditMode || isLoading || isSaving || isReadOnly}
+          onFileChange={onDocumentFileChange}
+        />
+
+        {showDocumentWarning ? (
+          <Alert severity="warning" className="project-document-warning">
+            After the project is created, the uploaded document cannot be changed from the edit screen.
+          </Alert>
+        ) : null}
+
         <TextField
           label="Project name"
           value={formValues.name}
@@ -76,18 +88,6 @@ export function ProjectEditorForm({
           minRows={4}
           disabled={isLoading || isSaving || isReadOnly}
         />
-
-        <ProjectDocumentUploadField
-          value={documentFileName}
-          disabled={isEditMode || isLoading || isSaving || isReadOnly}
-          onFileChange={onDocumentFileChange}
-        />
-
-        {showDocumentWarning ? (
-          <Alert severity="warning" className="project-document-warning">
-            After the project is created, the uploaded document cannot be changed from the edit screen.
-          </Alert>
-        ) : null}
 
         <Box className="project-editor-grid">
           <TextField

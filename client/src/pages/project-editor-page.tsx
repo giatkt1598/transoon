@@ -17,7 +17,7 @@ export function ProjectEditorPage() {
     isSaving,
     error,
     handleFieldChange,
-    setDocumentFile,
+    handleDocumentFileChange,
     handleSaveProject,
   } = useProjectEditor({ projectId })
 
@@ -48,7 +48,7 @@ export function ProjectEditorPage() {
         isLoading={isLoading}
         isSaving={isSaving}
         onFieldChange={handleFieldChange}
-        onDocumentFileChange={setDocumentFile}
+        onDocumentFileChange={handleDocumentFileChange}
         onSave={handleSaveProject}
       />
 

@@ -16,6 +16,7 @@ import {
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ProjectSummary } from '../../app/types'
+import { formatLanguageRoute } from '../../app/utils'
 
 type ProjectListTableProps = {
   projects: ProjectSummary[]
@@ -93,6 +94,7 @@ export function ProjectListTable({
 
       <Box className="project-table-head">
         <span>Project</span>
+        <span>Document file</span>
         <span>Created at</span>
         <span>Progress</span>
         <span>Segments</span>
@@ -125,9 +127,14 @@ export function ProjectListTable({
                       {project.name}
                     </Typography>
                     <Typography component="p" className="project-row-subtitle">
-                      {project.sourceLang} to {project.targetLang}
+                      {formatLanguageRoute(project.sourceLang, project.targetLang)}
                     </Typography>
                   </Box>
+                </Box>
+
+                <Box className="project-created-cell">
+                  <Typography component="p">{project.documentFileName ?? 'No document'}</Typography>
+                  <Typography component="span">{project.documentFileName ? 'source file' : 'not uploaded yet'}</Typography>
                 </Box>
 
                 <Box className="project-created-cell">

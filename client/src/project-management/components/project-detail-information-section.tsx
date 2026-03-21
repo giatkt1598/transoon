@@ -1,5 +1,6 @@
 import { Box, LinearProgress, Paper, Typography } from '@mui/material'
 import type { ProjectDetail } from '../../app/types'
+import { formatLanguageRoute } from '../../app/utils'
 
 type ProjectDetailInformationSectionProps = {
   projectDetail: ProjectDetail
@@ -26,9 +27,7 @@ export function ProjectDetailInformationSection({ projectDetail }: ProjectDetail
         </Box>
         <Box className="detail-info-item">
           <span>Language route</span>
-          <strong>
-            {projectDetail.sourceLang} to {projectDetail.targetLang}
-          </strong>
+          <strong>{formatLanguageRoute(projectDetail.sourceLang, projectDetail.targetLang)}</strong>
         </Box>
         <Box className="detail-info-item">
           <span>Document</span>

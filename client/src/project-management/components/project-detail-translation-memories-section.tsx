@@ -4,6 +4,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Paper, TextField, Typography } from '@mui/material'
 import type { ProjectDetail, ProjectTranslationMemoryConfig, TranslationMemorySummary } from '../../app/types'
+import { formatLanguageRoute } from '../../app/utils'
 
 type TranslationMemoryConfigForm = {
   mode: 'create' | 'existing'
@@ -67,7 +68,7 @@ export function ProjectDetailTranslationMemoriesSection({
             Translation Memories
           </Typography>
           <Typography component="h2" variant="h4">
-            Project lookup order
+            Project lookup datasources
           </Typography>
         </Box>
         <Button
@@ -125,7 +126,7 @@ export function ProjectDetailTranslationMemoriesSection({
                       {config.name}
                     </Typography>
                     <Typography component="p" className="project-row-subtitle">
-                      {config.sourceLanguage} to {config.targetLanguage} · {config.termCount} terms
+                      {config.termCount} terms
                     </Typography>
                   </Box>
                 </Box>
@@ -209,7 +210,7 @@ export function ProjectDetailTranslationMemoriesSection({
                 />
                 <TextField
                   label="Language route"
-                  value={`${projectDetail.sourceLang} -> ${projectDetail.targetLang}`}
+                  value={formatLanguageRoute(projectDetail.sourceLang, projectDetail.targetLang)}
                   disabled
                 />
               </>
@@ -223,7 +224,10 @@ export function ProjectDetailTranslationMemoriesSection({
               >
                 {availableTranslationMemories.map((translationMemory) => (
                   <MenuItem key={translationMemory.id} value={translationMemory.id}>
-                    {translationMemory.name} ({translationMemory.sourceLanguage} {'->'} {translationMemory.targetLanguage})
+                    {translationMemory.name} ({formatLanguageRoute(
+                      translationMemory.sourceLanguage,
+                      translationMemory.targetLanguage,
+                    )})
                   </MenuItem>
                 ))}
               </TextField>
