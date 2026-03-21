@@ -544,11 +544,11 @@
 
 .alignment-target-field {
   border-right: none;
+  align-self: stretch;
 }
 
 .alignment-target-field .MuiOutlinedInput-root {
-  height: 100%;
-  align-items: stretch;
+  align-items: flex-start;
   border-radius: 0;
   background: #ffffff;
 }
@@ -561,6 +561,8 @@
   padding: 14px 16px;
   color: #24170f;
   line-height: 1.45;
+  overflow: hidden !important;
+  resize: none;
 }
 
 .alignment-empty-state {

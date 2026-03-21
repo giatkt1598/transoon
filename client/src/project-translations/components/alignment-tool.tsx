@@ -51,7 +51,6 @@ export function AlignmentTool({
                 <TextField
                   multiline
                   minRows={2}
-                  maxRows={10}
                   fullWidth
                   value={segment.targetText}
                   onChange={(event) => onTargetChange(segment.id, event.target.value)}
