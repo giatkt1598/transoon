@@ -97,7 +97,16 @@
   }
 
   .translations-tab-grid {
-    grid-template-columns: 1fr;
+    display: block;
+  }
+
+  .translations-split-pane {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .translations-split-pane-divider {
+    display: none;
   }
 
   .alignment-grid-head {

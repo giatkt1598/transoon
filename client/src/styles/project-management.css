@@ -427,9 +427,56 @@
 }
 
 .translations-tab-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.translations-split-pane {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.8fr);
-  gap: 16px;
+  align-items: stretch;
+  gap: 0;
+}
+
+.translations-split-pane-panel {
+  min-width: 0;
+  display: flex;
+}
+
+.translations-split-pane-panel > .detail-section-card {
+  width: 100%;
+  height: 100%;
+}
+
+.translations-split-pane-divider {
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.translations-split-pane-divider::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.translations-split-pane-divider-line {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  opacity: 0;
+  background: rgba(217, 127, 55, 0.7);
+  transition: opacity 160ms ease, box-shadow 160ms ease;
+}
+
+.translations-split-pane.dragging .translations-split-pane-divider-line,
+.translations-split-pane-divider:hover .translations-split-pane-divider-line {
+  opacity: 1;
+  box-shadow: 0 0 0 4px rgba(217, 127, 55, 0.12);
 }
 
 .alignment-tool-shell,
@@ -442,11 +489,17 @@
 .document-preview-shell {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .document-preview-shell {
   border-radius: 12px;
   padding: 14px;
+}
+
+body.pane-resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .alignment-toolbar-shell {
@@ -486,7 +539,7 @@
 .alignment-grid-shell {
   overflow: hidden;
   margin-top: 12px;
-  border: 1px solid rgba(58, 44, 30, 0.08);
+  border: 1px solid rgba(58, 44, 30, 0.13);
   border-radius: 18px;
   background: #fffdf8;
 }
@@ -494,7 +547,7 @@
 .alignment-grid-head,
 .alignment-grid-row {
   display: grid;
-  grid-template-columns: 68px minmax(260px, 1fr) minmax(260px, 1fr);
+  grid-template-columns: 68px minmax(0, 1fr) minmax(0, 1fr);
   gap: 0;
 }
 
@@ -508,8 +561,9 @@
 }
 
 .alignment-grid-head span {
+  min-width: 0;
   padding: 10px 12px;
-  border-right: 1px solid rgba(58, 44, 30, 0.08);
+  border-right: 1px solid rgba(58, 44, 30, 0.13);
 }
 
 .alignment-grid-head span:last-child {
@@ -523,7 +577,11 @@
 }
 
 .alignment-grid-row {
-  border-top: 1px solid rgba(58, 44, 30, 0.08);
+  border-top: 1px solid rgba(58, 44, 30, 0.13);
+}
+
+.alignment-grid-row > * {
+  min-width: 0;
 }
 
 .alignment-virtual-list {
@@ -533,51 +591,65 @@
 .alignment-index-cell,
 .alignment-source-cell,
 .alignment-target-field {
-  min-height: 72px;
-  border-right: 1px solid rgba(58, 44, 30, 0.08);
+  border-right: 1px solid rgba(58, 44, 30, 0.13);
 }
 
 .alignment-index-cell {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 14px 8px;
+  padding: 4px 12px;
   color: #8a705c;
   font-weight: 600;
   background: #fffaf2;
 }
 
 .alignment-source-cell {
-  padding: 14px 16px;
+  padding: 4px 12px;
   background: #fffdf8;
+  min-width: 0;
 }
 
 .alignment-source-cell p {
   margin: 0;
   color: #24170f;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   line-height: 1.45;
 }
 
 .alignment-target-field {
   border-right: none;
   align-self: stretch;
+  min-width: 0;
 }
 
 .alignment-target-field .MuiOutlinedInput-root {
   align-items: flex-start;
   border-radius: 0;
   background: #ffffff;
+  min-width: 0;
+  padding: 4px 12px;
 }
 
 .alignment-target-field .MuiOutlinedInput-notchedOutline {
   border: none;
 }
 
+.alignment-target-field .MuiInputBase-root,
+.alignment-target-field .MuiInputBase-input,
+.alignment-target-field textarea {
+  min-width: 0 !important;
+}
+
 .alignment-target-field .MuiInputBase-inputMultiline {
-  padding: 14px 16px;
+  padding: 0;
   color: #24170f;
   line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   overflow: hidden !important;
   resize: none;
 }
@@ -613,6 +685,7 @@
   height: min(68vh, 780px);
   min-height: 360px;
   overflow: auto;
+  min-width: 0;
   padding: 14px;
   border-radius: 8px;
   border: 1px solid rgba(58, 44, 30, 0.08);

@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom'
 import { AlignmentTool } from '../project-translations/components/alignment-tool'
 import { DocumentPreviewPanel } from '../project-translations/components/document-preview-panel'
 import { GenerateSegmentsCard } from '../project-translations/components/generate-segments-card'
+import { TranslationsSplitPane } from '../project-translations/components/translations-split-pane'
 import { ProjectPageHeader } from '../project-management/components/project-page-header'
 import { ProjectDetailInformationSection } from '../project-management/components/project-detail-information-section'
 import { ProjectDetailTranslationMemoriesSection } from '../project-management/components/project-detail-translation-memories-section'
@@ -148,32 +149,36 @@ export function ProjectDetailPage() {
       ) : (
         <Box className="translations-tab-grid">
           {projectDetail.segmentCount > 0 || hasSegments || isLoadingSegments ? (
-            <>
-              <AlignmentTool
-                segments={segments}
-                sourceLanguageLabel={getLanguageLabel(projectDetail.sourceLang)}
-                targetLanguageLabel={getLanguageLabel(projectDetail.targetLang)}
-                isLoading={isLoadingSegments}
-                isReadOnly={isReadOnly}
-                isBusy={isStartingAutoTranslate}
-                isSaving={isSavingSegments}
-                isExporting={isExportingDocument}
-                hasPendingChanges={hasPendingSegmentChanges}
-                restoreScrollKey={segmentSaveRevision}
-                onTargetChange={handleTargetChange}
-                onActiveSegmentChange={handleActiveSegmentChange}
-                onSaveAll={() => void handleSaveSegments()}
-                onExport={() => void handleExportDocument()}
-                onOpenAutoTranslate={handleOpenAutoTranslateDialog}
-              />
-              <DocumentPreviewPanel
-                preview={preview}
-                segments={segments}
-                activeSegmentExternalId={activeSegmentExternalId}
-                isLoading={isLoadingPreview}
-                error={previewError}
-              />
-            </>
+            <TranslationsSplitPane
+              alignmentPane={
+                <AlignmentTool
+                  segments={segments}
+                  sourceLanguageLabel={getLanguageLabel(projectDetail.sourceLang)}
+                  targetLanguageLabel={getLanguageLabel(projectDetail.targetLang)}
+                  isLoading={isLoadingSegments}
+                  isReadOnly={isReadOnly}
+                  isBusy={isStartingAutoTranslate}
+                  isSaving={isSavingSegments}
+                  isExporting={isExportingDocument}
+                  hasPendingChanges={hasPendingSegmentChanges}
+                  restoreScrollKey={segmentSaveRevision}
+                  onTargetChange={handleTargetChange}
+                  onActiveSegmentChange={handleActiveSegmentChange}
+                  onSaveAll={() => void handleSaveSegments()}
+                  onExport={() => void handleExportDocument()}
+                  onOpenAutoTranslate={handleOpenAutoTranslateDialog}
+                />
+              }
+              previewPane={
+                <DocumentPreviewPanel
+                  preview={preview}
+                  segments={segments}
+                  activeSegmentExternalId={activeSegmentExternalId}
+                  isLoading={isLoadingPreview}
+                  error={previewError}
+                />
+              }
+            />
           ) : (
             <GenerateSegmentsCard
               canGenerate={Boolean(projectDetail.documentFileName)}
