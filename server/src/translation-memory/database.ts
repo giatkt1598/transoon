@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "fs";
 import path from "path";
 import { appConfig } from "../config/app-config";
-import { translationMemorySchemaSql } from "./schema";
+import { applyPendingMigrations } from "../migrations/migrator";
 
 let translationMemoryDatabase: DatabaseSync | null = null;
 
@@ -22,7 +22,7 @@ export function initializeTranslationMemoryDatabase() {
   database.exec("PRAGMA journal_mode = WAL;");
   database.exec("PRAGMA foreign_keys = ON;");
   database.exec("PRAGMA synchronous = NORMAL;");
-  database.exec(translationMemorySchemaSql);
+  applyPendingMigrations(database);
 
   translationMemoryDatabase = database;
   return database;
