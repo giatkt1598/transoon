@@ -20,10 +20,7 @@ export class XlsxDocumentHandler implements DocumentHandler {
     return {
       documentType: "xlsx",
       fileName,
-      segments: plan.descriptors.map((descriptor) => ({
-        id: descriptor.id,
-        text: descriptor.text,
-      })),
+      segments: plan.segments,
       replaceSegments: async (nextSegments: string[]) =>
         applyXlsxExtractionPlan(zip, plan, nextSegments, logger),
     };

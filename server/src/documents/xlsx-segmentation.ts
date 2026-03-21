@@ -1,6 +1,12 @@
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import JSZip from "jszip";
+import type { ExtractedSegment } from "./document-types";
 import { Log } from "../logger";
+import {
+  rebuildSegmentedText,
+  segmentTextBlock,
+  type SegmentedTextBlock,
+} from "./segmentation/text-segmentation";
 
 const SHARED_STRINGS_PATH = "xl/sharedStrings.xml";
 const WORKBOOK_PATH = "xl/workbook.xml";
@@ -54,6 +60,15 @@ export type XlsxSegmentDescriptor = {
   text: string;
 };
 
+type XlsxContentBlockPlan = {
+  entryName: string;
+  entryType: XlsxSegmentEntryType;
+  itemIndex: number;
+  segmentedText: SegmentedTextBlock;
+  segmentTexts: string[];
+  segmentIds: string[];
+};
+
 type AttributeConfig = {
   entryType: XlsxSegmentEntryType;
   elementNames: string[];
@@ -92,7 +107,8 @@ type ChartTextTarget =
     };
 
 export type XlsxExtractionPlan = {
-  descriptors: XlsxSegmentDescriptor[];
+  blocks: XlsxContentBlockPlan[];
+  segments: ExtractedSegment[];
   entryXmlMap: Map<string, string>;
 };
 
@@ -328,15 +344,16 @@ export async function buildXlsxExtractionPlan(
   zip: JSZip,
   logger: ReturnType<typeof Log.forContext>,
 ): Promise<XlsxExtractionPlan> {
-  const descriptors: XlsxSegmentDescriptor[] = [];
+  const blocks: XlsxContentBlockPlan[] = [];
   const entryXmlMap = new Map<string, string>();
 
-  await collectSharedStrings(zip, descriptors, entryXmlMap);
-  await collectConfiguredEntries(zip, descriptors, entryXmlMap);
-  await collectChartEntries(zip, descriptors, entryXmlMap, logger);
+  await collectSharedStrings(zip, blocks, entryXmlMap);
+  await collectConfiguredEntries(zip, blocks, entryXmlMap);
+  await collectChartEntries(zip, blocks, entryXmlMap, logger);
 
   return {
-    descriptors,
+    blocks,
+    segments: flattenBlocksToSegments(blocks),
     entryXmlMap,
   };
 }
@@ -348,11 +365,18 @@ export async function applyXlsxExtractionPlan(
   logger: ReturnType<typeof Log.forContext>,
 ) {
   const replacementLookup = new Map<string, string>();
+  let replacementIndex = 0;
 
-  plan.descriptors.forEach((descriptor, index) => {
+  plan.blocks.forEach((block) => {
+    const replacementTexts = block.segmentTexts.map((segmentText) => {
+      const nextText = nextSegments[replacementIndex] ?? segmentText;
+      replacementIndex += 1;
+      return nextText;
+    });
+
     replacementLookup.set(
-      buildDescriptorKey(descriptor),
-      nextSegments[index] ?? descriptor.text,
+      buildLookupKey(block.entryType, block.entryName, block.itemIndex),
+      rebuildSegmentedText(block.segmentedText, replacementTexts),
     );
   });
 
@@ -379,7 +403,7 @@ export async function applyXlsxExtractionPlan(
 
 async function collectSharedStrings(
   zip: JSZip,
-  descriptors: XlsxSegmentDescriptor[],
+  blocks: XlsxContentBlockPlan[],
   entryXmlMap: Map<string, string>,
 ) {
   const sharedStringsXml = await zip.file(SHARED_STRINGS_PATH)?.async("text");
@@ -397,19 +421,19 @@ async function collectSharedStrings(
       return;
     }
 
-    descriptors.push({
-      id: `${SHARED_STRINGS_PATH}#shared-string-${itemIndex}`,
-      entryName: SHARED_STRINGS_PATH,
-      entryType: "shared-string",
+    pushSegmentedBlock(
+      blocks,
+      SHARED_STRINGS_PATH,
+      "shared-string",
       itemIndex,
       text,
-    });
+    );
   });
 }
 
 async function collectConfiguredEntries(
   zip: JSZip,
-  descriptors: XlsxSegmentDescriptor[],
+  blocks: XlsxContentBlockPlan[],
   entryXmlMap: Map<string, string>,
 ) {
   for (const config of xlsxEntryConfigs) {
@@ -421,7 +445,7 @@ async function collectConfiguredEntries(
           entryName,
           entryXmlMap.get(entryName) ?? "",
           config,
-          descriptors,
+          blocks,
         );
         continue;
       }
@@ -432,14 +456,14 @@ async function collectConfiguredEntries(
       }
 
       entryXmlMap.set(entryName, xml);
-      collectFromXml(entryName, xml, config, descriptors);
+      collectFromXml(entryName, xml, config, blocks);
     }
   }
 }
 
 async function collectChartEntries(
   zip: JSZip,
-  descriptors: XlsxSegmentDescriptor[],
+  blocks: XlsxContentBlockPlan[],
   entryXmlMap: Map<string, string>,
   logger: ReturnType<typeof Log.forContext>,
 ) {
@@ -472,13 +496,13 @@ async function collectChartEntries(
     });
 
     collectedTargets.forEach(({ itemIndex, text }) => {
-      descriptors.push({
-        id: `${entryName}#chart-rich-text-${itemIndex}`,
+      pushSegmentedBlock(
+        blocks,
         entryName,
-        entryType: "chart-rich-text",
+        "chart-rich-text",
         itemIndex,
         text,
-      });
+      );
     });
   }
 }
@@ -487,16 +511,16 @@ function collectFromXml(
   entryName: string,
   xml: string,
   config: EntryConfig,
-  descriptors: XlsxSegmentDescriptor[],
+  blocks: XlsxContentBlockPlan[],
 ) {
   const document = parseXml(xml);
 
   config.attributeConfigs?.forEach((attributeConfig) => {
-    collectAttributeDescriptors(document, entryName, attributeConfig, descriptors);
+    collectAttributeDescriptors(document, entryName, attributeConfig, blocks);
   });
 
   config.textContainerConfigs?.forEach((textConfig) => {
-    collectTextContainerDescriptors(document, entryName, textConfig, descriptors);
+    collectTextContainerDescriptors(document, entryName, textConfig, blocks);
   });
 
   config.plainTextElementNames?.forEach((plainTextConfig) => {
@@ -504,7 +528,7 @@ function collectFromXml(
       document,
       entryName,
       plainTextConfig,
-      descriptors,
+      blocks,
     );
   });
 }
@@ -597,7 +621,7 @@ function collectAttributeDescriptors(
   document: Document,
   entryName: string,
   config: AttributeConfig,
-  descriptors: XlsxSegmentDescriptor[],
+  blocks: XlsxContentBlockPlan[],
 ) {
   const elements = findElementsByLocalName(document, config.elementNames);
   let itemIndex = 0;
@@ -609,13 +633,7 @@ function collectAttributeDescriptors(
       return;
     }
 
-    descriptors.push({
-      id: `${entryName}#${config.entryType}-${itemIndex}`,
-      entryName,
-      entryType: config.entryType,
-      itemIndex,
-      text,
-    });
+    pushSegmentedBlock(blocks, entryName, config.entryType, itemIndex, text);
     itemIndex += 1;
   });
 }
@@ -624,7 +642,7 @@ function collectTextContainerDescriptors(
   document: Document,
   entryName: string,
   config: TextContainerConfig,
-  descriptors: XlsxSegmentDescriptor[],
+  blocks: XlsxContentBlockPlan[],
 ) {
   const containers = findElementsByLocalName(document, config.containerNames);
   let itemIndex = 0;
@@ -640,13 +658,7 @@ function collectTextContainerDescriptors(
       return;
     }
 
-    descriptors.push({
-      id: `${entryName}#${config.entryType}-${itemIndex}`,
-      entryName,
-      entryType: config.entryType,
-      itemIndex,
-      text,
-    });
+    pushSegmentedBlock(blocks, entryName, config.entryType, itemIndex, text);
     itemIndex += 1;
   });
 }
@@ -655,7 +667,7 @@ function collectPlainTextElementDescriptors(
   document: Document,
   entryName: string,
   config: { entryType: XlsxSegmentEntryType; elementNames: string[] },
-  descriptors: XlsxSegmentDescriptor[],
+  blocks: XlsxContentBlockPlan[],
 ) {
   const elements = findElementsByLocalName(document, config.elementNames);
   let itemIndex = 0;
@@ -667,13 +679,7 @@ function collectPlainTextElementDescriptors(
       return;
     }
 
-    descriptors.push({
-      id: `${entryName}#${config.entryType}-${itemIndex}`,
-      entryName,
-      entryType: config.entryType,
-      itemIndex,
-      text,
-    });
+    pushSegmentedBlock(blocks, entryName, config.entryType, itemIndex, text);
     itemIndex += 1;
   });
 }
@@ -996,16 +1002,6 @@ function normalizePlainText(value: string) {
   return value.replace(/\r\n/g, "\n");
 }
 
-function buildDescriptorKey(
-  descriptor: Pick<XlsxSegmentDescriptor, "entryType" | "entryName" | "itemIndex">,
-) {
-  return buildLookupKey(
-    descriptor.entryType,
-    descriptor.entryName,
-    descriptor.itemIndex,
-  );
-}
-
 function buildLookupKey(
   entryType: XlsxSegmentEntryType,
   entryName: string,
@@ -1018,3 +1014,37 @@ export const xlsxTranslationPolicy = {
   displayTextEntryTypes: [...DISPLAY_TEXT_ENTRY_TYPES],
   internalReferenceTokensNotTranslated: [...INTERNAL_REFERENCE_TOKENS_NOT_TRANSLATED],
 };
+
+function pushSegmentedBlock(
+  blocks: XlsxContentBlockPlan[],
+  entryName: string,
+  entryType: XlsxSegmentEntryType,
+  itemIndex: number,
+  text: string,
+) {
+  const segmentedText = segmentTextBlock(text, "paragraph");
+  if (segmentedText.segmentTexts.length === 0) {
+    return;
+  }
+
+  blocks.push({
+    entryName,
+    entryType,
+    itemIndex,
+    segmentedText,
+    segmentTexts: segmentedText.segmentTexts,
+    segmentIds: segmentedText.segmentTexts.map(
+      (_segmentText, segmentIndex) =>
+        `${entryName}#${entryType}-${itemIndex}-s${segmentIndex}`,
+    ),
+  });
+}
+
+function flattenBlocksToSegments(blocks: XlsxContentBlockPlan[]): ExtractedSegment[] {
+  return blocks.flatMap((block) =>
+    block.segmentIds.map((segmentId, index) => ({
+      id: segmentId,
+      text: block.segmentTexts[index] ?? "",
+    })),
+  );
+}
