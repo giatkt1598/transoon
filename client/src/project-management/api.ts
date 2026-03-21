@@ -3,6 +3,7 @@ import type {
   LanguagesResponse,
   ProjectDetail,
   ProjectDocumentPreview,
+  InlineTranslatedProjectSegmentResponse,
   ProjectSegment,
   ProjectSegmentsResponse,
   ProjectSummary,
@@ -239,6 +240,22 @@ export async function autoTranslateProject(projectId: string, providerName: stri
   }
 
   return data as { message: string; project: ProjectDetail | null }
+}
+
+export async function inlineTranslateProjectSegment(projectId: string, segmentId: string, signal?: AbortSignal) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/segments/${segmentId}/inline-translate`, {
+    method: 'POST',
+    signal,
+  })
+  const data = await readJsonResponse<InlineTranslatedProjectSegmentResponse | { error?: string }>(response)
+
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data ? data.error ?? 'Could not inline translate the segment.' : 'Could not inline translate the segment.',
+    )
+  }
+
+  return data as InlineTranslatedProjectSegmentResponse
 }
 
 export async function exportProjectDocument(projectId: string) {

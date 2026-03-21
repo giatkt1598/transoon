@@ -17,6 +17,7 @@ import {
   getProjectDocumentPreview,
   saveProjectSegments,
   startProjectAutoTranslate,
+  inlineTranslateProjectSegment,
   updateProject,
 } from "../translation-memory/project-service";
 import {
@@ -190,6 +191,26 @@ export function createApiRouter() {
       }
 
       const result = saveProjectSegments(projectId, req.body.segments);
+      res.json(result);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.post("/api/projects/:projectId/segments/:segmentId/inline-translate", async (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const segmentId = String(req.params.segmentId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      const result = await inlineTranslateProjectSegment(projectId, segmentId);
       res.json(result);
     } catch (error) {
       const message =

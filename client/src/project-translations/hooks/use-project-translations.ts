@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { toast } from 'react-toastify'
 import type {
   ProjectAutoTranslateProgressResponse,
@@ -7,12 +7,14 @@ import type {
   TranslateProviderOption,
 } from '../../app/types'
 import { getAppSocket } from '../../app/socket'
+import { fetchSettings } from '../../settings-management/api'
 import {
   autoTranslateProject,
   exportProjectDocument,
   fetchProjectDetail,
   fetchProjectSegments,
   generateProjectSegments,
+  inlineTranslateProjectSegment,
   saveProjectSegments,
 } from '../../project-management/api'
 
@@ -44,6 +46,15 @@ export function useProjectTranslations({
   const [autoTranslateProgress, setAutoTranslateProgress] = useState<ProjectAutoTranslateProgressResponse | null>(null)
   const [segmentsError, setSegmentsError] = useState<string | null>(null)
   const [savedSegmentTargets, setSavedSegmentTargets] = useState<Record<string, string>>({})
+  const [inlineTranslatingSegmentId, setInlineTranslatingSegmentId] = useState<string | null>(null)
+  const [inlineTranslateProviderName, setInlineTranslateProviderName] = useState<string>('')
+  const [inlineCaretRestoreSegmentId, setInlineCaretRestoreSegmentId] = useState<string | null>(null)
+  const [inlineCaretRestoreToken, setInlineCaretRestoreToken] = useState(0)
+  const inlineTranslationRef = useRef<{
+    segmentId: string
+    requestId: number
+    controller: AbortController
+  } | null>(null)
   const projectStatus = projectDetail?.status
   const projectSegmentCount = projectDetail?.segmentCount ?? 0
 
@@ -98,6 +109,23 @@ export function useProjectTranslations({
         : translateProviders[0]?.name ?? '',
     )
   }, [translateProviders])
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadInlineTranslateProvider() {
+      try {
+        const settings = await fetchSettings(controller.signal)
+        setInlineTranslateProviderName(settings.inlineTranslateProvider)
+      } catch {
+        // Ignore settings load failures here; placeholder can fall back silently.
+      }
+    }
+
+    void loadInlineTranslateProvider()
+
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     if (!projectId || projectStatus !== 'auto-translate-processing') {
@@ -192,6 +220,12 @@ export function useProjectTranslations({
       return
     }
 
+    if (inlineTranslationRef.current?.segmentId === segmentId) {
+      inlineTranslationRef.current.controller.abort()
+      inlineTranslationRef.current = null
+      setInlineTranslatingSegmentId(null)
+    }
+
     setSegments((current) =>
       current.map((segment) => (segment.id === segmentId ? { ...segment, targetText } : segment)),
     )
@@ -279,6 +313,74 @@ export function useProjectTranslations({
     }
   }
 
+  async function handleInlineTranslateSegment(segmentId: string) {
+    if (!projectId || isReadOnly || inlineTranslatingSegmentId) {
+      return
+    }
+
+    const segment = segments.find((item) => item.id === segmentId)
+    if (!segment?.sourceText.trim()) {
+      return
+    }
+
+    try {
+      setSegmentsError(null)
+      const controller = new AbortController()
+      const requestId = Date.now()
+      inlineTranslationRef.current = {
+        segmentId,
+        requestId,
+        controller,
+      }
+      setInlineTranslatingSegmentId(segmentId)
+
+      const result = await inlineTranslateProjectSegment(projectId, segmentId, controller.signal)
+
+      if (
+        !inlineTranslationRef.current ||
+        inlineTranslationRef.current.requestId !== requestId ||
+        inlineTranslationRef.current.segmentId !== segmentId
+      ) {
+        return
+      }
+
+      setSegments((currentSegments) =>
+        currentSegments.map((currentSegment) =>
+          currentSegment.id === result.segmentId
+            ? {
+                ...currentSegment,
+                targetText: result.targetText,
+              }
+            : currentSegment,
+        ),
+      )
+      setInlineCaretRestoreSegmentId(segmentId)
+      setInlineCaretRestoreToken((currentValue) => currentValue + 1)
+    } catch (inlineTranslateError) {
+      if (inlineTranslateError instanceof Error && inlineTranslateError.name === 'AbortError') {
+        return
+      }
+
+      const message =
+        inlineTranslateError instanceof Error
+          ? inlineTranslateError.message
+          : 'Could not inline translate the segment.'
+      setSegmentsError(message)
+      toast.error(message)
+    } finally {
+      if (inlineTranslationRef.current?.segmentId === segmentId) {
+        inlineTranslationRef.current = null
+        setInlineTranslatingSegmentId(null)
+      }
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      inlineTranslationRef.current?.controller.abort()
+    }
+  }, [])
+
   async function handleExportDocument() {
     if (!projectId || isReadOnly || isExportingDocument) {
       return
@@ -363,9 +465,14 @@ export function useProjectTranslations({
     autoTranslateProgress,
     segmentsError,
     hasPendingSegmentChanges,
+    inlineTranslatingSegmentId,
+    inlineTranslateProviderName,
+    inlineCaretRestoreSegmentId,
+    inlineCaretRestoreToken,
     setSelectedProviderName,
     handleTargetChange,
     handleActiveSegmentChange,
+    handleInlineTranslateSegment,
     handleSaveSegments,
     handleExportDocument,
     handleGenerateSegments,

@@ -1,5 +1,12 @@
-import { RegisterTranslateProvider } from "../translate-provider";
-import { AITranslateProvider } from "./ai-translate-provider";
+import {
+  RegisterTranslateProvider,
+  TranslatePromptContext,
+  TranslateRequest,
+} from "../translate-provider";
+import {
+  AITranslateProvider,
+  normalizeLanguageName,
+} from "./ai-translate-provider";
 
 type GemmaResponse = {
   message?: {
@@ -22,5 +29,19 @@ export class Gemma31BProvider extends AITranslateProvider {
     const response = data as GemmaResponse;
     const content = response.message?.content;
     return content;
+  }
+
+  protected buildMessagesForInline(
+    request: TranslateRequest,
+    segments: Array<{ index: number; text: string }>,
+    sourceLanguage: string,
+    targetLanguage: string,
+  ): { role: "system" | "user" | "assistant"; content: string }[] {
+    return [
+      {
+        role: "user",
+        content: `Translate this text from ${normalizeLanguageName(sourceLanguage)} to ${normalizeLanguageName(targetLanguage)}, output only result in plaintext: ${segments[0].text}`,
+      },
+    ];
   }
 }

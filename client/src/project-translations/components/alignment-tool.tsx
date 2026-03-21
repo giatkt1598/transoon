@@ -15,10 +15,15 @@ type AlignmentToolProps = {
   isExporting: boolean
   hasPendingChanges: boolean
   activeSegmentExternalId: string | null
+  inlineTranslatingSegmentId: string | null
+  inlineTranslateProviderName: string
+  inlineCaretRestoreSegmentId: string | null
+  inlineCaretRestoreToken: number
   isPreviewVisible: boolean
   restoreScrollKey?: number
   onTargetChange: (segmentId: string, targetText: string) => void
   onActiveSegmentChange: (segmentExternalId: string | null) => void
+  onInlineTranslateSegment: (segmentId: string) => void
   onSaveAll: () => void
   onExport: () => void
   onOpenAutoTranslate: () => void
@@ -36,10 +41,15 @@ export function AlignmentTool({
   isExporting,
   hasPendingChanges,
   activeSegmentExternalId,
+  inlineTranslatingSegmentId,
+  inlineTranslateProviderName,
+  inlineCaretRestoreSegmentId,
+  inlineCaretRestoreToken,
   isPreviewVisible,
   restoreScrollKey = 0,
   onTargetChange,
   onActiveSegmentChange,
+  onInlineTranslateSegment,
   onSaveAll,
   onExport,
   onOpenAutoTranslate,
@@ -47,6 +57,7 @@ export function AlignmentTool({
 }: AlignmentToolProps) {
   const listRef = useListRef(null)
   const scrollTopRef = useRef(0)
+  const targetInputRefs = useRef(new Map<string, HTMLTextAreaElement | HTMLInputElement>())
   const rowHeight = useDynamicRowHeight({
     defaultRowHeight: 96,
     key: `${segments.length}:${segments.map((segment) => segment.id).join('|')}`,
@@ -56,8 +67,19 @@ export function AlignmentTool({
     segments,
     isReadOnly,
     activeSegmentExternalId,
+    inlineTranslatingSegmentId,
+    inlineTranslateProviderName,
+    registerTargetInput: (segmentId, element) => {
+      if (element) {
+        targetInputRefs.current.set(segmentId, element)
+        return
+      }
+
+      targetInputRefs.current.delete(segmentId)
+    },
     onTargetChange,
     onActiveSegmentChange,
+    onInlineTranslateSegment,
   }
 
   useLayoutEffect(() => {
@@ -74,6 +96,24 @@ export function AlignmentTool({
 
     return () => window.cancelAnimationFrame(animationFrameId)
   }, [listRef, restoreScrollKey, segments.length])
+
+  useLayoutEffect(() => {
+    if (!inlineCaretRestoreSegmentId || inlineCaretRestoreToken === 0) {
+      return
+    }
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      const inputElement = targetInputRefs.current.get(inlineCaretRestoreSegmentId)
+      if (!inputElement || document.activeElement !== inputElement) {
+        return
+      }
+
+      const nextCaretPosition = inputElement.value.length
+      inputElement.setSelectionRange(nextCaretPosition, nextCaretPosition)
+    })
+
+    return () => window.cancelAnimationFrame(animationFrameId)
+  }, [inlineCaretRestoreSegmentId, inlineCaretRestoreToken])
 
   return (
     <Paper className="detail-section-card alignment-tool-shell" elevation={0}>
@@ -132,8 +172,12 @@ type RowData = {
   segments: ProjectSegment[]
   isReadOnly: boolean
   activeSegmentExternalId: string | null
+  inlineTranslatingSegmentId: string | null
+  inlineTranslateProviderName: string
+  registerTargetInput: (segmentId: string, element: HTMLTextAreaElement | HTMLInputElement | null) => void
   onTargetChange: (segmentId: string, targetText: string) => void
   onActiveSegmentChange: (segmentExternalId: string | null) => void
+  onInlineTranslateSegment: (segmentId: string) => void
 }
 
 function AlignmentVirtualRow({
@@ -142,11 +186,19 @@ function AlignmentVirtualRow({
   segments,
   isReadOnly,
   activeSegmentExternalId,
+  inlineTranslatingSegmentId,
+  inlineTranslateProviderName,
+  registerTargetInput,
   onTargetChange,
   onActiveSegmentChange,
+  onInlineTranslateSegment,
 }: RowComponentProps<RowData>) {
   const segment = segments[index]
   const isActive = activeSegmentExternalId === segment.externalSegmentId
+  const isInlineTranslating = inlineTranslatingSegmentId === segment.id
+  const inlinePlaceholder = isInlineTranslating
+    ? `Translating (by ${inlineTranslateProviderName || 'translate provider'})...`
+    : 'Type target translation...'
   return (
     <div style={style}>
       <Box className={`alignment-grid-row${isActive ? ' active' : ''}`}>
@@ -162,9 +214,17 @@ function AlignmentVirtualRow({
           fullWidth
           value={segment.targetText}
           onChange={(event) => onTargetChange(segment.id, event.target.value)}
+          inputRef={(element) => registerTargetInput(segment.id, element)}
+          onKeyDown={(event) => {
+            if (event.ctrlKey && event.code === 'Space') {
+              event.preventDefault()
+              event.stopPropagation()
+              onInlineTranslateSegment(segment.id)
+            }
+          }}
           onFocus={() => onActiveSegmentChange(segment.externalSegmentId)}
           onBlur={() => onActiveSegmentChange(null)}
-          placeholder="Type target translation..."
+          placeholder={inlinePlaceholder}
           disabled={isReadOnly}
           className="alignment-target-field"
         />

@@ -17,10 +17,18 @@ export type TranslatePromptPreview = {
   content: string | null;
 };
 
+export type TranslatePromptContext = {
+  segments: string[];
+  sourceLanguage: string;
+  targetLanguage: string;
+};
+
 export type TranslateRequest = {
   segments: string[];
   sourceLanguage: string;
   targetLanguage: string;
+  promptMode?: "all-segments" | "inline";
+  buildPromptOverride?: (context: TranslatePromptContext) => string;
   onProgress?: (progress: TranslateProgress) => void | Promise<void>;
   onTranslatedSegments?: (
     translatedSegments: Array<{ index: number; text: string }>,

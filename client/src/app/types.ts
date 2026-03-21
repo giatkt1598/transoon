@@ -112,6 +112,12 @@ export type ProjectSegmentsResponse = {
   segments: ProjectSegment[]
 }
 
+export type InlineTranslatedProjectSegmentResponse = {
+  segmentId: string
+  targetText: string
+  providerName: string
+}
+
 export type DocxPreviewBlock = {
   blockId: string
   segmentIds: string[]

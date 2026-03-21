@@ -15,6 +15,7 @@ import type {
   ProjectStatus,
   SegmentEntity,
 } from "./entities";
+import { getAppSettings } from "./settings-service";
 import { listProjectTranslationMemories } from "./translation-memory-service";
 import { createTranslationMemoryRepositories } from "./repositories/repository-service";
 
@@ -44,6 +45,12 @@ export type ProjectSegment = Pick<
 export type SaveProjectSegmentInput = {
   id: string;
   targetText: string;
+};
+
+export type InlineTranslatedProjectSegment = {
+  segmentId: string;
+  targetText: string;
+  providerName: string;
 };
 
 export type ExportProjectDocumentResult = {
@@ -364,6 +371,52 @@ export function saveProjectSegments(
   };
 }
 
+export async function inlineTranslateProjectSegment(
+  projectId: string,
+  segmentId: string,
+) {
+  assertProjectIsEditable(projectId);
+
+  const project = getProjectById(projectId);
+  if (!project) {
+    throw new Error("Project not found.");
+  }
+
+  const segment = listProjectSegments(projectId).find(
+    (projectSegment) => projectSegment.id === segmentId,
+  );
+  if (!segment) {
+    throw new Error("Segment not found in this project.");
+  }
+
+  if (!segment.sourceText.trim()) {
+    throw new Error("The current segment does not contain any source text.");
+  }
+
+  const { inlineTranslateProvider } = getAppSettings();
+  const provider = TranslateProvider.resolve(inlineTranslateProvider);
+  const result = await provider.translate({
+    segments: [segment.sourceText],
+    sourceLanguage: project.sourceLang,
+    targetLanguage: project.targetLang,
+    promptMode: "inline",
+  });
+
+  const targetText = result.translatedSegments[0]?.trim()
+    ? result.translatedSegments[0]
+    : "";
+
+  if (!targetText) {
+    throw new Error("Inline translate did not return any translated text.");
+  }
+
+  return {
+    segmentId,
+    targetText,
+    providerName: result.provider,
+  } satisfies InlineTranslatedProjectSegment;
+}
+
 export function createProject(input: UpsertProjectInput, options: CreateProjectOptions = {}) {
   const repositories = createTranslationMemoryRepositories();
   const project: ProjectEntity = {
@@ -655,6 +708,7 @@ function storeProjectDocument(
 function normalizeText(value: string) {
   return value.trim().toLowerCase();
 }
+
 
 function hashText(value: string) {
   return createHash("sha256").update(value).digest("hex");

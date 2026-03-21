@@ -65,9 +65,14 @@ export function ProjectDetailPage() {
     selectedProviderName,
     segmentsError,
     hasPendingSegmentChanges,
+    inlineTranslatingSegmentId,
+    inlineTranslateProviderName,
+    inlineCaretRestoreSegmentId,
+    inlineCaretRestoreToken,
     setSelectedProviderName,
     handleTargetChange,
     handleActiveSegmentChange,
+    handleInlineTranslateSegment,
     handleSaveSegments,
     handleExportDocument,
     handleGenerateSegments,
@@ -183,10 +188,15 @@ export function ProjectDetailPage() {
                     isExporting={isExportingDocument}
                     hasPendingChanges={hasPendingSegmentChanges}
                     activeSegmentExternalId={activeSegmentExternalId}
+                    inlineTranslatingSegmentId={inlineTranslatingSegmentId}
+                    inlineTranslateProviderName={inlineTranslateProviderName}
+                    inlineCaretRestoreSegmentId={inlineCaretRestoreSegmentId}
+                    inlineCaretRestoreToken={inlineCaretRestoreToken}
                     isPreviewVisible={isPreviewVisible}
                     restoreScrollKey={segmentSaveRevision}
                     onTargetChange={handleTargetChange}
                     onActiveSegmentChange={handleActiveSegmentChange}
+                    onInlineTranslateSegment={handleInlineTranslateSegment}
                     onSaveAll={() => void handleSaveSegments()}
                     onExport={() => void handleExportDocument()}
                     onOpenAutoTranslate={handleOpenAutoTranslateDialog}
@@ -216,10 +226,15 @@ export function ProjectDetailPage() {
                 isExporting={isExportingDocument}
                 hasPendingChanges={hasPendingSegmentChanges}
                 activeSegmentExternalId={activeSegmentExternalId}
+                inlineTranslatingSegmentId={inlineTranslatingSegmentId}
+                inlineTranslateProviderName={inlineTranslateProviderName}
+                inlineCaretRestoreSegmentId={inlineCaretRestoreSegmentId}
+                inlineCaretRestoreToken={inlineCaretRestoreToken}
                 isPreviewVisible={isPreviewVisible}
                 restoreScrollKey={segmentSaveRevision}
                 onTargetChange={handleTargetChange}
                 onActiveSegmentChange={handleActiveSegmentChange}
+                onInlineTranslateSegment={handleInlineTranslateSegment}
                 onSaveAll={() => void handleSaveSegments()}
                 onExport={() => void handleExportDocument()}
                 onOpenAutoTranslate={handleOpenAutoTranslateDialog}

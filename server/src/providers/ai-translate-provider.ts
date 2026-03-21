@@ -1,6 +1,7 @@
 import { Log } from "../logger";
 import {
   TranslateProvider,
+  type TranslatePromptContext,
   type TranslateRequest,
   type TranslatePromptPreview,
   type TranslationResult,
@@ -91,6 +92,8 @@ export abstract class AITranslateProvider extends TranslateProvider {
         payload,
         request.sourceLanguage,
         request.targetLanguage,
+        request.promptMode,
+        request.buildPromptOverride,
       );
 
       result.translatedSegments.forEach((item) => {
@@ -141,6 +144,8 @@ export abstract class AITranslateProvider extends TranslateProvider {
             [segment],
             request.sourceLanguage,
             request.targetLanguage,
+            request.promptMode,
+            request.buildPromptOverride,
             this.recoveryAttempts,
           );
 
@@ -190,7 +195,8 @@ export abstract class AITranslateProvider extends TranslateProvider {
 
     return {
       supported: true,
-      content: this.buildPrompt(
+      content: this.resolvePrompt(
+        request,
         firstChunk.map((segment) => ({
           index: segment.index,
           text: segment.text,
@@ -202,6 +208,39 @@ export abstract class AITranslateProvider extends TranslateProvider {
   }
 
   protected buildMessages(
+    request: TranslateRequest,
+    segments: Array<{ index: number; text: string }>,
+    sourceLanguage: string,
+    targetLanguage: string,
+  ): AIMessage[] {
+    if (request.promptMode === "inline") {
+      return this.buildMessagesForInline(
+        request,
+        segments,
+        sourceLanguage,
+        targetLanguage,
+      );
+    }
+
+    return [
+      {
+        role: "system",
+        content: this.systemPrompt,
+      },
+      {
+        role: "user",
+        content: this.resolvePrompt(
+          request,
+          segments,
+          sourceLanguage,
+          targetLanguage,
+        ),
+      },
+    ];
+  }
+
+  protected buildMessagesForInline(
+    request: TranslateRequest,
     segments: Array<{ index: number; text: string }>,
     sourceLanguage: string,
     targetLanguage: string,
@@ -213,7 +252,12 @@ export abstract class AITranslateProvider extends TranslateProvider {
       },
       {
         role: "user",
-        content: this.buildPrompt(segments, sourceLanguage, targetLanguage),
+        content: this.resolvePrompt(
+          request,
+          segments,
+          sourceLanguage,
+          targetLanguage,
+        ),
       },
     ];
   }
@@ -244,6 +288,44 @@ export abstract class AITranslateProvider extends TranslateProvider {
       "Segments:",
       JSON.stringify(segments),
     ].join("\n");
+  }
+
+  protected buildPromptInline(context: TranslatePromptContext) {
+    return this.buildPrompt(
+      context.segments.map((segment, index) => ({
+        index,
+        text: segment,
+      })),
+      context.sourceLanguage,
+      context.targetLanguage,
+    );
+  }
+
+  protected resolvePrompt(
+    request: TranslateRequest,
+    segments: Array<{ index: number; text: string }>,
+    sourceLanguage: string,
+    targetLanguage: string,
+  ) {
+    const promptContext: TranslatePromptContext = {
+      segments: segments.map((segment) => segment.text),
+      sourceLanguage,
+      targetLanguage,
+    };
+
+    if (request.buildPromptOverride) {
+      return request.buildPromptOverride(promptContext);
+    }
+
+    if (request.promptMode === "inline") {
+      return this.buildPromptInline(promptContext);
+    }
+
+    return this.buildPrompt(
+      segments,
+      sourceLanguage,
+      targetLanguage,
+    );
   }
 
   protected buildChunks(segments: string[]) {
@@ -302,6 +384,8 @@ export abstract class AITranslateProvider extends TranslateProvider {
     payload: Array<{ index: number; text: string }>,
     sourceLanguage: string,
     targetLanguage: string,
+    promptMode: TranslateRequest["promptMode"],
+    buildPromptOverride: TranslateRequest["buildPromptOverride"],
     maxAttempts = this.maxRetries + 1,
   ): Promise<ChunkTranslationResult> {
     let lastError: Error | null = null;
@@ -309,6 +393,13 @@ export abstract class AITranslateProvider extends TranslateProvider {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const messages = this.buildMessages(
+        {
+          segments: payload.map((item) => item.text),
+          sourceLanguage,
+          targetLanguage,
+          promptMode,
+          buildPromptOverride,
+        },
         payload,
         sourceLanguage,
         targetLanguage,
@@ -343,10 +434,10 @@ export abstract class AITranslateProvider extends TranslateProvider {
           throw new Error(`${this.name} returned an empty completion.`);
         }
 
-        const parsed = this.parseTranslatedSegments(content);
-        const validTranslatedSegments = this.extractValidTranslatedSegments(
-          parsed,
+        const validTranslatedSegments = this.parseResponseSegments(
+          content,
           payload,
+          promptMode,
         );
 
         if (validTranslatedSegments.length === 0) {
@@ -451,6 +542,31 @@ export abstract class AITranslateProvider extends TranslateProvider {
       }));
   }
 
+  private parseResponseSegments(
+    content: string,
+    payload: Array<{ index: number; text: string }>,
+    promptMode: TranslateRequest["promptMode"],
+  ) {
+    try {
+      const parsed = this.parseTranslatedSegments(content);
+      return this.extractValidTranslatedSegments(parsed, payload);
+    } catch (error) {
+      if (promptMode === "inline" && payload.length === 1) {
+        const plainText = extractPlainTextResponse(content);
+        if (plainText.length > 0) {
+          return [
+            {
+              index: payload[0].index,
+              text: plainText,
+            },
+          ];
+        }
+      }
+
+      throw error;
+    }
+  }
+
   private async requestOllama(messages: AIMessage[]) {
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), this.timeoutMs);
@@ -510,6 +626,12 @@ function extractJsonObject(content: string) {
   }
 
   return candidate.slice(firstBrace, lastBrace + 1);
+}
+
+function extractPlainTextResponse(content: string) {
+  const trimmed = content.trim();
+  const fencedMatch = trimmed.match(/```(?:\w+)?\s*([\s\S]*?)```/i);
+  return (fencedMatch?.[1] ?? trimmed).trim();
 }
 
 export function normalizeLanguageName(languageCode: string) {
