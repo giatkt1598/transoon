@@ -15,6 +15,8 @@
     "@mui/icons-material": "^7.3.9",
     "@mui/material": "^7.3.9",
     "@types/react-window": "^1.8.8",
+    "ag-grid-community": "^35.1.0",
+    "ag-grid-react": "^35.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.1",

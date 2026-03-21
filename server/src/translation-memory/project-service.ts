@@ -4,6 +4,7 @@ import path from "path";
 import { appConfig } from "../config/app-config";
 import { languageCatalog } from "../config/language-catalog";
 import { buildDocxPreviewDocument } from "../documents/docx-preview-service";
+import { buildXlsxPreviewDocument } from "../documents/xlsx-preview-service";
 import { extractDocument, writeOutputFile } from "../document-service";
 import { Log } from "../logger";
 import { setProjectAutoTranslateProgress } from "../project-auto-translate-progress";
@@ -65,6 +66,7 @@ export type ExportProjectDocumentResult = {
 
 export type ProjectDocumentPreviewResult =
   | Awaited<ReturnType<typeof buildDocxPreviewDocument>>
+  | Awaited<ReturnType<typeof buildXlsxPreviewDocument>>
   | {
       documentType: string | null;
       fileName: string;
@@ -316,17 +318,22 @@ export async function getProjectDocumentPreview(
     throw new Error("The project document is missing its storage path.");
   }
 
-  if (document.documentType !== "docx") {
+  if (document.documentType !== "docx" && document.documentType !== "xlsx") {
     return {
       documentType: document.documentType,
       fileName: document.fileName,
       supported: false,
-      message: "Document preview is currently implemented for .docx files only.",
+      message:
+        "Document preview is currently implemented for .docx and .xlsx files only.",
     };
   }
 
   const absoluteStoragePath = path.resolve(process.cwd(), document.storagePath);
   const fileBuffer = readFileSync(absoluteStoragePath);
+
+  if (document.documentType === "xlsx") {
+    return buildXlsxPreviewDocument(document.fileName, fileBuffer);
+  }
 
   return buildDocxPreviewDocument(document.fileName, fileBuffer);
 }

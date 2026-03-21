@@ -60,7 +60,7 @@ export type XlsxSegmentDescriptor = {
   text: string;
 };
 
-type XlsxContentBlockPlan = {
+export type XlsxSegmentBlock = {
   entryName: string;
   entryType: XlsxSegmentEntryType;
   itemIndex: number;
@@ -107,7 +107,7 @@ type ChartTextTarget =
     };
 
 export type XlsxExtractionPlan = {
-  blocks: XlsxContentBlockPlan[];
+  blocks: XlsxSegmentBlock[];
   segments: ExtractedSegment[];
   entryXmlMap: Map<string, string>;
 };
@@ -344,7 +344,7 @@ export async function buildXlsxExtractionPlan(
   zip: JSZip,
   logger: ReturnType<typeof Log.forContext>,
 ): Promise<XlsxExtractionPlan> {
-  const blocks: XlsxContentBlockPlan[] = [];
+  const blocks: XlsxSegmentBlock[] = [];
   const entryXmlMap = new Map<string, string>();
 
   await collectSharedStrings(zip, blocks, entryXmlMap);
@@ -403,7 +403,7 @@ export async function applyXlsxExtractionPlan(
 
 async function collectSharedStrings(
   zip: JSZip,
-  blocks: XlsxContentBlockPlan[],
+  blocks: XlsxSegmentBlock[],
   entryXmlMap: Map<string, string>,
 ) {
   const sharedStringsXml = await zip.file(SHARED_STRINGS_PATH)?.async("text");
@@ -433,7 +433,7 @@ async function collectSharedStrings(
 
 async function collectConfiguredEntries(
   zip: JSZip,
-  blocks: XlsxContentBlockPlan[],
+  blocks: XlsxSegmentBlock[],
   entryXmlMap: Map<string, string>,
 ) {
   for (const config of xlsxEntryConfigs) {
@@ -463,7 +463,7 @@ async function collectConfiguredEntries(
 
 async function collectChartEntries(
   zip: JSZip,
-  blocks: XlsxContentBlockPlan[],
+  blocks: XlsxSegmentBlock[],
   entryXmlMap: Map<string, string>,
   logger: ReturnType<typeof Log.forContext>,
 ) {
@@ -511,7 +511,7 @@ function collectFromXml(
   entryName: string,
   xml: string,
   config: EntryConfig,
-  blocks: XlsxContentBlockPlan[],
+  blocks: XlsxSegmentBlock[],
 ) {
   const document = parseXml(xml);
 
@@ -621,7 +621,7 @@ function collectAttributeDescriptors(
   document: Document,
   entryName: string,
   config: AttributeConfig,
-  blocks: XlsxContentBlockPlan[],
+  blocks: XlsxSegmentBlock[],
 ) {
   const elements = findElementsByLocalName(document, config.elementNames);
   let itemIndex = 0;
@@ -642,7 +642,7 @@ function collectTextContainerDescriptors(
   document: Document,
   entryName: string,
   config: TextContainerConfig,
-  blocks: XlsxContentBlockPlan[],
+  blocks: XlsxSegmentBlock[],
 ) {
   const containers = findElementsByLocalName(document, config.containerNames);
   let itemIndex = 0;
@@ -667,7 +667,7 @@ function collectPlainTextElementDescriptors(
   document: Document,
   entryName: string,
   config: { entryType: XlsxSegmentEntryType; elementNames: string[] },
-  blocks: XlsxContentBlockPlan[],
+  blocks: XlsxSegmentBlock[],
 ) {
   const elements = findElementsByLocalName(document, config.elementNames);
   let itemIndex = 0;
@@ -1010,13 +1010,21 @@ function buildLookupKey(
   return `${entryType}:${entryName}:${itemIndex}`;
 }
 
+export function buildXlsxSegmentLookupKey(
+  entryType: XlsxSegmentEntryType,
+  entryName: string,
+  itemIndex: number,
+) {
+  return buildLookupKey(entryType, entryName, itemIndex);
+}
+
 export const xlsxTranslationPolicy = {
   displayTextEntryTypes: [...DISPLAY_TEXT_ENTRY_TYPES],
   internalReferenceTokensNotTranslated: [...INTERNAL_REFERENCE_TOKENS_NOT_TRANSLATED],
 };
 
 function pushSegmentedBlock(
-  blocks: XlsxContentBlockPlan[],
+  blocks: XlsxSegmentBlock[],
   entryName: string,
   entryType: XlsxSegmentEntryType,
   itemIndex: number,
@@ -1040,7 +1048,7 @@ function pushSegmentedBlock(
   });
 }
 
-function flattenBlocksToSegments(blocks: XlsxContentBlockPlan[]): ExtractedSegment[] {
+function flattenBlocksToSegments(blocks: XlsxSegmentBlock[]): ExtractedSegment[] {
   return blocks.flatMap((block) =>
     block.segmentIds.map((segmentId, index) => ({
       id: segmentId,

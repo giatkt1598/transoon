@@ -3,6 +3,7 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
 import { Box, IconButton, Paper, Typography } from '@mui/material'
 import type { ProjectDocumentPreview, ProjectSegment } from '../../app/types'
 import { DocxDocumentPreview } from './docx-document-preview'
+import { XlsxDocumentPreview } from './xlsx-document-preview'
 
 type DocumentPreviewPanelProps = {
   preview: ProjectDocumentPreview | null
@@ -52,6 +53,12 @@ export function DocumentPreviewPanel({
         <Placeholder message={preview.message} />
       ) : preview.documentType === 'docx' ? (
         <DocxDocumentPreview
+          preview={preview}
+          segments={segments}
+          activeSegmentExternalId={activeSegmentExternalId}
+        />
+      ) : preview.documentType === 'xlsx' ? (
+        <XlsxDocumentPreview
           preview={preview}
           segments={segments}
           activeSegmentExternalId={activeSegmentExternalId}

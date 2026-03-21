@@ -16,11 +16,8 @@ export function useProjectDocumentPreview({
   const [previewError, setPreviewError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!projectId) {
-      return
-    }
-
-    if (!documentFileName?.toLowerCase().endsWith('.docx')) {
+    if (!projectId || !documentFileName) {
+      setIsLoadingPreview(false)
       setPreview(null)
       setPreviewError(null)
       return

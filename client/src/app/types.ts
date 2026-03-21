@@ -130,12 +130,66 @@ export type DocxPreviewBlock = {
   suffixText?: string
 }
 
+export type XlsxPreviewCellStyle = {
+  bold: boolean
+  italic: boolean
+  underline: boolean
+  fontSize: number | null
+  fontColor: string | null
+  backgroundColor: string | null
+  horizontalAlign: string | null
+  verticalAlign: string | null
+  wrapText: boolean
+}
+
+export type XlsxPreviewCell = {
+  address: string
+  displayText: string
+  segmentIds: string[]
+  prefixText: string
+  separatorTexts: string[]
+  suffixText: string
+  style: XlsxPreviewCellStyle
+  merge: {
+    isRoot: boolean
+    hidden: boolean
+    rowSpan: number
+    colSpan: number
+  }
+}
+
+export type XlsxPreviewColumn = {
+  field: string
+  headerName: string
+  columnNumber: number
+  width: number
+}
+
+export type XlsxPreviewRow = {
+  rowId: string
+  rowNumber: number
+  height: number | null
+  cells: Record<string, XlsxPreviewCell>
+}
+
+export type XlsxPreviewSheet = {
+  sheetId: string
+  name: string
+  columns: XlsxPreviewColumn[]
+  rows: XlsxPreviewRow[]
+}
+
 export type ProjectDocumentPreview =
   | {
       documentType: 'docx'
       fileName: string
       html: string
       blocks: DocxPreviewBlock[]
+    }
+  | {
+      documentType: 'xlsx'
+      fileName: string
+      sheets: XlsxPreviewSheet[]
     }
   | {
       documentType: string | null
