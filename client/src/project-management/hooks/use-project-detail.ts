@@ -43,7 +43,7 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false)
   const [editingConfigId, setEditingConfigId] = useState<string | null>(null)
   const [draggedTranslationMemoryId, setDraggedTranslationMemoryId] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState(0)
+  const [activeTab, setActiveTab] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)

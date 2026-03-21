@@ -5,20 +5,18 @@ import { fetchProjectDocumentPreview } from '../../project-management/api'
 type UseProjectDocumentPreviewOptions = {
   projectId?: string
   documentFileName?: string | null
-  isActive: boolean
 }
 
 export function useProjectDocumentPreview({
   projectId,
   documentFileName,
-  isActive,
 }: UseProjectDocumentPreviewOptions) {
   const [preview, setPreview] = useState<ProjectDocumentPreview | null>(null)
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!projectId || !isActive) {
+    if (!projectId) {
       return
     }
 
@@ -53,7 +51,7 @@ export function useProjectDocumentPreview({
     void loadPreview()
 
     return () => controller.abort()
-  }, [documentFileName, isActive, projectId])
+  }, [documentFileName, projectId])
 
   return {
     preview,

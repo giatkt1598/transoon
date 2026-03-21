@@ -23,7 +23,6 @@ type UseProjectTranslationsOptions = {
   projectId?: string
   projectDetail: ProjectDetail | null
   translateProviders: TranslateProviderOption[]
-  isActive: boolean
   onProjectDetailChange: Dispatch<SetStateAction<ProjectDetail | null>>
 }
 
@@ -31,7 +30,6 @@ export function useProjectTranslations({
   projectId,
   projectDetail,
   translateProviders,
-  isActive,
   onProjectDetailChange,
 }: UseProjectTranslationsOptions) {
   const [segments, setSegments] = useState<ProjectSegment[]>([])
@@ -61,7 +59,7 @@ export function useProjectTranslations({
   const projectSegmentCount = projectDetail?.segmentCount ?? 0
 
   useEffect(() => {
-    if (!projectId || !isActive) {
+    if (!projectId) {
       return
     }
 
@@ -97,7 +95,7 @@ export function useProjectTranslations({
     void loadSegments()
 
     return () => controller.abort()
-  }, [isActive, projectId, projectSegmentCount, projectStatus])
+  }, [projectId, projectSegmentCount, projectStatus])
 
   useEffect(() => {
     if (!translateProviders.length) {

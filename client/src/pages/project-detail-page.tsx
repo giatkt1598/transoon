@@ -1,7 +1,7 @@
 import { Alert, Box, Button, Tab, Tabs, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { AutoTranslateDialog } from '../project-translations/components/auto-translate-dialog'
-import { useParams } from 'react-router-dom'
+import { useBlocker, useParams } from 'react-router-dom'
 import { AlignmentTool } from '../project-translations/components/alignment-tool'
 import { DocumentPreviewPanel } from '../project-translations/components/document-preview-panel'
 import { GenerateSegmentsCard } from '../project-translations/components/generate-segments-card'
@@ -18,6 +18,8 @@ import { useProjectTranslations } from '../project-translations/hooks/use-projec
 import { getLanguageLabel } from '../app/utils'
 
 const PREVIEW_VISIBILITY_STORAGE_KEY = 'transoon.projectTranslations.previewVisible'
+const UNSAVED_CHANGES_MESSAGE =
+  'You have unsaved changes on this project. Do you want to leave this page? Your changes will not be saved.'
 
 export function ProjectDetailPage() {
   const [isPreviewVisible, setIsPreviewVisible] = useState(() => loadPreviewVisibility())
@@ -85,9 +87,10 @@ export function ProjectDetailPage() {
     projectId,
     projectDetail,
     translateProviders,
-    isActive: activeTab === 1,
     onProjectDetailChange: setProjectDetail,
   })
+  const hasUnsavedChanges = hasPendingTranslationMemoryChanges || hasPendingSegmentChanges
+  const navigationBlocker = useBlocker(hasUnsavedChanges)
   const {
     preview,
     isLoadingPreview,
@@ -95,7 +98,6 @@ export function ProjectDetailPage() {
   } = useProjectDocumentPreview({
     projectId,
     documentFileName: projectDetail?.documentFileName,
-    isActive: activeTab === 1,
   })
 
   useEffect(() => {
@@ -105,6 +107,34 @@ export function ProjectDetailPage() {
       // ignore storage write failures
     }
   }, [isPreviewVisible])
+
+  useEffect(() => {
+    if (navigationBlocker.state !== 'blocked') {
+      return
+    }
+
+    const shouldLeave = window.confirm(UNSAVED_CHANGES_MESSAGE)
+    if (shouldLeave) {
+      navigationBlocker.proceed()
+      return
+    }
+
+    navigationBlocker.reset()
+  }, [navigationBlocker])
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) {
+        return
+      }
+
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges])
 
   const handleShowPreview = () => {
     resetTranslationsSplitPanePercent()
@@ -160,39 +190,81 @@ export function ProjectDetailPage() {
         <Box className="empty-state">
           <Typography component="p">Loading project detail...</Typography>
         </Box>
-      ) : activeTab === 0 ? (
-        <Box className="detail-home-grid">
-          <ProjectDetailInformationSection projectDetail={projectDetail} />
-          <ProjectDetailTranslationMemoriesSection
-            projectDetail={projectDetail}
-            translationMemories={draftTranslationMemories}
-            availableTranslationMemories={availableTranslationMemories}
-            configForm={configForm}
-            isConfigDialogOpen={isConfigDialogOpen}
-            editingConfigId={editingConfigId}
-            hasPendingChanges={hasPendingTranslationMemoryChanges}
-            draggedTranslationMemoryId={draggedTranslationMemoryId}
-            isSaving={isSaving}
-            isReadOnly={projectDetail.status === 'auto-translate-processing'}
-            onFieldChange={handleConfigFieldChange}
-            onOpenAddDialog={handleOpenAddDialog}
-            onOpenEditDialog={handleOpenEditDialog}
-            onCloseConfigDialog={handleCloseConfigDialog}
-            onAdd={handleAddTranslationMemory}
-            onDelete={handleDeleteConfig}
-            onAccessModeChange={handleAccessModeChange}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDropOnRow={handleDropOnRow}
-            onSaveAll={handleSaveTranslationMemories}
-          />
-        </Box>
       ) : (
-        <Box className="translations-tab-grid">
-          {projectDetail.segmentCount > 0 || hasSegments || isLoadingSegments ? (
-            isPreviewVisible ? (
-              <TranslationsSplitPane
-                alignmentPane={
+        <>
+          <Box className={activeTab === 0 ? 'detail-tab-panel' : 'detail-tab-panel detail-tab-panel-hidden'}>
+            <Box className="detail-home-grid">
+              <ProjectDetailInformationSection projectDetail={projectDetail} />
+              <ProjectDetailTranslationMemoriesSection
+                projectDetail={projectDetail}
+                translationMemories={draftTranslationMemories}
+                availableTranslationMemories={availableTranslationMemories}
+                configForm={configForm}
+                isConfigDialogOpen={isConfigDialogOpen}
+                editingConfigId={editingConfigId}
+                hasPendingChanges={hasPendingTranslationMemoryChanges}
+                draggedTranslationMemoryId={draggedTranslationMemoryId}
+                isSaving={isSaving}
+                isReadOnly={projectDetail.status === 'auto-translate-processing'}
+                onFieldChange={handleConfigFieldChange}
+                onOpenAddDialog={handleOpenAddDialog}
+                onOpenEditDialog={handleOpenEditDialog}
+                onCloseConfigDialog={handleCloseConfigDialog}
+                onAdd={handleAddTranslationMemory}
+                onDelete={handleDeleteConfig}
+                onAccessModeChange={handleAccessModeChange}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDropOnRow={handleDropOnRow}
+                onSaveAll={handleSaveTranslationMemories}
+              />
+            </Box>
+          </Box>
+
+          <Box className={activeTab === 1 ? 'detail-tab-panel' : 'detail-tab-panel detail-tab-panel-hidden'}>
+            <Box className="translations-tab-grid">
+              {projectDetail.segmentCount > 0 || hasSegments || isLoadingSegments ? (
+                isPreviewVisible ? (
+                  <TranslationsSplitPane
+                    alignmentPane={
+                      <AlignmentTool
+                        segments={segments}
+                        sourceLanguageLabel={getLanguageLabel(projectDetail.sourceLang)}
+                        targetLanguageLabel={getLanguageLabel(projectDetail.targetLang)}
+                        isLoading={isLoadingSegments}
+                        isReadOnly={isReadOnly}
+                        isBusy={isStartingAutoTranslate}
+                        isSaving={isSavingSegments}
+                        isExporting={isExportingDocument}
+                        hasPendingChanges={hasPendingSegmentChanges}
+                        activeSegmentExternalId={activeSegmentExternalId}
+                        inlineTranslatingSegmentId={inlineTranslatingSegmentId}
+                        inlineTranslateProviderName={inlineTranslateProviderName}
+                        inlineCaretRestoreSegmentId={inlineCaretRestoreSegmentId}
+                        inlineCaretRestoreToken={inlineCaretRestoreToken}
+                        isPreviewVisible={isPreviewVisible}
+                        restoreScrollKey={segmentSaveRevision}
+                        onTargetChange={handleTargetChange}
+                        onActiveSegmentChange={handleActiveSegmentChange}
+                        onInlineTranslateSegment={handleInlineTranslateSegment}
+                        onSaveAll={() => void handleSaveSegments()}
+                        onExport={() => void handleExportDocument()}
+                        onOpenAutoTranslate={handleOpenAutoTranslateDialog}
+                        onShowPreview={handleShowPreview}
+                      />
+                    }
+                    previewPane={
+                      <DocumentPreviewPanel
+                        preview={preview}
+                        segments={segments}
+                        activeSegmentExternalId={activeSegmentExternalId}
+                        isLoading={isLoadingPreview}
+                        error={previewError}
+                        onClose={() => setIsPreviewVisible(false)}
+                      />
+                    }
+                  />
+                ) : (
                   <AlignmentTool
                     segments={segments}
                     sourceLanguageLabel={getLanguageLabel(projectDetail.sourceLang)}
@@ -218,53 +290,17 @@ export function ProjectDetailPage() {
                     onOpenAutoTranslate={handleOpenAutoTranslateDialog}
                     onShowPreview={handleShowPreview}
                   />
-                }
-                previewPane={
-                  <DocumentPreviewPanel
-                    preview={preview}
-                    segments={segments}
-                    activeSegmentExternalId={activeSegmentExternalId}
-                    isLoading={isLoadingPreview}
-                    error={previewError}
-                    onClose={() => setIsPreviewVisible(false)}
-                  />
-                }
-              />
-            ) : (
-              <AlignmentTool
-                segments={segments}
-                sourceLanguageLabel={getLanguageLabel(projectDetail.sourceLang)}
-                targetLanguageLabel={getLanguageLabel(projectDetail.targetLang)}
-                isLoading={isLoadingSegments}
-                isReadOnly={isReadOnly}
-                isBusy={isStartingAutoTranslate}
-                isSaving={isSavingSegments}
-                isExporting={isExportingDocument}
-                hasPendingChanges={hasPendingSegmentChanges}
-                activeSegmentExternalId={activeSegmentExternalId}
-                inlineTranslatingSegmentId={inlineTranslatingSegmentId}
-                inlineTranslateProviderName={inlineTranslateProviderName}
-                inlineCaretRestoreSegmentId={inlineCaretRestoreSegmentId}
-                inlineCaretRestoreToken={inlineCaretRestoreToken}
-                isPreviewVisible={isPreviewVisible}
-                restoreScrollKey={segmentSaveRevision}
-                onTargetChange={handleTargetChange}
-                onActiveSegmentChange={handleActiveSegmentChange}
-                onInlineTranslateSegment={handleInlineTranslateSegment}
-                onSaveAll={() => void handleSaveSegments()}
-                onExport={() => void handleExportDocument()}
-                onOpenAutoTranslate={handleOpenAutoTranslateDialog}
-                onShowPreview={handleShowPreview}
-              />
-            )
-          ) : (
-            <GenerateSegmentsCard
-              canGenerate={Boolean(projectDetail.documentFileName)}
-              isGenerating={isGeneratingSegments}
-              onGenerate={() => void handleGenerateSegments()}
-            />
-          )}
-        </Box>
+                )
+              ) : (
+                <GenerateSegmentsCard
+                  canGenerate={Boolean(projectDetail.documentFileName)}
+                  isGenerating={isGeneratingSegments}
+                  onGenerate={() => void handleGenerateSegments()}
+                />
+              )}
+            </Box>
+          </Box>
+        </>
       )}
 
       <AutoTranslateDialog
