@@ -11,6 +11,7 @@ import {
 import { useTranslationApp } from "../app/translation-app-context";
 import { formatTimer } from "../app/utils";
 import { ProgressCard } from "./progress-card";
+import { ProjectDocumentUploadField } from "../project-management/components/project-document-upload-field";
 
 const showCopyBuildPrompt =
   import.meta.env.VITE_SHOW_COPY_BUILD_PROMPT !== "false";
@@ -73,36 +74,19 @@ export function DocumentIntakePanel() {
 
       <Box className="field upload-field">
         <Typography component="span">Document file</Typography>
-        <Button
-          component="label"
-          variant="outlined"
-          sx={{
-            justifyContent: "flex-start",
-            borderRadius: "14px",
-            borderColor: "#d8c2a8",
-            backgroundColor: "#fff",
-            color: "#291d13",
-            padding: "14px 16px",
-            fontWeight: 400,
-            "&:hover": {
-              borderColor: "#d97f37",
-              backgroundColor: "#fffaf2",
-            },
-          }}
-        >
-          {file ? "Choose another file" : "Choose document"}
-          <input
-            hidden
-            type="file"
-            accept=".txt,.docx,.xlsx,.csv,.pptx"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          />
-        </Button>
-        <Typography component="small">
-          {file
-            ? `Selected file: ${file.name}`
-            : "Supported in this version: `.txt`, `.docx`, `.xlsx`, `.csv`, `.pptx`"}
-        </Typography>
+        <ProjectDocumentUploadField
+          value={file?.name ?? ""}
+          label={undefined}
+          buttonMode={!file}
+          emptyButtonLabel="Choose document"
+          buttonLabel={file ? "Choose another file" : undefined}
+          helperText={
+            file
+              ? ``
+              : "Supported in this version: `.txt`, `.docx`, `.xlsx`, `.csv`, `.pptx`"
+          }
+          onFileChange={setFile}
+        />
       </Box>
 
       <Box className="field-grid">

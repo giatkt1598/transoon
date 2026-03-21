@@ -59,6 +59,8 @@ export function ProjectEditorForm({
 
         <ProjectDocumentUploadField
           value={documentFileName}
+          label="Document file"
+          buttonMode={!isEditMode}
           disabled={isEditMode || isLoading || isSaving || isReadOnly}
           onFileChange={onDocumentFileChange}
         />
