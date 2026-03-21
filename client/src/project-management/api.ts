@@ -28,28 +28,42 @@ export function getFallbackLanguages() {
   return fallbackLanguages
 }
 
+async function readJsonResponse<T>(response: Response) {
+  const responseText = await response.text()
+
+  try {
+    return JSON.parse(responseText) as T
+  } catch {
+    throw new Error(
+      responseText.startsWith('<')
+        ? 'The server returned HTML instead of JSON. Check that the API server is running and the route completed successfully.'
+        : 'The server returned an invalid JSON response.',
+    )
+  }
+}
+
 export async function fetchLanguages(signal?: AbortSignal) {
   const response = await fetch(`${apiBaseUrl}/api/languages`, { signal })
   if (!response.ok) {
     throw new Error('Could not load language options.')
   }
 
-  return (await response.json()) as LanguagesResponse
+  return readJsonResponse<LanguagesResponse>(response)
 }
 
 export async function fetchProjects(signal?: AbortSignal) {
   const response = await fetch(`${apiBaseUrl}/api/projects`, { signal })
-  if (!response.ok) {
-    throw new Error('Could not load projects.')
+  const data = await readJsonResponse<ProjectsResponse | { error?: string }>(response)
+  if (!response.ok || 'error' in data) {
+    throw new Error('error' in data ? data.error ?? 'Could not load projects.' : 'Could not load projects.')
   }
 
-  const data = (await response.json()) as ProjectsResponse
-  return data.projects
+  return (data as ProjectsResponse).projects
 }
 
 export async function fetchProject(projectId: string, signal?: AbortSignal) {
   const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}`, { signal })
-  const data = (await response.json()) as ProjectSummary | { error?: string }
+  const data = await readJsonResponse<ProjectSummary | { error?: string }>(response)
 
   if (!response.ok || 'error' in data) {
     throw new Error('error' in data ? data.error ?? 'Could not load project.' : 'Could not load project.')
@@ -70,7 +84,7 @@ export async function saveProject(projectId: string | null, formValues: ProjectF
     },
   )
 
-  const data = (await response.json()) as ProjectSummary | { error?: string }
+  const data = await readJsonResponse<ProjectSummary | { error?: string }>(response)
   if (!response.ok || 'error' in data) {
     throw new Error('error' in data ? data.error ?? 'Could not save project.' : 'Could not save project.')
   }
@@ -84,7 +98,7 @@ export async function deleteProject(projectId: string) {
   })
 
   if (!response.ok) {
-    const data = (await response.json()) as { error?: string }
+    const data = await readJsonResponse<{ error?: string }>(response)
     throw new Error(data.error ?? 'Could not delete project.')
   }
 }

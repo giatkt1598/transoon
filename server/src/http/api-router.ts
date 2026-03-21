@@ -39,63 +39,93 @@ export function createApiRouter() {
   });
 
   router.get("/api/projects", (_req, res) => {
-    res.json({
-      projects: listProjects(),
-    });
+    try {
+      res.json({
+        projects: listProjects(),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
   });
 
   router.get("/api/projects/:projectId", (req, res) => {
-    const project = getProjectById(String(req.params.projectId));
+    try {
+      const project = getProjectById(String(req.params.projectId));
 
-    if (!project) {
-      res.status(404).json({ error: "Project not found." });
-      return;
+      if (!project) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      res.json(project);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
     }
-
-    res.json(project);
   });
 
   router.post("/api/projects", (req, res) => {
-    const validationError = validateProjectInput(req.body);
-    if (validationError) {
-      res.status(400).json({ error: validationError });
-      return;
-    }
+    try {
+      const validationError = validateProjectInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
 
-    const project = createProject(req.body);
-    res.status(201).json(project);
+      const project = createProject(req.body);
+      res.status(201).json(project);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
   });
 
   router.put("/api/projects/:projectId", (req, res) => {
-    const projectId = String(req.params.projectId);
-    const existingProject = getProjectById(projectId);
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
 
-    if (!existingProject) {
-      res.status(404).json({ error: "Project not found." });
-      return;
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      const validationError = validateProjectInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const project = updateProject(projectId, req.body);
+      res.json(project);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
     }
-
-    const validationError = validateProjectInput(req.body);
-    if (validationError) {
-      res.status(400).json({ error: validationError });
-      return;
-    }
-
-    const project = updateProject(projectId, req.body);
-    res.json(project);
   });
 
   router.delete("/api/projects/:projectId", (req, res) => {
-    const projectId = String(req.params.projectId);
-    const existingProject = getProjectById(projectId);
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
 
-    if (!existingProject) {
-      res.status(404).json({ error: "Project not found." });
-      return;
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      deleteProject(projectId);
+      res.status(204).send();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
     }
-
-    deleteProject(projectId);
-    res.status(204).send();
   });
 
   router.get("/api/translation-progress/:requestId", (req, res) => {
