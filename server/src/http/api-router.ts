@@ -396,8 +396,8 @@ export function createApiRouter() {
         return;
       }
 
-      const { outputPath, outputFileName } = await exportProjectDocument(projectId);
-      res.download(outputPath, outputFileName);
+      const { outputPath, downloadFileName } = await exportProjectDocument(projectId);
+      res.download(outputPath, downloadFileName);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unexpected server error.";

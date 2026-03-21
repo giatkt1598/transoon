@@ -23,7 +23,11 @@ const io = new SocketIOServer(httpServer, {
   },
 });
 
-app.use(cors());
+app.use(
+  cors({
+    exposedHeaders: ["Content-Disposition"],
+  }),
+);
 app.use(express.json());
 
 initializeTranslationMemoryDatabase();

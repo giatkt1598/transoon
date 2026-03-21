@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import { appConfig } from "../config/app-config";
+import { languageCatalog } from "../config/language-catalog";
 import { extractDocument, writeOutputFile } from "../document-service";
 import { Log } from "../logger";
 import { setProjectAutoTranslateProgress } from "../project-auto-translate-progress";
@@ -47,6 +48,7 @@ export type SaveProjectSegmentInput = {
 export type ExportProjectDocumentResult = {
   outputPath: string;
   outputFileName: string;
+  downloadFileName: string;
   documentType: string | null;
 };
 
@@ -217,7 +219,12 @@ export async function generateProjectSegments(projectId: string) {
 export async function exportProjectDocument(
   projectId: string,
 ): Promise<ExportProjectDocumentResult> {
+  const project = getProjectById(projectId);
   const document = getPrimaryProjectDocument(projectId);
+
+  if (!project) {
+    throw new Error("Project not found.");
+  }
 
   if (!document) {
     throw new Error("No document is attached to this project.");
@@ -244,10 +251,15 @@ export async function exportProjectDocument(
     document.fileName,
     outputBuffer,
   );
+  const downloadFileName = buildExportDownloadFileName(
+    document.fileName,
+    project.targetLang,
+  );
 
   return {
     outputPath,
     outputFileName,
+    downloadFileName,
     documentType: document.documentType,
   };
 }
@@ -603,6 +615,24 @@ function normalizeText(value: string) {
 
 function hashText(value: string) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function buildExportDownloadFileName(
+  sourceFileName: string,
+  targetLanguage: string,
+) {
+  const extension = path.extname(sourceFileName);
+  const baseName = path.basename(sourceFileName, extension);
+  const targetLanguageLabel = getLanguageLabel(targetLanguage);
+
+  return `${baseName} (${targetLanguageLabel})${extension}`;
+}
+
+function getLanguageLabel(languageCode: string) {
+  return (
+    languageCatalog.languages.find((language) => language.code === languageCode)
+      ?.label ?? languageCode
+  );
 }
 
 function isSegmentAlreadyTranslated(
