@@ -497,6 +497,20 @@
   padding: 14px;
 }
 
+.document-preview-heading {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.document-preview-close-button.MuiIconButton-root {
+  margin-top: 2px;
+  margin-left: 12px;
+  flex-shrink: 0;
+  color: #8a705c;
+  border: 1px solid rgba(58, 44, 30, 0.12);
+  background: #fffaf2;
+}
+
 body.pane-resizing {
   cursor: col-resize;
   user-select: none;

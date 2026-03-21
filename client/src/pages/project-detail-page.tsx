@@ -1,10 +1,14 @@
 import { Alert, Box, Tab, Tabs, Typography } from '@mui/material'
+import { useEffect, useState } from 'react'
 import { AutoTranslateDialog } from '../project-translations/components/auto-translate-dialog'
 import { useParams } from 'react-router-dom'
 import { AlignmentTool } from '../project-translations/components/alignment-tool'
 import { DocumentPreviewPanel } from '../project-translations/components/document-preview-panel'
 import { GenerateSegmentsCard } from '../project-translations/components/generate-segments-card'
-import { TranslationsSplitPane } from '../project-translations/components/translations-split-pane'
+import {
+  resetTranslationsSplitPanePercent,
+  TranslationsSplitPane,
+} from '../project-translations/components/translations-split-pane'
 import { ProjectPageHeader } from '../project-management/components/project-page-header'
 import { ProjectDetailInformationSection } from '../project-management/components/project-detail-information-section'
 import { ProjectDetailTranslationMemoriesSection } from '../project-management/components/project-detail-translation-memories-section'
@@ -13,7 +17,10 @@ import { useProjectDocumentPreview } from '../project-translations/hooks/use-pro
 import { useProjectTranslations } from '../project-translations/hooks/use-project-translations'
 import { getLanguageLabel } from '../app/utils'
 
+const PREVIEW_VISIBILITY_STORAGE_KEY = 'transoon.projectTranslations.previewVisible'
+
 export function ProjectDetailPage() {
+  const [isPreviewVisible, setIsPreviewVisible] = useState(() => loadPreviewVisibility())
   const { projectId } = useParams()
   const {
     projectDetail,
@@ -84,6 +91,19 @@ export function ProjectDetailPage() {
     isActive: activeTab === 1,
   })
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PREVIEW_VISIBILITY_STORAGE_KEY, JSON.stringify(isPreviewVisible))
+    } catch {
+      // ignore storage write failures
+    }
+  }, [isPreviewVisible])
+
+  const handleShowPreview = () => {
+    resetTranslationsSplitPanePercent()
+    setIsPreviewVisible(true)
+  }
+
   return (
     <Box className="project-page">
       <ProjectPageHeader
@@ -149,37 +169,63 @@ export function ProjectDetailPage() {
       ) : (
         <Box className="translations-tab-grid">
           {projectDetail.segmentCount > 0 || hasSegments || isLoadingSegments ? (
-            <TranslationsSplitPane
-              alignmentPane={
-                <AlignmentTool
-                  segments={segments}
-                  sourceLanguageLabel={getLanguageLabel(projectDetail.sourceLang)}
-                  targetLanguageLabel={getLanguageLabel(projectDetail.targetLang)}
-                  isLoading={isLoadingSegments}
-                  isReadOnly={isReadOnly}
-                  isBusy={isStartingAutoTranslate}
-                  isSaving={isSavingSegments}
-                  isExporting={isExportingDocument}
-                  hasPendingChanges={hasPendingSegmentChanges}
-                  activeSegmentExternalId={activeSegmentExternalId}
-                  restoreScrollKey={segmentSaveRevision}
-                  onTargetChange={handleTargetChange}
-                  onActiveSegmentChange={handleActiveSegmentChange}
-                  onSaveAll={() => void handleSaveSegments()}
-                  onExport={() => void handleExportDocument()}
-                  onOpenAutoTranslate={handleOpenAutoTranslateDialog}
-                />
-              }
-              previewPane={
-                <DocumentPreviewPanel
-                  preview={preview}
-                  segments={segments}
-                  activeSegmentExternalId={activeSegmentExternalId}
-                  isLoading={isLoadingPreview}
-                  error={previewError}
-                />
-              }
-            />
+            isPreviewVisible ? (
+              <TranslationsSplitPane
+                alignmentPane={
+                  <AlignmentTool
+                    segments={segments}
+                    sourceLanguageLabel={getLanguageLabel(projectDetail.sourceLang)}
+                    targetLanguageLabel={getLanguageLabel(projectDetail.targetLang)}
+                    isLoading={isLoadingSegments}
+                    isReadOnly={isReadOnly}
+                    isBusy={isStartingAutoTranslate}
+                    isSaving={isSavingSegments}
+                    isExporting={isExportingDocument}
+                    hasPendingChanges={hasPendingSegmentChanges}
+                    activeSegmentExternalId={activeSegmentExternalId}
+                    isPreviewVisible={isPreviewVisible}
+                    restoreScrollKey={segmentSaveRevision}
+                    onTargetChange={handleTargetChange}
+                    onActiveSegmentChange={handleActiveSegmentChange}
+                    onSaveAll={() => void handleSaveSegments()}
+                    onExport={() => void handleExportDocument()}
+                    onOpenAutoTranslate={handleOpenAutoTranslateDialog}
+                    onShowPreview={handleShowPreview}
+                  />
+                }
+                previewPane={
+                  <DocumentPreviewPanel
+                    preview={preview}
+                    segments={segments}
+                    activeSegmentExternalId={activeSegmentExternalId}
+                    isLoading={isLoadingPreview}
+                    error={previewError}
+                    onClose={() => setIsPreviewVisible(false)}
+                  />
+                }
+              />
+            ) : (
+              <AlignmentTool
+                segments={segments}
+                sourceLanguageLabel={getLanguageLabel(projectDetail.sourceLang)}
+                targetLanguageLabel={getLanguageLabel(projectDetail.targetLang)}
+                isLoading={isLoadingSegments}
+                isReadOnly={isReadOnly}
+                isBusy={isStartingAutoTranslate}
+                isSaving={isSavingSegments}
+                isExporting={isExportingDocument}
+                hasPendingChanges={hasPendingSegmentChanges}
+                activeSegmentExternalId={activeSegmentExternalId}
+                isPreviewVisible={isPreviewVisible}
+                restoreScrollKey={segmentSaveRevision}
+                onTargetChange={handleTargetChange}
+                onActiveSegmentChange={handleActiveSegmentChange}
+                onSaveAll={() => void handleSaveSegments()}
+                onExport={() => void handleExportDocument()}
+                onOpenAutoTranslate={handleOpenAutoTranslateDialog}
+                onShowPreview={handleShowPreview}
+              />
+            )
           ) : (
             <GenerateSegmentsCard
               canGenerate={Boolean(projectDetail.documentFileName)}
@@ -201,4 +247,18 @@ export function ProjectDetailPage() {
       />
     </Box>
   )
+}
+
+function loadPreviewVisibility() {
+  try {
+    const storedValue = window.localStorage.getItem(PREVIEW_VISIBILITY_STORAGE_KEY)
+    if (storedValue === null) {
+      return true
+    }
+
+    const parsedValue = JSON.parse(storedValue)
+    return typeof parsedValue === 'boolean' ? parsedValue : true
+  } catch {
+    return true
+  }
 }

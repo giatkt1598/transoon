@@ -92,6 +92,18 @@ export function TranslationsSplitPane({
   )
 }
 
+export function loadTranslationsSplitPanePercent() {
+  return loadLeftPercent()
+}
+
+export function resetTranslationsSplitPanePercent() {
+  try {
+    window.localStorage.setItem(SPLIT_PANE_STORAGE_KEY, String(DEFAULT_LEFT_PERCENT))
+  } catch {
+    // ignore storage write failures
+  }
+}
+
 function loadLeftPercent() {
   try {
     const storedValue = window.localStorage.getItem(SPLIT_PANE_STORAGE_KEY)

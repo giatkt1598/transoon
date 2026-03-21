@@ -15,12 +15,14 @@ type AlignmentToolProps = {
   isExporting: boolean
   hasPendingChanges: boolean
   activeSegmentExternalId: string | null
+  isPreviewVisible: boolean
   restoreScrollKey?: number
   onTargetChange: (segmentId: string, targetText: string) => void
   onActiveSegmentChange: (segmentExternalId: string | null) => void
   onSaveAll: () => void
   onExport: () => void
   onOpenAutoTranslate: () => void
+  onShowPreview: () => void
 }
 
 export function AlignmentTool({
@@ -34,12 +36,14 @@ export function AlignmentTool({
   isExporting,
   hasPendingChanges,
   activeSegmentExternalId,
+  isPreviewVisible,
   restoreScrollKey = 0,
   onTargetChange,
   onActiveSegmentChange,
   onSaveAll,
   onExport,
   onOpenAutoTranslate,
+  onShowPreview,
 }: AlignmentToolProps) {
   const listRef = useListRef(null)
   const scrollTopRef = useRef(0)
@@ -79,9 +83,11 @@ export function AlignmentTool({
         isSaving={isSaving}
         isExporting={isExporting}
         hasPendingChanges={hasPendingChanges}
+        isPreviewVisible={isPreviewVisible}
         onSaveAll={onSaveAll}
         onExport={onExport}
         onOpenAutoTranslate={onOpenAutoTranslate}
+        onShowPreview={onShowPreview}
       />
 
       <Box className="alignment-grid-shell">

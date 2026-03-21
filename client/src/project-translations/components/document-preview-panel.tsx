@@ -1,5 +1,6 @@
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
-import { Box, Paper, Typography } from '@mui/material'
+import { Box, IconButton, Paper, Typography } from '@mui/material'
 import type { ProjectDocumentPreview, ProjectSegment } from '../../app/types'
 import { DocxDocumentPreview } from './docx-document-preview'
 
@@ -9,6 +10,7 @@ type DocumentPreviewPanelProps = {
   activeSegmentExternalId: string | null
   isLoading: boolean
   error: string | null
+  onClose: () => void
 }
 
 export function DocumentPreviewPanel({
@@ -17,10 +19,11 @@ export function DocumentPreviewPanel({
   activeSegmentExternalId,
   isLoading,
   error,
+  onClose,
 }: DocumentPreviewPanelProps) {
   return (
     <Paper className="detail-section-card document-preview-shell" elevation={0}>
-      <Box className="panel-heading">
+      <Box className="panel-heading document-preview-heading">
         <Box>
           <Typography component="p" className="panel-kicker">
             Document Preview
@@ -29,6 +32,14 @@ export function DocumentPreviewPanel({
             Preview panel
           </Typography>
         </Box>
+        <IconButton
+          size="small"
+          className="document-preview-close-button"
+          onClick={onClose}
+          aria-label="Close preview"
+        >
+          <CloseRoundedIcon fontSize="small" />
+        </IconButton>
       </Box>
 
       {isLoading ? (

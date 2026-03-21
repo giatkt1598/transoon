@@ -1,5 +1,6 @@
 import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
 import CallSplitOutlinedIcon from '@mui/icons-material/CallSplitOutlined'
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined'
 import FindReplaceOutlinedIcon from '@mui/icons-material/FindReplaceOutlined'
@@ -23,9 +24,11 @@ type AlignmentToolToolbarProps = {
   isSaving: boolean
   isExporting: boolean
   hasPendingChanges: boolean
+  isPreviewVisible: boolean
   onSaveAll: () => void
   onExport: () => void
   onOpenAutoTranslate: () => void
+  onShowPreview: () => void
 }
 
 export function AlignmentToolToolbar({
@@ -34,9 +37,11 @@ export function AlignmentToolToolbar({
   isSaving,
   isExporting,
   hasPendingChanges,
+  isPreviewVisible,
   onSaveAll,
   onExport,
   onOpenAutoTranslate,
+  onShowPreview,
 }: AlignmentToolToolbarProps) {
   return (
     <Paper className="alignment-toolbar-shell" elevation={0}>
@@ -61,6 +66,17 @@ export function AlignmentToolToolbar({
         >
           {isExporting ? 'Exporting...' : 'Export'}
         </Button>
+        {!isPreviewVisible ? (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<DescriptionOutlinedIcon fontSize="small" />}
+            onClick={onShowPreview}
+            className="alignment-toolbar-button"
+          >
+            Preview
+          </Button>
+        ) : null}
         {toolbarActions.map((action) => (
           <Button
             key={action.label}
