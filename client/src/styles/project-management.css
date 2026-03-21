@@ -91,7 +91,7 @@
 .project-table-row {
   display: grid;
   grid-template-columns:
-    minmax(240px, 1.55fr) minmax(120px, 0.6fr) minmax(120px, 0.6fr)
+    52px minmax(240px, 1.55fr) minmax(120px, 0.6fr) minmax(120px, 0.6fr)
     minmax(200px, 1fr) minmax(180px, 0.8fr) 72px;
   gap: 16px;
   align-items: center;
@@ -131,22 +131,13 @@
 .project-primary-cell {
   display: flex;
   align-items: center;
-  gap: 12px;
   min-width: 0;
 }
 
-.project-avatar-badge {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #2f7f76 0%, #255751 100%);
-  color: #fffaf2;
-  font-weight: 700;
-  font-size: 0.92rem;
-  box-shadow: 0 12px 24px rgba(37, 87, 81, 0.18);
-  flex-shrink: 0;
+.project-type-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .project-row-title,
@@ -156,6 +147,17 @@
   color: #24170f;
   font-weight: 600;
   font-size: 0.95rem;
+}
+
+.project-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-icon-image {
+  display: block;
+  object-fit: contain;
 }
 
 .project-row-subtitle,

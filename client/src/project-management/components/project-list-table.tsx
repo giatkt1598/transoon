@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ProjectSummary } from "../../app/types";
+import { DocumentIcon } from "../../components/document-icon";
 import { formatLanguageRoute } from "../../app/utils";
 
 type ProjectListTableProps = {
@@ -113,6 +114,7 @@ export function ProjectListTable({
       </Box>
 
       <Box className="project-table-head">
+        <span aria-hidden="true" />
         <span>Project</span>
         <span>Last modified</span>
         <span>Created at</span>
@@ -144,10 +146,14 @@ export function ProjectListTable({
                 className="project-table-row project-table-row-clickable"
                 onClick={() => navigate(`/projects/${project.id}`)}
               >
+                <Box className="project-type-cell">
+                  <DocumentIcon
+                    fileName={project.documentFileName ?? project.name}
+                    size={32}
+                  />
+                </Box>
+
                 <Box className="project-primary-cell">
-                  <Box className="project-avatar-badge">
-                    {project.name.slice(0, 1).toUpperCase()}
-                  </Box>
                   <Box>
                     <Typography component="p" className="project-row-title">
                       {project.name}
