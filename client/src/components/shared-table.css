@@ -53,6 +53,12 @@
   transition: background-color 0.2s ease;
 }
 
+.shared-table-row * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .shared-table-row:hover {
   background-color: #f9f9f9;
 }
