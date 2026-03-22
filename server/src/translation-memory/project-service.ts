@@ -1,6 +1,15 @@
 import { createHash, randomUUID } from "crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
+const { searchFuzzyMatches } = require("../../../shared/fuzzy-search.js") as {
+  searchFuzzyMatches: <T>(
+    query: string,
+    items: T[],
+    getText: (item: T) => string,
+    threshold: number,
+    maxResults: number,
+  ) => Array<{ item: T; score: number }>;
+};
 import { appConfig } from "../config/app-config";
 import { languageCatalog } from "../config/language-catalog";
 import { buildDocxPreviewDocument } from "../documents/docx-preview-service";
@@ -18,6 +27,7 @@ import type {
 } from "./entities";
 import { getAppSettings } from "./settings-service";
 import {
+  listProjectTerms,
   listProjectTranslationMemories,
   upsertTranslationMemoryTerm,
   upsertTranslationMemoryUnit,
@@ -737,6 +747,7 @@ async function runProjectAutoTranslate(
     }
 
     const allSegments = listProjectSegments(projectId);
+    const { termFuzzyMatchThreshold } = getAppSettings();
     totalSegments = allSegments.length;
     if (allSegments.length === 0) {
       throw new Error("Project has no generated segments.");
@@ -746,6 +757,7 @@ async function runProjectAutoTranslate(
     const segments = allSegments.filter(
       (segment) => !isSegmentAlreadyTranslated(segment),
     );
+    const projectTerms = listProjectTerms(projectId);
 
     if (segments.length === 0) {
       await logger.information("Skipped background auto translate because all segments were already translated.", {
@@ -766,6 +778,72 @@ async function runProjectAutoTranslate(
       return;
     }
 
+    const termMatchedSegments = segments
+      .map((segment, index) => {
+        const matchedTerm = searchFuzzyMatches(
+          segment.sourceText,
+          projectTerms,
+          (term) => term.sourceTerm,
+          termFuzzyMatchThreshold,
+          1,
+        )[0];
+
+        if (!matchedTerm) {
+          return null;
+        }
+
+        return {
+          index,
+          text: matchedTerm.item.targetTerm,
+        };
+      })
+      .filter((item): item is { index: number; text: string } => item !== null);
+
+    if (termMatchedSegments.length > 0) {
+      translatedSegmentCount = persistAutoTranslatedSegments(
+        segments,
+        termMatchedSegments,
+        "Translation Memory",
+        translatedSegmentCount,
+      );
+      setProjectAutoTranslateProgress(projectId, {
+        phase: "translating",
+        completedSegments: translatedSegmentCount,
+        totalSegments,
+        progressPercent:
+          totalSegments === 0
+            ? 100
+            : Math.round((translatedSegmentCount / totalSegments) * 100),
+        message: `Auto translated ${translatedSegmentCount} of ${totalSegments} segments.`,
+      });
+    }
+
+    const termMatchedIndexes = new Set(termMatchedSegments.map((item) => item.index));
+    const providerSegments = segments
+      .map((segment, originalIndex) => ({ segment, originalIndex }))
+      .filter((item) => !termMatchedIndexes.has(item.originalIndex));
+
+    if (providerSegments.length === 0) {
+      await logger.information("Completed background auto translate for {projectId}", {
+        warnings: [],
+        translatedCount: translatedSegmentCount,
+        fuzzyTermMatchedCount: termMatchedSegments.length,
+      });
+      setProjectStatus(projectId, "idle");
+      touchProject(projectId);
+      setProjectAutoTranslateProgress(projectId, {
+        phase: "completed",
+        completedSegments: translatedSegmentCount,
+        totalSegments,
+        progressPercent:
+          totalSegments === 0
+            ? 100
+            : Math.round((translatedSegmentCount / totalSegments) * 100),
+        message: "Auto translate completed.",
+      });
+      return;
+    }
+
     await logger.information("Starting background auto translate for {projectId}", {
       segmentCount: totalSegments,
       pendingSegmentCount: segments.length,
@@ -775,17 +853,20 @@ async function runProjectAutoTranslate(
     });
 
     const result = await TranslateProvider.resolve(providerName).translate({
-      segments: segments.map((segment) => segment.sourceText),
+      segments: providerSegments.map((item) => item.segment.sourceText),
       sourceLanguage: project.sourceLang,
       targetLanguage: project.targetLang,
       signal: controller.signal,
       onProgress: (progress) => {
         ensureJobIsActive();
+        const termMatchedSegmentCount = termMatchedSegments.length;
         const currentTranslatedSegmentCount = Math.min(
           totalSegments,
           Math.max(
             translatedSegmentCount,
-            initialTranslatedSegmentCount + progress.completedChunks,
+            initialTranslatedSegmentCount +
+              termMatchedSegmentCount +
+              progress.completedChunks,
           ),
         );
         setProjectAutoTranslateProgress(projectId, {
@@ -801,9 +882,13 @@ async function runProjectAutoTranslate(
       },
       onTranslatedSegments: async (batch) => {
         ensureJobIsActive();
+        const mappedBatch = batch.map((item) => ({
+          index: providerSegments[item.index]?.originalIndex ?? item.index,
+          text: item.text,
+        }));
         translatedSegmentCount = persistAutoTranslatedSegments(
           segments,
-          batch,
+          mappedBatch,
           providerName,
           translatedSegmentCount,
         );
@@ -822,9 +907,9 @@ async function runProjectAutoTranslate(
 
     ensureJobIsActive();
 
-    if (result.translatedSegments.length !== segments.length) {
+    if (result.translatedSegments.length !== providerSegments.length) {
       throw new Error(
-        `Auto translate returned ${result.translatedSegments.length} segments, expected ${segments.length}.`,
+        `Auto translate returned ${result.translatedSegments.length} segments, expected ${providerSegments.length}.`,
       );
     }
 

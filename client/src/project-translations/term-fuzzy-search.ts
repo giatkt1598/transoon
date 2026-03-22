@@ -24,7 +24,7 @@ export function searchFuzzyProjectTerms(
       term,
       score: getTermSimilarityScore(
         normalizedSourceText,
-        term.sourceTermNormalized || normalizeTermSourceText(term.sourceTerm),
+        normalizeTermSourceText(term.sourceTerm),
       ),
     }))
     .filter((match) => match.score >= threshold)
@@ -50,24 +50,31 @@ export function getAppliedTermMatchScore(
   sourceText: string,
   targetText: string,
   projectTerms: ProjectTerm[],
-  threshold = TERM_FUZZY_MATCH_THRESHOLD,
 ) {
   const normalizedTargetText = normalizeTermSourceText(targetText)
   if (!normalizedTargetText) {
     return null
   }
 
-  const matchedTerm = searchFuzzyProjectTerms(sourceText, projectTerms, threshold).find(
-    (match) =>
-      (match.term.targetTermNormalized || normalizeTermSourceText(match.term.targetTerm)) ===
-      normalizedTargetText,
-  )
+  const normalizedSourceText = normalizeTermSourceText(sourceText)
+  const matchedTerm = projectTerms
+    .map((term) => ({
+      term,
+      score: getTermSimilarityScore(
+        normalizedSourceText,
+        normalizeTermSourceText(term.sourceTerm),
+      ),
+    }))
+    .find(
+      (match) =>
+        normalizeTermSourceText(match.term.targetTerm) === normalizedTargetText,
+    )
 
   return matchedTerm?.score ?? null
 }
 
 export function normalizeTermSourceText(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ")
+  return value.trim().replace(/\s+/g, " ")
 }
 
 function getTermSimilarityScore(left: string, right: string) {

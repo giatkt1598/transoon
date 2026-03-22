@@ -2,6 +2,7 @@ import AutorenewRoundedIcon from "@mui/icons-material/AutorenewRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import PendingRoundedIcon from "@mui/icons-material/PendingRounded";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import {
   Box,
   MenuItem,
@@ -35,6 +36,7 @@ import {
   searchFuzzyProjectTerms,
   type FuzzyMatchedProjectTerm,
 } from "../term-fuzzy-search";
+import { TERM_FUZZY_MATCH_THRESHOLD } from "../constants";
 import { AlignmentToolToolbar } from "./alignment-tool-toolbar";
 import "./alignment-tool.scss";
 
@@ -561,15 +563,18 @@ function AlignmentVirtualRow({
         segment.sourceText,
         targetValue,
         projectTerms,
-        termFuzzyMatchThreshold,
       ),
-    [projectTerms, segment.sourceText, targetValue, termFuzzyMatchThreshold],
+    [projectTerms, segment.sourceText, targetValue],
   );
   const hasSourceTermMatches = sourceTermMatches.length > 0;
   const hasEmptyTarget = normalizedTargetValue.length === 0;
   const hasNoTermAvailable = !hasSourceTermMatches;
   const hasUnmatchedTermSuggestion =
     !hasEmptyTarget && hasSourceTermMatches && appliedTermMatchScore === null;
+  const hasLowTermMatchScore =
+    appliedTermMatchScore !== null &&
+    appliedTermMatchScore > 0 &&
+    appliedTermMatchScore < termFuzzyMatchThreshold;
   const inlinePlaceholder = isInlineTranslating
     ? `Translating (by ${inlineTranslateProviderName || "translate provider"})...`
     : exactMatchedTerm?.targetTerm || "Type target translation...";
@@ -863,9 +868,11 @@ function AlignmentVirtualRow({
             isInlineTranslating={isInlineTranslating}
             isConfirming={isConfirming}
             termMatchScore={appliedTermMatchScore}
+            termFuzzyMatchThreshold={termFuzzyMatchThreshold}
             hasEmptyTarget={hasEmptyTarget}
             hasNoTermAvailable={hasNoTermAvailable}
             hasUnmatchedTermSuggestion={hasUnmatchedTermSuggestion}
+            hasLowTermMatchScore={hasLowTermMatchScore}
             hasTermConflict={hasTermConflict}
           />
         </Box>
@@ -887,9 +894,11 @@ type AlignmentStatusBadgeProps = {
   isInlineTranslating: boolean;
   isConfirming: boolean;
   termMatchScore?: number | null;
+  termFuzzyMatchThreshold?: number;
   hasEmptyTarget?: boolean;
   hasNoTermAvailable?: boolean;
   hasUnmatchedTermSuggestion?: boolean;
+  hasLowTermMatchScore?: boolean;
   hasTermConflict?: boolean;
 };
 
@@ -898,9 +907,11 @@ function AlignmentScoreCell({
   isInlineTranslating,
   isConfirming,
   termMatchScore = null,
+  termFuzzyMatchThreshold = TERM_FUZZY_MATCH_THRESHOLD,
   hasEmptyTarget = false,
   hasNoTermAvailable = false,
   hasUnmatchedTermSuggestion = false,
+  hasLowTermMatchScore = false,
   hasTermConflict = false,
 }: AlignmentStatusBadgeProps) {
   const statusPresentation = getAlignmentStatusPresentation({
@@ -908,9 +919,11 @@ function AlignmentScoreCell({
     isInlineTranslating,
     isConfirming,
     termMatchScore,
+    termFuzzyMatchThreshold,
     hasEmptyTarget,
     hasNoTermAvailable,
     hasUnmatchedTermSuggestion,
+    hasLowTermMatchScore,
   });
 
   return (
@@ -928,7 +941,9 @@ function AlignmentScoreCell({
           placement="left"
           arrow
         >
-          <Box className="alignment-score-conflict-indicator">!</Box>
+          <Box className="alignment-score-conflict-indicator">
+            <WarningAmberRoundedIcon fontSize="inherit" />
+          </Box>
         </Tooltip>
       ) : null}
     </Stack>
@@ -975,11 +990,20 @@ function getAlignmentStatusPresentation({
   isInlineTranslating,
   isConfirming,
   termMatchScore,
+  termFuzzyMatchThreshold,
   hasEmptyTarget,
   hasNoTermAvailable,
   hasUnmatchedTermSuggestion,
+  hasLowTermMatchScore,
 }: AlignmentStatusBadgeProps) {
   const resolvedTermMatchScore = termMatchScore ?? null;
+  const hasStrongTermMatch =
+    resolvedTermMatchScore !== null &&
+    resolvedTermMatchScore >= (termFuzzyMatchThreshold ?? TERM_FUZZY_MATCH_THRESHOLD);
+  const resolvedTermMatchScoreLabel =
+    resolvedTermMatchScore !== null
+      ? `${Math.round(resolvedTermMatchScore * 100)}%`
+      : null;
 
   if (isConfirming) {
     return {
@@ -1005,12 +1029,18 @@ function getAlignmentStatusPresentation({
   if (translationStatus === "reviewed") {
     return {
       className:
-        hasEmptyTarget || hasNoTermAvailable || hasUnmatchedTermSuggestion
-          ? "term-mismatch"
-          : "confirmed",
+        hasStrongTermMatch
+          ? "confirmed"
+          : hasLowTermMatchScore ||
+              hasEmptyTarget ||
+              hasUnmatchedTermSuggestion
+            ? "term-mismatch"
+            : hasNoTermAvailable
+              ? "pending"
+              : "confirmed",
       score:
-        resolvedTermMatchScore !== null
-          ? `${Math.round(resolvedTermMatchScore * 100)}%`
+        hasStrongTermMatch || hasLowTermMatchScore
+          ? (resolvedTermMatchScoreLabel ?? "-")
           : hasEmptyTarget
             ? "-"
             : hasNoTermAvailable
@@ -1036,12 +1066,18 @@ function getAlignmentStatusPresentation({
   if (translationStatus === "translated") {
     return {
       className:
-        hasEmptyTarget || hasNoTermAvailable || hasUnmatchedTermSuggestion
-          ? "term-mismatch"
-          : "translated",
+        hasStrongTermMatch
+          ? "confirmed"
+          : hasLowTermMatchScore ||
+              hasEmptyTarget ||
+              hasUnmatchedTermSuggestion
+            ? "term-mismatch"
+            : hasNoTermAvailable
+              ? "pending"
+              : "translated",
       score:
-        resolvedTermMatchScore !== null
-          ? `${Math.round(resolvedTermMatchScore * 100)}%`
+        hasStrongTermMatch || hasLowTermMatchScore
+          ? (resolvedTermMatchScoreLabel ?? "-")
           : hasEmptyTarget
             ? "-"
             : hasNoTermAvailable
