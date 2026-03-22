@@ -52,18 +52,21 @@ export function TranslationMemoryListTable({
     resizable: true,
     stickyHeader: true,
     pagination: true,
+    onSortChange: (column, sortDirection) => {
+      console.log(`Sorting by ${String(column)} in ${sortDirection} order`);
+    },
     columns: [
       {
         key: "name",
         label: "Translation memory",
         gridTemplateColumn: "minmax(140px, 0.8fr)",
         customRender: (row: TranslationMemorySummary) => (
-          <Box className="project-primary-cell">
+          <Box className="shared-primary-cell">
             <Box>
-              <Typography component="p" className="project-row-title">
+              <Typography component="p" className="shared-row-title">
                 {String(row.name)}
               </Typography>
-              <Typography component="p" className="project-row-subtitle">
+              <Typography component="p" className="shared-row-subtitle">
                 {formatLanguageRoute(row.sourceLanguage, row.targetLanguage)}
               </Typography>
             </Box>
@@ -77,7 +80,7 @@ export function TranslationMemoryListTable({
         customRender: (row: TranslationMemorySummary) => {
           const modified = formatDateTime(row.lastModifiedAt);
           return (
-            <Box className="project-created-cell">
+            <Box className="shared-created-cell">
               <Typography component="p">{modified.date}</Typography>
               <Typography component="span">{modified.time}</Typography>
             </Box>
@@ -91,7 +94,7 @@ export function TranslationMemoryListTable({
         customRender: (row: TranslationMemorySummary) => {
           const lastUsed = formatDateTime(row.lastUsedAt);
           return (
-            <Box className="project-created-cell">
+            <Box className="shared-created-cell">
               <Typography component="p">{lastUsed.date}</Typography>
               <Typography component="span">{lastUsed.time}</Typography>
             </Box>
@@ -103,7 +106,7 @@ export function TranslationMemoryListTable({
         label: "Terms",
         gridTemplateColumn: "minmax(100px, 0.4fr)",
         customRender: (row: TranslationMemorySummary) => (
-          <Box className="project-segment-cell">
+          <Box className="shared-segment-cell">
             <Typography component="p">{String(row.termCount)}</Typography>
             <Typography component="span">registered terms</Typography>
           </Box>

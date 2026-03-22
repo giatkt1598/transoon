@@ -56,19 +56,22 @@ export function ProjectListTable({
     resizable: true,
     stickyHeader: true,
     pagination: true,
+    onSortChange: (column, sortDirection) => {
+      console.log(`Sorting by ${String(column)} in ${sortDirection} order`);
+    },
     columns: [
       {
         key: "name",
         label: "Project",
         gridTemplateColumn: "minmax(140px, 0.8fr)",
         customRender: (item: ProjectSummary) => (
-          <Box className="project-primary-cell">
+          <Box className="shared-primary-cell">
             <DocumentIcon fileName={item.documentFileName} size={36} />
             <Box>
-              <Typography component="p" className="project-row-title">
+              <Typography component="p" className="shared-row-title">
                 {String(item.name)}
               </Typography>
-              <Typography component="p" className="project-row-subtitle">
+              <Typography component="p" className="shared-row-subtitle">
                 {formatLanguageRoute(item.sourceLang, item.targetLang)}
               </Typography>
             </Box>
@@ -82,7 +85,7 @@ export function ProjectListTable({
         customRender: (row: ProjectSummary) => {
           const lastModifiedAt = formatDateTime(row.lastModifiedAt);
           return (
-            <Box className="project-created-cell">
+            <Box className="shared-created-cell">
               <Typography component="p">{lastModifiedAt.date}</Typography>
               {row.lastModifiedAt && (
                 <Typography component="span">{lastModifiedAt.time}</Typography>
@@ -98,7 +101,7 @@ export function ProjectListTable({
         customRender: (row: ProjectSummary) => {
           const createdAt = formatDateTime(row.createdAt);
           return (
-            <Box className="project-created-cell">
+            <Box className="shared-created-cell">
               <Typography component="p">{createdAt.date}</Typography>
               <Typography component="span">{createdAt.time}</Typography>
             </Box>
@@ -110,7 +113,7 @@ export function ProjectListTable({
         label: "Progress",
         gridTemplateColumn: "minmax(160px, 0.7fr)",
         customRender: ({ progressPercent }: ProjectSummary) => (
-          <Box className="project-progress-cell">
+          <Box className="shared-progress-cell">
             <LinearProgress
               variant="determinate"
               value={Number(progressPercent)}
@@ -136,7 +139,7 @@ export function ProjectListTable({
         label: "Segments",
         gridTemplateColumn: "minmax(100px, 0.4fr)",
         customRender: ({ segmentCount: value }: ProjectSummary) => (
-          <Box className="project-segment-cell">
+          <Box className="shared-segment-cell">
             <Typography component="p">
               {Number(value) > 0 ? String(value) : "-"}
             </Typography>
