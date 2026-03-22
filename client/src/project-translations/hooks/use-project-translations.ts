@@ -50,6 +50,7 @@ export function useProjectTranslations({
   const [inlineTranslatingSegmentId, setInlineTranslatingSegmentId] = useState<string | null>(null)
   const [confirmingSegmentId, setConfirmingSegmentId] = useState<string | null>(null)
   const [inlineTranslateProviderName, setInlineTranslateProviderName] = useState<string>('')
+  const [termFuzzyMatchThreshold, setTermFuzzyMatchThreshold] = useState(0.9)
   const [inlineCaretRestoreSegmentId, setInlineCaretRestoreSegmentId] = useState<string | null>(null)
   const [inlineCaretRestoreToken, setInlineCaretRestoreToken] = useState(0)
   const [confirmFocusSegmentId, setConfirmFocusSegmentId] = useState<string | null>(null)
@@ -121,6 +122,7 @@ export function useProjectTranslations({
       try {
         const settings = await fetchSettings(controller.signal)
         setInlineTranslateProviderName(settings.inlineTranslateProvider)
+        setTermFuzzyMatchThreshold(settings.termFuzzyMatchThreshold)
       } catch {
         // Ignore settings load failures here; placeholder can fall back silently.
       }
@@ -557,6 +559,7 @@ export function useProjectTranslations({
     inlineTranslatingSegmentId,
     confirmingSegmentId,
     inlineTranslateProviderName,
+    termFuzzyMatchThreshold,
     inlineCaretRestoreSegmentId,
     inlineCaretRestoreToken,
     confirmFocusSegmentId,

@@ -55,6 +55,7 @@ type AlignmentToolProps = {
   inlineTranslatingSegmentId: string | null;
   confirmingSegmentId: string | null;
   inlineTranslateProviderName: string;
+  termFuzzyMatchThreshold: number;
   inlineCaretRestoreSegmentId: string | null;
   inlineCaretRestoreToken: number;
   confirmFocusSegmentId: string | null;
@@ -90,6 +91,7 @@ export function AlignmentTool({
   inlineTranslatingSegmentId,
   confirmingSegmentId,
   inlineTranslateProviderName,
+  termFuzzyMatchThreshold,
   inlineCaretRestoreSegmentId,
   inlineCaretRestoreToken,
   confirmFocusSegmentId,
@@ -179,6 +181,7 @@ export function AlignmentTool({
     inlineTranslatingSegmentId,
     confirmingSegmentId,
     inlineTranslateProviderName,
+    termFuzzyMatchThreshold,
     registerTargetInput: (segmentId, element) => {
       if (element) {
         targetInputRefs.current.set(segmentId, element);
@@ -467,6 +470,7 @@ type RowData = {
   inlineTranslatingSegmentId: string | null;
   confirmingSegmentId: string | null;
   inlineTranslateProviderName: string;
+  termFuzzyMatchThreshold: number;
   registerTargetInput: (
     segmentId: string,
     element: HTMLTextAreaElement | HTMLInputElement | null,
@@ -491,6 +495,7 @@ function AlignmentVirtualRow({
   inlineTranslatingSegmentId,
   confirmingSegmentId,
   inlineTranslateProviderName,
+  termFuzzyMatchThreshold,
   registerTargetInput,
   onTargetDraftChange,
   onActiveSegmentChange,
@@ -527,23 +532,38 @@ function AlignmentVirtualRow({
       return [];
     }
 
-    return searchFuzzyProjectTerms(segment.sourceText, projectTerms);
+    return searchFuzzyProjectTerms(
+      segment.sourceText,
+      projectTerms,
+      termFuzzyMatchThreshold,
+    );
   }, [
     isActive,
     normalizedTargetValue.length,
     projectTerms,
     segment.sourceText,
+    termFuzzyMatchThreshold,
   ]);
   const sourceTermMatches = useMemo(
-    () => searchFuzzyProjectTerms(segment.sourceText, projectTerms),
-    [projectTerms, segment.sourceText],
+    () =>
+      searchFuzzyProjectTerms(
+        segment.sourceText,
+        projectTerms,
+        termFuzzyMatchThreshold,
+      ),
+    [projectTerms, segment.sourceText, termFuzzyMatchThreshold],
   );
   const exactMatchedTerm =
     fuzzyMatches[0]?.score === 1 ? fuzzyMatches[0].term : null;
   const appliedTermMatchScore = useMemo(
     () =>
-      getAppliedTermMatchScore(segment.sourceText, targetValue, projectTerms),
-    [projectTerms, segment.sourceText, targetValue],
+      getAppliedTermMatchScore(
+        segment.sourceText,
+        targetValue,
+        projectTerms,
+        termFuzzyMatchThreshold,
+      ),
+    [projectTerms, segment.sourceText, targetValue, termFuzzyMatchThreshold],
   );
   const hasSourceTermMatches = sourceTermMatches.length > 0;
   const hasEmptyTarget = normalizedTargetValue.length === 0;

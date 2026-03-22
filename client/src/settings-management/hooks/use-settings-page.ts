@@ -10,6 +10,7 @@ export function useSettingsPage() {
   const [defaultTranslateProvider, setDefaultTranslateProvider] = useState('Google Translate')
   const [formValues, setFormValues] = useState<SettingsFormValues>({
     inlineTranslateProvider: 'Google Translate',
+    termFuzzyMatchThreshold: 0.9,
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -36,6 +37,7 @@ export function useSettingsPage() {
         setDefaultTranslateProvider(providersResponse.defaultTranslateProvider)
         setFormValues({
           inlineTranslateProvider: resolvedInlineTranslateProvider,
+          termFuzzyMatchThreshold: settings.termFuzzyMatchThreshold,
         })
       } catch (loadError) {
         if (controller.signal.aborted) {
@@ -70,6 +72,13 @@ export function useSettingsPage() {
     }))
   }
 
+  function handleTermFuzzyMatchThresholdChange(value: number) {
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      termFuzzyMatchThreshold: value,
+    }))
+  }
+
   async function handleSaveSettings() {
     setIsSaving(true)
     setError(null)
@@ -95,6 +104,7 @@ export function useSettingsPage() {
     isSaving,
     error,
     handleInlineTranslateProviderChange,
+    handleTermFuzzyMatchThresholdChange,
     handleSaveSettings,
   }
 }

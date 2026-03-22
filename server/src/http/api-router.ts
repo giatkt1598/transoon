@@ -911,6 +911,7 @@ function validateSettingsInput(body: unknown) {
   }
 
   const { inlineTranslateProvider } = body as Record<string, unknown>;
+  const { termFuzzyMatchThreshold } = body as Record<string, unknown>;
 
   if (
     inlineTranslateProvider !== undefined &&
@@ -918,6 +919,16 @@ function validateSettingsInput(body: unknown) {
       inlineTranslateProvider.trim().length === 0)
   ) {
     return "Inline translate provider must be a non-empty string.";
+  }
+
+  if (
+    termFuzzyMatchThreshold !== undefined &&
+    (typeof termFuzzyMatchThreshold !== "number" ||
+      !Number.isFinite(termFuzzyMatchThreshold) ||
+      termFuzzyMatchThreshold < 0 ||
+      termFuzzyMatchThreshold > 1)
+  ) {
+    return "Term fuzzy match threshold must be a number between 0 and 1.";
   }
 
   return null;

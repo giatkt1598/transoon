@@ -77,6 +77,7 @@ export function ProjectDetailPage() {
     inlineTranslatingSegmentId,
     confirmingSegmentId,
     inlineTranslateProviderName,
+    termFuzzyMatchThreshold,
     inlineCaretRestoreSegmentId,
     inlineCaretRestoreToken,
     confirmFocusSegmentId,
@@ -302,6 +303,7 @@ export function ProjectDetailPage() {
                         inlineTranslateProviderName={
                           inlineTranslateProviderName
                         }
+                        termFuzzyMatchThreshold={termFuzzyMatchThreshold}
                         inlineCaretRestoreSegmentId={
                           inlineCaretRestoreSegmentId
                         }
@@ -358,6 +360,7 @@ export function ProjectDetailPage() {
                     inlineTranslatingSegmentId={inlineTranslatingSegmentId}
                     confirmingSegmentId={confirmingSegmentId}
                     inlineTranslateProviderName={inlineTranslateProviderName}
+                    termFuzzyMatchThreshold={termFuzzyMatchThreshold}
                     inlineCaretRestoreSegmentId={inlineCaretRestoreSegmentId}
                     inlineCaretRestoreToken={inlineCaretRestoreToken}
                     confirmFocusSegmentId={confirmFocusSegmentId}

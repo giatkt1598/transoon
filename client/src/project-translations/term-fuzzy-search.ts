@@ -12,6 +12,7 @@ export type FuzzyMatchedProjectTerm = {
 export function searchFuzzyProjectTerms(
   sourceText: string,
   projectTerms: ProjectTerm[],
+  threshold = TERM_FUZZY_MATCH_THRESHOLD,
 ): FuzzyMatchedProjectTerm[] {
   const normalizedSourceText = normalizeTermSourceText(sourceText)
   if (!normalizedSourceText) {
@@ -26,7 +27,7 @@ export function searchFuzzyProjectTerms(
         term.sourceTermNormalized || normalizeTermSourceText(term.sourceTerm),
       ),
     }))
-    .filter((match) => match.score >= TERM_FUZZY_MATCH_THRESHOLD)
+    .filter((match) => match.score >= threshold)
     .sort((left, right) => {
       if (right.score !== left.score) {
         return right.score - left.score
@@ -49,13 +50,14 @@ export function getAppliedTermMatchScore(
   sourceText: string,
   targetText: string,
   projectTerms: ProjectTerm[],
+  threshold = TERM_FUZZY_MATCH_THRESHOLD,
 ) {
   const normalizedTargetText = normalizeTermSourceText(targetText)
   if (!normalizedTargetText) {
     return null
   }
 
-  const matchedTerm = searchFuzzyProjectTerms(sourceText, projectTerms).find(
+  const matchedTerm = searchFuzzyProjectTerms(sourceText, projectTerms, threshold).find(
     (match) =>
       (match.term.targetTermNormalized || normalizeTermSourceText(match.term.targetTerm)) ===
       normalizedTargetText,
