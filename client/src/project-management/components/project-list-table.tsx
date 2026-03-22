@@ -219,6 +219,7 @@ export function ProjectListTable({
               </InputAdornment>
             ),
           }}
+          sx={{ maxWidth: 400 }}
         />
       }
       isLoading={isLoading}
