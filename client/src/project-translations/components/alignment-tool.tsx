@@ -5,6 +5,7 @@ import PendingRoundedIcon from "@mui/icons-material/PendingRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import {
   Box,
+  Checkbox,
   MenuItem,
   MenuList,
   Paper,
@@ -23,6 +24,7 @@ import {
   useState,
 } from "react";
 import { flushSync } from "react-dom";
+import { toast } from "react-toastify";
 import {
   List,
   useDynamicRowHeight,
@@ -73,6 +75,7 @@ type AlignmentToolProps = {
   onInlineTranslateSegment: (segmentId: string) => void;
   onConfirmSegment: (segmentId: string, targetText?: string) => void;
   onSaveAll: () => void;
+  onJoinSelected?: (segmentIds: string[]) => void;
   onExport: () => void;
   onOpenAutoTranslate: () => void;
   onShowPreview: () => void;
@@ -107,16 +110,20 @@ export function AlignmentTool({
   onInlineTranslateSegment,
   onConfirmSegment,
   onSaveAll,
+  onJoinSelected,
   onExport,
   onOpenAutoTranslate,
   onShowPreview,
 }: AlignmentToolProps) {
   const listRef = useListRef(null);
+  const tableShellRef = useRef<HTMLDivElement | null>(null);
   const scrollTopRef = useRef(0);
   const emitTimeoutsRef = useRef(new Map<string, number>());
   const latestDraftValuesRef = useRef(new Map<string, string>());
   const lastHandledConfirmFocusTokenRef = useRef(0);
   const [draftTargets, setDraftTargets] = useState<Record<string, string>>({});
+  const [isShiftSelectionMode, setIsShiftSelectionMode] = useState(false);
+  const [checkedSegmentIds, setCheckedSegmentIds] = useState<string[]>([]);
   const targetInputRefs = useRef(
     new Map<string, HTMLTextAreaElement | HTMLInputElement>(),
   );
@@ -179,6 +186,8 @@ export function AlignmentTool({
     draftTargets,
     projectTerms,
     isReadOnly,
+    isAltSelectionMode: isShiftSelectionMode,
+    checkedSegmentIds,
     activeSegmentExternalId,
     inlineTranslatingSegmentId,
     confirmingSegmentId,
@@ -219,6 +228,17 @@ export function AlignmentTool({
     onInlineTranslateSegment,
     onConfirmSegment,
     flushSegmentDraft,
+    onSelectSegmentRange: (segmentId) => {
+      setCheckedSegmentIds((currentCheckedSegmentIds) => {
+        if (currentCheckedSegmentIds.includes(segmentId)) {
+          return currentCheckedSegmentIds.filter(
+            (checkedSegmentId) => checkedSegmentId !== segmentId,
+          );
+        }
+
+        return [...currentCheckedSegmentIds, segmentId];
+      });
+    },
     focusSegmentAtIndex: (index) => {
       if (index < 0 || index >= segments.length) {
         return;
@@ -259,6 +279,37 @@ export function AlignmentTool({
   const canConfirmCurrent =
     Boolean(activeSegment) && !isReadOnly && !confirmingSegmentId;
 
+  const clearSelectionMode = useCallback(() => {
+    setIsShiftSelectionMode(false);
+    setCheckedSegmentIds([]);
+  }, []);
+
+  const executeMergeSelection = useCallback(
+    (segmentIds: string[]) => {
+      const selectedIndexes = segmentIds
+        .map((segmentId) =>
+          segments.findIndex((segment) => segment.id === segmentId),
+        )
+        .filter((index) => index >= 0)
+        .sort((left, right) => left - right);
+
+      if (selectedIndexes.length !== 2) {
+        toast.error("Select exactly two rows to merge.");
+        return;
+      }
+
+      if (selectedIndexes[1] - selectedIndexes[0] !== 1) {
+        toast.error("Only two adjacent rows can be merged.");
+        return;
+      }
+
+      console.log("mergeSegments", segmentIds);
+      onJoinSelected?.(segmentIds);
+      clearSelectionMode();
+    },
+    [clearSelectionMode, onJoinSelected, segments],
+  );
+
   useEffect(() => {
     setDraftTargets((currentDraftTargets) => {
       const nextDraftTargets: Record<string, string> = {};
@@ -295,6 +346,88 @@ export function AlignmentTool({
       onRegisterFlushPendingChanges?.(null);
     };
   }, [flushPendingChanges, onRegisterFlushPendingChanges]);
+
+  useEffect(() => {
+    const handleWindowKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Shift") {
+        return;
+      }
+
+      if (event.repeat) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (isShiftSelectionMode) {
+        clearSelectionMode();
+        return;
+      }
+
+      setIsShiftSelectionMode(true);
+      if (checkedSegmentIds.length > 0) {
+        return;
+      }
+
+      if (!activeSegmentExternalId) {
+        return;
+      }
+
+      const activeSegmentForSelection = segments.find(
+        (segment) => segment.externalSegmentId === activeSegmentExternalId,
+      );
+      if (!activeSegmentForSelection) {
+        return;
+      }
+
+      setCheckedSegmentIds([activeSegmentForSelection.id]);
+    };
+
+    window.addEventListener("keydown", handleWindowKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleWindowKeyDown);
+    };
+  }, [
+    activeSegmentExternalId,
+    checkedSegmentIds.length,
+    clearSelectionMode,
+    isShiftSelectionMode,
+    segments,
+  ]);
+
+  useEffect(() => {
+    if (!isShiftSelectionMode) {
+      return;
+    }
+
+    const handleDocumentMouseDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (tableShellRef.current?.contains(target)) {
+        return;
+      }
+
+      const targetElement =
+        target instanceof Element ? target : target.parentElement;
+      if (targetElement?.closest('[data-alignment-merge-button="true"]')) {
+        return;
+      }
+
+      clearSelectionMode();
+    };
+
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentMouseDown);
+    };
+  }, [
+    clearSelectionMode,
+    isShiftSelectionMode,
+  ]);
 
   useLayoutEffect(() => {
     if (restoreScrollKey === 0 || segments.length === 0) {
@@ -408,6 +541,7 @@ export function AlignmentTool({
         hasPendingChanges={hasPendingChanges}
         isPreviewVisible={isPreviewVisible}
         canConfirmCurrent={canConfirmCurrent}
+        showMergeTooltip={checkedSegmentIds.length === 0}
         onSaveAll={onSaveAll}
         onConfirmCurrent={() => {
           if (!activeSegment) {
@@ -417,13 +551,15 @@ export function AlignmentTool({
           flushSegmentDraft(activeSegment.id);
           onConfirmSegment(activeSegment.id, activeSegmentTargetText);
         }}
+        onJoinSelected={() => executeMergeSelection(checkedSegmentIds)}
         onExport={onExport}
         onOpenAutoTranslate={onOpenAutoTranslate}
         onShowPreview={onShowPreview}
       />
 
-      <Box className="alignment-grid-shell">
+      <Box ref={tableShellRef} className="alignment-grid-shell">
         <Box className="alignment-grid-head">
+          {isShiftSelectionMode ? <span className="alignment-select-head" /> : null}
           <span>No.</span>
           <span>{`Source (${sourceLanguageLabel})`}</span>
           <span>{`Target (${targetLanguageLabel})`}</span>
@@ -468,6 +604,8 @@ type RowData = {
   draftTargets: Record<string, string>;
   projectTerms: ProjectTerm[];
   isReadOnly: boolean;
+  isAltSelectionMode: boolean;
+  checkedSegmentIds: string[];
   activeSegmentExternalId: string | null;
   inlineTranslatingSegmentId: string | null;
   confirmingSegmentId: string | null;
@@ -482,6 +620,7 @@ type RowData = {
   onInlineTranslateSegment: (segmentId: string) => void;
   onConfirmSegment: (segmentId: string, targetText?: string) => void;
   flushSegmentDraft: (segmentId: string) => void;
+  onSelectSegmentRange: (segmentId: string) => void;
   focusSegmentAtIndex: (index: number) => void;
 };
 
@@ -493,6 +632,8 @@ function AlignmentVirtualRow({
   draftTargets,
   projectTerms,
   isReadOnly,
+  isAltSelectionMode,
+  checkedSegmentIds,
   activeSegmentExternalId,
   inlineTranslatingSegmentId,
   confirmingSegmentId,
@@ -504,6 +645,7 @@ function AlignmentVirtualRow({
   onInlineTranslateSegment,
   onConfirmSegment,
   flushSegmentDraft,
+  onSelectSegmentRange,
   focusSegmentAtIndex,
 }: RowComponentProps<RowData>) {
   const segment = segments[index];
@@ -521,6 +663,7 @@ function AlignmentVirtualRow({
   const savedTargetValue = savedSegmentTargets[segment.id] ?? "";
   const displayTranslationStatus =
     targetValue !== savedTargetValue ? "pending" : segment.translationStatus;
+  const isChecked = checkedSegmentIds.includes(segment.id);
   const hasTermConflict = projectTerms.some(
     (term) =>
       term.sourceTermNormalized === segment.sourceText.trim().toLowerCase() &&
@@ -624,8 +767,31 @@ function AlignmentVirtualRow({
 
   return (
     <div style={style}>
-      <Box className={`alignment-grid-row${isActive ? " active" : ""}`}>
-        <Box className={`alignment-index-cell${isActive ? " active" : ""}`}>
+      <Box
+        className={`alignment-grid-row${
+          isActive || isChecked ? " active" : ""
+        }${isAltSelectionMode ? " selection-mode" : ""}`}
+        onMouseDown={() => {
+          if (!isAltSelectionMode) {
+            return;
+          }
+
+          onSelectSegmentRange(segment.id);
+        }}
+      >
+        {isAltSelectionMode ? (
+          <Box className="alignment-select-cell">
+            <Checkbox
+              size="small"
+              checked={isChecked}
+              onMouseDown={(event) => event.stopPropagation()}
+              onChange={() => onSelectSegmentRange(segment.id)}
+            />
+          </Box>
+        ) : null}
+        <Box
+          className={`alignment-index-cell${isActive || isChecked ? " active" : ""}`}
+        >
           {segment.position}.
         </Box>
 
@@ -772,7 +938,9 @@ function AlignmentVirtualRow({
               onConfirmSegment(segment.id, targetValue);
             }
           }}
-          onFocus={() => onActiveSegmentChange(segment.externalSegmentId)}
+          onFocus={() => {
+            onActiveSegmentChange(segment.externalSegmentId);
+          }}
           onBlur={() => {
             onActiveSegmentChange(null);
             window.setTimeout(() => {

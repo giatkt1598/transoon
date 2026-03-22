@@ -1,15 +1,6 @@
 import { createHash, randomUUID } from "crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
-const { searchFuzzyMatches } = require("../../../shared/fuzzy-search.js") as {
-  searchFuzzyMatches: <T>(
-    query: string,
-    items: T[],
-    getText: (item: T) => string,
-    threshold: number,
-    maxResults: number,
-  ) => Array<{ item: T; score: number }>;
-};
 import { appConfig } from "../config/app-config";
 import { languageCatalog } from "../config/language-catalog";
 import { buildDocxPreviewDocument } from "../documents/docx-preview-service";
@@ -60,6 +51,10 @@ export type ProjectSegment = Pick<
   | "translationStatus"
 >;
 
+type StoredProjectSegment = ProjectSegment & {
+  mergedIntoSegmentId: string | null;
+};
+
 export type SaveProjectSegmentInput = {
   id: string;
   targetText: string;
@@ -77,6 +72,12 @@ export type ConfirmProjectSegmentResult = {
   insertedIntoWriteTranslationMemory: boolean;
   writeTranslationMemoryId: string | null;
   termConflict: boolean;
+};
+
+export type MergeProjectSegmentsResult = {
+  project: ProjectDetail | null;
+  segments: ProjectSegment[];
+  mergedSegment: ProjectSegment;
 };
 
 export type ExportProjectDocumentResult = {
@@ -138,8 +139,8 @@ export function listProjects() {
       p.lastModifiedAt,
       MIN(d.fileName) AS documentFileName,
       COUNT(DISTINCT d.id) AS documentCount,
-      COUNT(DISTINCT s.id) AS segmentCount,
-      COALESCE(SUM(CASE WHEN s.translationStatus IN ('translated', 'reviewed') THEN 1 ELSE 0 END), 0) AS translatedSegmentCount
+      COUNT(DISTINCT CASE WHEN s.mergedIntoSegmentId IS NULL THEN s.id END) AS segmentCount,
+      COALESCE(SUM(CASE WHEN s.mergedIntoSegmentId IS NULL AND s.translationStatus IN ('translated', 'reviewed') THEN 1 ELSE 0 END), 0) AS translatedSegmentCount
     FROM projects p
     LEFT JOIN documents d ON d.projectId = p.id
     LEFT JOIN segments s ON s.documentId = d.id
@@ -179,12 +180,22 @@ export function getProjectDetailById(projectId: string) {
 }
 
 export function listProjectSegments(projectId: string) {
+  return listStoredProjectSegments(projectId)
+    .filter((segment) => segment.mergedIntoSegmentId === null)
+    .map((segment, index) => ({
+      ...segment,
+      position: index + 1,
+    })) as ProjectSegment[];
+}
+
+function listStoredProjectSegments(projectId: string) {
   const database = getTranslationMemoryDatabase();
   const sql = `
     SELECT
       s.id,
       s.documentId,
       s.externalSegmentId,
+      s.mergedIntoSegmentId,
       s.sourceText,
       s.targetText,
       s.position,
@@ -195,7 +206,7 @@ export function listProjectSegments(projectId: string) {
     ORDER BY s.position ASC
   `;
 
-  return database.prepare(sql).all(projectId) as ProjectSegment[];
+  return database.prepare(sql).all(projectId) as StoredProjectSegment[];
 }
 
 export async function generateProjectSegments(projectId: string) {
@@ -237,6 +248,7 @@ export async function generateProjectSegments(projectId: string) {
         id: segmentId,
         documentId: document.id,
         externalSegmentId: segment.id,
+        mergedIntoSegmentId: null,
         sourceLanguage: getProjectById(projectId)?.sourceLang ?? appConfig.defaultSourceLanguage,
         targetLanguage: getProjectById(projectId)?.targetLang ?? appConfig.defaultTargetLanguage,
         sourceText,
@@ -296,9 +308,13 @@ export async function exportProjectDocument(
   const fileBuffer = readFileSync(absoluteStoragePath);
   const extractedDocument = await extractDocument(document.fileName, fileBuffer);
   const savedSegmentMap = new Map(
-    listProjectSegments(projectId).map((segment) => [
+    listStoredProjectSegments(projectId).map((segment) => [
       segment.externalSegmentId,
-      segment.targetText.trim().length > 0 ? segment.targetText : segment.sourceText,
+      segment.mergedIntoSegmentId !== null
+        ? segment.targetText
+        : segment.targetText.trim().length > 0
+          ? segment.targetText
+          : segment.sourceText,
     ] as const),
   );
   const nextSegments = extractedDocument.segments.map(
@@ -416,6 +432,117 @@ export function saveProjectSegments(
   return {
     project: getProjectDetailById(projectId),
     segments: listProjectSegments(projectId),
+  };
+}
+
+export function mergeProjectSegments(
+  projectId: string,
+  segmentIds: string[],
+): MergeProjectSegmentsResult {
+  assertProjectIsEditable(projectId);
+
+  if (segmentIds.length !== 2) {
+    throw new Error("Exactly two adjacent segments are required to merge.");
+  }
+
+  const visibleSegments = listProjectSegments(projectId);
+  const visibleIndexes = segmentIds
+    .map((segmentId) =>
+      visibleSegments.findIndex((segment) => segment.id === segmentId),
+    );
+
+  if (visibleIndexes.some((index) => index < 0)) {
+    throw new Error("All selected segments must belong to this project.");
+  }
+
+  const [firstSelectedIndex, secondSelectedIndex] = visibleIndexes;
+  if (Math.abs(firstSelectedIndex - secondSelectedIndex) !== 1) {
+    throw new Error("Only two adjacent segments can be merged.");
+  }
+
+  const orderedSegments =
+    firstSelectedIndex < secondSelectedIndex
+      ? [
+          visibleSegments[firstSelectedIndex],
+          visibleSegments[secondSelectedIndex],
+        ]
+      : [
+          visibleSegments[secondSelectedIndex],
+          visibleSegments[firstSelectedIndex],
+        ];
+  const [leadingSegment, trailingSegment] = orderedSegments;
+  const existingStoredSegments = listStoredProjectSegments(projectId);
+  const trailingStoredSegment = existingStoredSegments.find(
+    (segment) => segment.id === trailingSegment.id,
+  );
+
+  if (!trailingStoredSegment || trailingStoredSegment.mergedIntoSegmentId !== null) {
+    throw new Error("Merged segments are no longer available.");
+  }
+
+  const mergedSourceText = joinSegmentTexts(
+    leadingSegment.sourceText,
+    trailingSegment.sourceText,
+  );
+  const mergedTargetText = joinSegmentTexts(
+    leadingSegment.targetText,
+    trailingSegment.targetText,
+  );
+  const mergedTargetTextTrimmed = mergedTargetText.trim();
+  const database = getTranslationMemoryDatabase();
+  const repositories = createTranslationMemoryRepositories(database);
+  const now = new Date().toISOString();
+
+  database.exec("BEGIN");
+
+  try {
+    repositories.segments.updateById(leadingSegment.id, {
+      sourceText: mergedSourceText,
+      sourceTextNormalized: normalizeText(mergedSourceText),
+      sourceTextHash: hashText(mergedSourceText),
+      targetText: mergedTargetText,
+      targetTextNormalized: mergedTargetTextTrimmed
+        ? normalizeText(mergedTargetText)
+        : "",
+      targetTextHash: mergedTargetTextTrimmed
+        ? hashText(mergedTargetText)
+        : null,
+      tokensJson: JSON.stringify([{ type: "text", value: mergedSourceText }]),
+      translationStatus: "pending",
+      providerName: null,
+      reviewedByHuman: 0,
+      updatedAt: now,
+    });
+
+    repositories.segments.updateById(trailingSegment.id, {
+      mergedIntoSegmentId: leadingSegment.id,
+      targetText: "",
+      targetTextNormalized: "",
+      targetTextHash: null,
+      translationStatus: "pending",
+      providerName: null,
+      reviewedByHuman: 0,
+      updatedAt: now,
+    });
+
+    touchProject(projectId, now);
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  const mergedSegment = listProjectSegments(projectId).find(
+    (segment) => segment.id === leadingSegment.id,
+  );
+  if (!mergedSegment) {
+    throw new Error("Could not load the merged segment.");
+  }
+
+  return {
+    project: getProjectDetailById(projectId),
+    segments: listProjectSegments(projectId),
+    mergedSegment,
   };
 }
 
@@ -1044,6 +1171,98 @@ async function buildProjectContentCounts(fileName: string, buffer: Buffer) {
 function touchProject(projectId: string, value = new Date().toISOString()) {
   const repositories = createTranslationMemoryRepositories();
   repositories.projects.updateById(projectId, { lastModifiedAt: value });
+}
+
+function joinSegmentTexts(leftText: string, rightText: string) {
+  const leftValue = leftText ?? "";
+  const rightValue = rightText ?? "";
+
+  if (!leftValue.trim()) {
+    return rightValue;
+  }
+
+  if (!rightValue.trim()) {
+    return leftValue;
+  }
+
+  return `${leftValue} ${rightValue}`;
+}
+
+function normalizeFuzzyText(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function getFuzzySimilarityScore(left: string, right: string) {
+  if (!left || !right) {
+    return 0;
+  }
+
+  if (left === right) {
+    return 1;
+  }
+
+  const maxLength = Math.max(left.length, right.length);
+  if (maxLength === 0) {
+    return 1;
+  }
+
+  const distance = getLevenshteinDistance(left, right);
+  return 1 - distance / maxLength;
+}
+
+function getLevenshteinDistance(left: string, right: string) {
+  const previousRow = new Array(right.length + 1);
+  const currentRow = new Array(right.length + 1);
+
+  for (let rightIndex = 0; rightIndex <= right.length; rightIndex += 1) {
+    previousRow[rightIndex] = rightIndex;
+  }
+
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    currentRow[0] = leftIndex;
+
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      const substitutionCost =
+        left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+
+      currentRow[rightIndex] = Math.min(
+        currentRow[rightIndex - 1] + 1,
+        previousRow[rightIndex] + 1,
+        previousRow[rightIndex - 1] + substitutionCost,
+      );
+    }
+
+    for (let rightIndex = 0; rightIndex <= right.length; rightIndex += 1) {
+      previousRow[rightIndex] = currentRow[rightIndex];
+    }
+  }
+
+  return previousRow[right.length];
+}
+
+function searchFuzzyMatches<T>(
+  query: string,
+  items: T[],
+  getText: (item: T) => string,
+  threshold: number,
+  maxResults: number,
+) {
+  const normalizedQuery = normalizeFuzzyText(query);
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  return items
+    .map((item) => ({
+      item,
+      score: getFuzzySimilarityScore(
+        normalizedQuery,
+        normalizeFuzzyText(getText(item)),
+      ),
+    }))
+    .filter((match) => match.score >= threshold)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, maxResults);
 }
 
 function buildExportDownloadFileName(

@@ -17,6 +17,7 @@ import {
   fetchProjectSegments,
   generateProjectSegments,
   inlineTranslateProjectSegment,
+  mergeProjectSegments,
   saveProjectSegments,
 } from '../../project-management/api'
 
@@ -62,13 +63,18 @@ export function useProjectTranslations({
   } | null>(null)
   const projectStatus = projectDetail?.status
   const projectSegmentCount = projectDetail?.segmentCount ?? 0
+  const projectSegmentCountRef = useRef(projectSegmentCount)
+
+  useEffect(() => {
+    projectSegmentCountRef.current = projectSegmentCount
+  }, [projectSegmentCount])
 
   useEffect(() => {
     if (!projectId) {
       return
     }
 
-    if (projectSegmentCount === 0) {
+    if (projectSegmentCountRef.current === 0) {
       setSegments([])
       setSegmentsError(null)
       return
@@ -100,7 +106,7 @@ export function useProjectTranslations({
     void loadSegments()
 
     return () => controller.abort()
-  }, [projectId, projectSegmentCount, projectStatus])
+  }, [projectId, projectStatus])
 
   useEffect(() => {
     if (!translateProviders.length) {
@@ -431,6 +437,36 @@ export function useProjectTranslations({
     }
   }
 
+  async function handleMergeSegments(segmentIds: string[]) {
+    if (!projectId || isReadOnly || segmentIds.length !== 2) {
+      return
+    }
+
+    try {
+      setSegmentsError(null)
+
+      if (hasPendingSegmentChanges) {
+        await saveDirtySegments()
+      }
+
+      const result = await mergeProjectSegments(projectId, segmentIds)
+      setSegments(result.segments)
+      setSavedSegmentTargets(createSavedSegmentTargetMap(result.segments))
+
+      if (result.project) {
+        onProjectDetailChange(result.project)
+      }
+
+      setActiveSegmentExternalId(result.mergedSegment.externalSegmentId)
+      toast.success('Segments merged successfully.')
+    } catch (mergeError) {
+      const message =
+        mergeError instanceof Error ? mergeError.message : 'Could not merge the selected segments.'
+      setSegmentsError(message)
+      toast.error(message)
+    }
+  }
+
   useEffect(() => {
     return () => {
       inlineTranslationRef.current?.controller.abort()
@@ -569,6 +605,7 @@ export function useProjectTranslations({
     handleActiveSegmentChange,
     handleInlineTranslateSegment,
     handleConfirmSegment,
+    handleMergeSegments,
     handleSaveSegments,
     handleExportDocument,
     handleGenerateSegments,

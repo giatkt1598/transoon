@@ -130,6 +130,12 @@ export type ConfirmedProjectSegmentResponse = {
   termConflict: boolean
 }
 
+export type MergedProjectSegmentsResponse = {
+  project: ProjectDetail | null
+  segments: ProjectSegment[]
+  mergedSegment: ProjectSegment
+}
+
 export type DocxPreviewBlock = {
   blockId: string
   segmentIds: string[]

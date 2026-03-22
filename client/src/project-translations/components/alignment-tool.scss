@@ -52,6 +52,11 @@
   gap: 0;
 }
 
+.alignment-grid-head:has(.alignment-select-head),
+.alignment-grid-row.selection-mode {
+  grid-template-columns: 40px 68px minmax(0, 1fr) minmax(0, 1fr) 48px 20px;
+}
+
 .alignment-grid-head {
   --scrollbar-width: 15px;
   padding-right: var(--scrollbar-width);
@@ -121,10 +126,24 @@
 }
 
 .alignment-index-cell,
+.alignment-select-cell,
 .alignment-source-cell,
 .alignment-target-field,
 .alignment-score-cell,
 .alignment-status-cell {
+  border-right: 1px solid rgba(58, 44, 30, 0.13);
+}
+
+.alignment-select-cell {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 2px;
+  background: #fffaf2;
+}
+
+.alignment-select-head {
+  padding: 10px 0;
   border-right: 1px solid rgba(58, 44, 30, 0.13);
 }
 

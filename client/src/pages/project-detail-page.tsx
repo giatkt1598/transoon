@@ -87,6 +87,7 @@ export function ProjectDetailPage() {
     handleActiveSegmentChange,
     handleInlineTranslateSegment,
     handleConfirmSegment,
+    handleMergeSegments,
     handleSaveSegments,
     handleExportDocument,
     handleGenerateSegments,
@@ -323,6 +324,9 @@ export function ProjectDetailPage() {
                         onActiveSegmentChange={handleActiveSegmentChange}
                         onInlineTranslateSegment={handleInlineTranslateSegment}
                         onConfirmSegment={handleConfirmSegment}
+                        onJoinSelected={(segmentIds) =>
+                          void handleMergeSegments(segmentIds)
+                        }
                         onSaveAll={() => void handleSaveSegments()}
                         onExport={() => void handleExportDocument()}
                         onOpenAutoTranslate={handleOpenAutoTranslateDialog}
@@ -376,6 +380,9 @@ export function ProjectDetailPage() {
                     onActiveSegmentChange={handleActiveSegmentChange}
                     onInlineTranslateSegment={handleInlineTranslateSegment}
                     onConfirmSegment={handleConfirmSegment}
+                    onJoinSelected={(segmentIds) =>
+                      void handleMergeSegments(segmentIds)
+                    }
                     onSaveAll={() => void handleSaveSegments()}
                     onExport={() => void handleExportDocument()}
                     onOpenAutoTranslate={handleOpenAutoTranslateDialog}

@@ -18,6 +18,7 @@ import {
   exportProjectDocument,
   getProjectDocumentPreview,
   saveProjectSegments,
+  mergeProjectSegments,
   startProjectAutoTranslate,
   inlineTranslateProjectSegment,
   updateProject,
@@ -220,6 +221,32 @@ export function createApiRouter() {
       }
 
       const result = saveProjectSegments(projectId, req.body.segments);
+      res.json(result);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.post("/api/projects/:projectId/segments/merge", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      assertProjectIsEditable(projectId);
+      const validationError = validateMergeProjectSegmentsInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const result = mergeProjectSegments(projectId, req.body.segmentIds);
       res.json(result);
     } catch (error) {
       const message =
@@ -833,6 +860,33 @@ function validateProjectSegmentsInput(body: unknown) {
     if (typeof targetText !== "string") {
       return "Each segment must include targetText as a string.";
     }
+  }
+
+  return null;
+}
+
+function validateMergeProjectSegmentsInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A merge segments payload is required.";
+  }
+
+  const { segmentIds } = body as Record<string, unknown>;
+  if (!Array.isArray(segmentIds)) {
+    return "segmentIds must be an array.";
+  }
+
+  if (segmentIds.length !== 2) {
+    return "Exactly two segmentIds are required.";
+  }
+
+  for (const segmentId of segmentIds) {
+    if (typeof segmentId !== "string" || segmentId.trim().length === 0) {
+      return "Each segmentId must be a valid string.";
+    }
+  }
+
+  if (new Set(segmentIds).size !== segmentIds.length) {
+    return "segmentIds must be unique.";
   }
 
   return null;

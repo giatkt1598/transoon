@@ -8,11 +8,11 @@ import FindReplaceOutlinedIcon from '@mui/icons-material/FindReplaceOutlined'
 import MergeTypeOutlinedIcon from '@mui/icons-material/MergeTypeOutlined'
 import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined'
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
-import { Box, Button, Paper, Tooltip } from '@mui/material'
+import { Box, Button, Paper, Tooltip, Typography } from '@mui/material'
 
 const toolbarActions = [
   { label: 'Split', icon: <CallSplitOutlinedIcon fontSize="small" /> },
-  { label: 'Join', icon: <MergeTypeOutlinedIcon fontSize="small" /> },
+  { label: 'Merge', icon: <MergeTypeOutlinedIcon fontSize="small" /> },
   { label: 'Comments', icon: <NotesOutlinedIcon fontSize="small" /> },
   { label: 'Filter', icon: <FilterAltOutlinedIcon fontSize="small" /> },
   { label: 'Find', icon: <FindReplaceOutlinedIcon fontSize="small" /> },
@@ -26,8 +26,10 @@ type AlignmentToolToolbarProps = {
   hasPendingChanges: boolean
   isPreviewVisible: boolean
   canConfirmCurrent: boolean
+  showMergeTooltip: boolean
   onSaveAll: () => void
   onConfirmCurrent: () => void
+  onJoinSelected: () => void
   onExport: () => void
   onOpenAutoTranslate: () => void
   onShowPreview: () => void
@@ -41,8 +43,10 @@ export function AlignmentToolToolbar({
   hasPendingChanges,
   isPreviewVisible,
   canConfirmCurrent,
+  showMergeTooltip,
   onSaveAll,
   onConfirmCurrent,
+  onJoinSelected,
   onExport,
   onOpenAutoTranslate,
   onShowPreview,
@@ -111,16 +115,46 @@ export function AlignmentToolToolbar({
           </span>
         </Tooltip>
         {toolbarActions.map((action) => (
-          <Button
-            key={action.label}
-            variant="outlined"
-            size="small"
-            startIcon={action.icon}
-            disabled
-            className="alignment-toolbar-button"
-          >
-            {action.label}
-          </Button>
+          action.label === 'Merge' ? (
+            <Tooltip
+              key={action.label}
+              arrow
+              placement="bottom"
+              open={showMergeTooltip ? undefined : false}
+              disableHoverListener={!showMergeTooltip}
+              disableFocusListener={!showMergeTooltip}
+              disableTouchListener={!showMergeTooltip}
+              title={
+                <Box>
+                  <Typography variant="body2">1. Press Shift to show checkboxes.</Typography>
+                  <Typography variant="body2">2. Check 2 adjacent rows.</Typography>
+                  <Typography variant="body2">3. Click Merge again to apply.</Typography>
+                </Box>
+              }
+            >
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={action.icon}
+                data-alignment-merge-button="true"
+                onClick={onJoinSelected}
+                className="alignment-toolbar-button"
+              >
+                {action.label}
+              </Button>
+            </Tooltip>
+          ) : (
+            <Button
+              key={action.label}
+              variant="outlined"
+              size="small"
+              startIcon={action.icon}
+              disabled
+              className="alignment-toolbar-button"
+            >
+              {action.label}
+            </Button>
+          )
         ))}
       </Box>
     </Paper>

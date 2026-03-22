@@ -3,6 +3,7 @@ import type {
   ConfirmedProjectSegmentResponse,
   LanguagesResponse,
   InlineTranslatedProjectSegmentResponse,
+  MergedProjectSegmentsResponse,
   ProjectDetail,
   ProjectDocumentPreview,
   ProjectSegment,
@@ -304,6 +305,25 @@ export async function confirmProjectSegment(projectId: string, segmentId: string
   }
 
   return data as ConfirmedProjectSegmentResponse
+}
+
+export async function mergeProjectSegments(projectId: string, segmentIds: string[]) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/segments/merge`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ segmentIds }),
+  })
+  const data = await readJsonResponse<MergedProjectSegmentsResponse | { error?: string }>(response)
+
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data ? data.error ?? 'Could not merge the selected segments.' : 'Could not merge the selected segments.',
+    )
+  }
+
+  return data as MergedProjectSegmentsResponse
 }
 
 export async function exportProjectDocument(projectId: string) {

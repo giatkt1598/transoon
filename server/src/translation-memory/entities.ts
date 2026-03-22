@@ -50,6 +50,7 @@ export type SegmentEntity = {
   id: string;
   documentId: string;
   externalSegmentId: string;
+  mergedIntoSegmentId: string | null;
   sourceLanguage: string;
   targetLanguage: string;
   sourceText: string;

@@ -6,6 +6,7 @@ import { appSettingsMigration } from "./202603210004_app-settings";
 import { projectLastModifiedMigration } from "./202603210005_project-last-modified";
 import { projectContentCountsMigration } from "./202603210006_project-content-counts";
 import { translationUnitMemoryLinkMigration } from "./202603210007_translation-unit-memory-link";
+import { segmentMergeSupportMigration } from "./202603210008_segment-merge-support";
 
 export const migrations: MigrationDefinition[] = [
   initialTranslationMemoryMigration,
@@ -15,4 +16,5 @@ export const migrations: MigrationDefinition[] = [
   projectLastModifiedMigration,
   projectContentCountsMigration,
   translationUnitMemoryLinkMigration,
+  segmentMergeSupportMigration,
 ];
