@@ -5,6 +5,7 @@ import { appConfig } from "../config/app-config";
 import { languageCatalog } from "../config/language-catalog";
 import { buildDocxPreviewDocument } from "../documents/docx-preview-service";
 import { buildXlsxPreviewDocument } from "../documents/xlsx-preview-service";
+import { PPTX_REMOVE_SEGMENT_SENTINEL } from "../documents/handlers/pptx-document-handler";
 import { extractDocument, writeOutputFile } from "../document-service";
 import { Log } from "../logger";
 import { setProjectAutoTranslateProgress } from "../project-auto-translate-progress";
@@ -337,7 +338,10 @@ export async function exportProjectDocument(
   const absoluteStoragePath = path.resolve(process.cwd(), document.storagePath);
   const fileBuffer = readFileSync(absoluteStoragePath);
   const extractedDocument = await extractDocument(document.fileName, fileBuffer);
-  const savedSegmentMap = buildExportSegmentTextMap(listProjectSegments(projectId));
+  const savedSegmentMap = buildExportSegmentTextMap(
+    listProjectSegments(projectId),
+    document.documentType,
+  );
   const nextSegments = extractedDocument.segments.map(
     (segment) => savedSegmentMap.get(segment.id) ?? segment.text,
   );
@@ -512,6 +516,15 @@ export async function mergeProjectSegments(
     resolvePreviewExternalSegmentIds(leadingStoredSegment),
     resolvePreviewExternalSegmentIds(trailingStoredSegment),
   );
+  const projectDocument = getPrimaryProjectDocument(projectId);
+  if (
+    projectDocument?.documentType === "pptx" &&
+    !isSafePptxMergeOriginChain(combinedOriginExternalSegmentIds)
+  ) {
+    throw new Error(
+      "PPTX merge is only supported for adjacent segments from the same text source.",
+    );
+  }
   const originalSourceTextByExternalSegmentId =
     await loadOriginalSourceTextByExternalSegmentId(projectId);
   const mergedSourceText = resolveMergedSourceText(
@@ -1362,7 +1375,10 @@ function joinSegmentTexts(leftText: string, rightText: string) {
   return `${leftValue} ${rightValue}`;
 }
 
-function buildExportSegmentTextMap(segments: ProjectSegment[]) {
+function buildExportSegmentTextMap(
+  segments: ProjectSegment[],
+  documentType: string | null,
+) {
   const exportTextByExternalSegmentId = new Map<string, string>();
 
   segments.forEach((segment) => {
@@ -1372,6 +1388,14 @@ function buildExportSegmentTextMap(segments: ProjectSegment[]) {
     const exportText = resolveSegmentExportText(segment);
 
     originExternalSegmentIds.forEach((originExternalSegmentId, index) => {
+      if (documentType === "pptx" && index > 0) {
+        exportTextByExternalSegmentId.set(
+          originExternalSegmentId,
+          PPTX_REMOVE_SEGMENT_SENTINEL,
+        );
+        return;
+      }
+
       const currentText =
         exportTextByExternalSegmentId.get(originExternalSegmentId) ?? "";
       const nextText = index === 0 ? exportText : "";
@@ -1497,6 +1521,44 @@ function resolveMergedSourceText(
   }
 
   return joinSegmentTexts(leftSourceText, rightSourceText);
+}
+
+function isSafePptxMergeOriginChain(originExternalSegmentIds: string[]) {
+  if (originExternalSegmentIds.length <= 1) {
+    return true;
+  }
+
+  const parsedOrigins = originExternalSegmentIds.map(parsePptxOriginDescriptor);
+  if (parsedOrigins.some((origin) => origin === null)) {
+    return false;
+  }
+
+  const [firstOrigin, ...restOrigins] = parsedOrigins as PptxOriginDescriptor[];
+  return restOrigins.every(
+    (origin, index) =>
+      origin.entryName === firstOrigin.entryName &&
+      origin.entryType === firstOrigin.entryType &&
+      origin.itemIndex === firstOrigin.itemIndex + index + 1,
+  );
+}
+
+type PptxOriginDescriptor = {
+  entryName: string;
+  entryType: string;
+  itemIndex: number;
+};
+
+function parsePptxOriginDescriptor(originExternalSegmentId: string) {
+  const match = /^(.*)#([^-]+)-(\d+)$/u.exec(originExternalSegmentId);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    entryName: match[1] ?? "",
+    entryType: match[2] ?? "",
+    itemIndex: Number.parseInt(match[3] ?? "", 10),
+  } satisfies PptxOriginDescriptor;
 }
 
 async function loadOriginalSourceTextByExternalSegmentId(projectId: string) {

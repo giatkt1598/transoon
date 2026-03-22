@@ -12,6 +12,7 @@ const SLIDE_LAYOUT_PATH_PATTERN = /^ppt\/slideLayouts\/slideLayout\d+\.xml$/;
 const SLIDE_MASTER_PATH_PATTERN = /^ppt\/slideMasters\/slideMaster\d+\.xml$/;
 const COMMENT_PATH_PATTERN = /^ppt\/comments\/comment\d+\.xml$/;
 const CHART_PATH_PATTERN = /^ppt\/charts\/chart\d+\.xml$/;
+export const PPTX_REMOVE_SEGMENT_SENTINEL = "\u0000__TRANSOON_PPTX_REMOVE_SEGMENT__";
 
 type PptxSegmentType =
   | "slide-paragraph"
@@ -232,6 +233,12 @@ function applyParagraphReplacements(
       buildLookupKey(config.entryType, entryName, itemIndex),
     );
     if (replacementText !== undefined) {
+      if (replacementText === PPTX_REMOVE_SEGMENT_SENTINEL) {
+        paragraph.parentNode?.removeChild(paragraph);
+        itemIndex += 1;
+        return;
+      }
+
       const textNode = findElementsByLocalName(paragraph, ["t"])[0];
       if (textNode) {
         setElementText(textNode, replacementText);
@@ -265,6 +272,12 @@ function applyTextElementReplacements(
       buildLookupKey(config.entryType, entryName, itemIndex),
     );
     if (replacementText !== undefined) {
+      if (replacementText === PPTX_REMOVE_SEGMENT_SENTINEL) {
+        element.parentNode?.removeChild(element);
+        itemIndex += 1;
+        return;
+      }
+
       setElementText(element, replacementText);
     }
 
