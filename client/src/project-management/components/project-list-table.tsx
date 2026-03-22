@@ -62,7 +62,7 @@ export function ProjectListTable({
     column: keyof ProjectSummary;
     direction: SortDirection;
   } | null>({
-    column: "createdAt",
+    column: "lastModifiedAt",
     direction: "desc",
   });
 
@@ -90,7 +90,7 @@ export function ProjectListTable({
       {
         key: "name",
         label: "Project",
-        gridTemplateColumn: "minmax(140px, 0.8fr)",
+        gridTemplateColumn: "minmax(140px, 1fr)",
         customRender: (item: ProjectSummary) => (
           <Box className="shared-primary-cell">
             <DocumentIcon fileName={item.documentFileName} size={36} />
@@ -106,40 +106,14 @@ export function ProjectListTable({
         ),
       },
       {
-        key: "lastModifiedAt",
-        label: "Last modified",
-        gridTemplateColumn: "minmax(120px, 0.6fr)",
-        customRender: (row: ProjectSummary) => {
-          const lastModifiedAt = formatDateTime(row.lastModifiedAt);
-          return (
-            <Box className="shared-created-cell">
-              <Typography component="p">{lastModifiedAt.date}</Typography>
-              {row.lastModifiedAt && (
-                <Typography component="span">{lastModifiedAt.time}</Typography>
-              )}
-            </Box>
-          );
-        },
-      },
-      {
-        key: "createdAt",
-        label: "Created at",
-        gridTemplateColumn: "minmax(120px, 0.6fr)",
-        customRender: (row: ProjectSummary) => {
-          const createdAt = formatDateTime(row.createdAt);
-          return (
-            <Box className="shared-created-cell">
-              <Typography component="p">{createdAt.date}</Typography>
-              <Typography component="span">{createdAt.time}</Typography>
-            </Box>
-          );
-        },
-      },
-      {
         key: "progressPercent",
         label: "Progress",
-        gridTemplateColumn: "minmax(160px, 0.7fr)",
-        customRender: ({ progressPercent }: ProjectSummary) => (
+        gridTemplateColumn: "minmax(160px, 0.5fr)",
+        customRender: ({
+          progressPercent,
+          segmentCount,
+          translatedSegmentCount,
+        }: ProjectSummary) => (
           <Box className="shared-progress-cell">
             <LinearProgress
               variant="determinate"
@@ -156,7 +130,7 @@ export function ProjectListTable({
               }}
             />
             <Typography component="span">
-              {Number(progressPercent)}/{0} translated
+              {translatedSegmentCount}/{segmentCount} translated
             </Typography>
           </Box>
         ),
@@ -164,17 +138,53 @@ export function ProjectListTable({
       {
         key: "segmentCount",
         label: "Segments",
-        gridTemplateColumn: "minmax(100px, 0.4fr)",
-        customRender: ({ segmentCount: value }: ProjectSummary) => (
+        gridTemplateColumn: "minmax(100px, 0.6fr)",
+        customRender: ({
+          segmentCount,
+          characterCount,
+          wordCount,
+        }: ProjectSummary) => (
           <Box className="shared-segment-cell">
             <Typography component="p">
-              {Number(value) > 0 ? String(value) : "-"}
+              {Number(segmentCount) > 0 ? String(segmentCount) : "-"}
             </Typography>
             <Typography component="span">
-              {Number(value) > 0 ? `${0} words • ${0} characters` : ""}
+              {Number(segmentCount) > 0
+                ? `${wordCount} words • ${characterCount} characters`
+                : ""}
             </Typography>
           </Box>
         ),
+      },
+      {
+        key: "lastModifiedAt",
+        label: "Last modified",
+        gridTemplateColumn: "minmax(120px, 0.4fr)",
+        customRender: (row: ProjectSummary) => {
+          const lastModifiedAt = formatDateTime(row.lastModifiedAt);
+          return (
+            <Box className="shared-created-cell">
+              <Typography component="p">{lastModifiedAt.date}</Typography>
+              {row.lastModifiedAt && (
+                <Typography component="span">{lastModifiedAt.time}</Typography>
+              )}
+            </Box>
+          );
+        },
+      },
+      {
+        key: "createdAt",
+        label: "Created at",
+        gridTemplateColumn: "minmax(120px, 0.4fr)",
+        customRender: (row: ProjectSummary) => {
+          const createdAt = formatDateTime(row.createdAt);
+          return (
+            <Box className="shared-created-cell">
+              <Typography component="p">{createdAt.date}</Typography>
+              <Typography component="span">{createdAt.time}</Typography>
+            </Box>
+          );
+        },
       },
     ],
     action: {
