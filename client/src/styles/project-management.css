@@ -139,6 +139,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
+  gap: 8px;
 }
 
 .project-primary-cell > div {

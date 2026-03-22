@@ -1,23 +1,14 @@
+import {
+  SharedTable,
+  type TableDefinition,
+} from "../../components/shared-table";
+import { Box, LinearProgress, Typography } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
-import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
-import {
-  Box,
-  IconButton,
-  InputAdornment,
-  LinearProgress,
-  Menu,
-  MenuItem,
-  Paper,
-  TextField,
-  Typography,
-} from "@mui/material";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import type { ProjectSummary } from "../../app/types";
-import { DocumentIcon } from "../../components/document-icon";
 import { formatLanguageRoute } from "../../app/utils";
+import { DocumentIcon } from "../../components/document-icon";
 
 type ProjectListTableProps = {
   projects: ProjectSummary[];
@@ -59,226 +50,137 @@ export function ProjectListTable({
   onDeleteProject,
 }: ProjectListTableProps) {
   const navigate = useNavigate();
-  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
-  const [menuProject, setMenuProject] = useState<ProjectSummary | null>(null);
 
-  function handleOpenMenu(
-    event: React.MouseEvent<HTMLElement>,
-    project: ProjectSummary,
-  ) {
-    event.stopPropagation();
-    setMenuAnchorEl(event.currentTarget);
-    setMenuProject(project);
-  }
-
-  function handleCloseMenu() {
-    setMenuAnchorEl(null);
-    setMenuProject(null);
-  }
+  const tableDef: TableDefinition<ProjectSummary> = {
+    sortable: true,
+    resizable: true,
+    stickyHeader: true,
+    pagination: true,
+    columns: [
+      {
+        key: "name",
+        label: "Project",
+        gridTemplateColumn: "minmax(140px, 0.8fr)",
+        customRender: (item: ProjectSummary) => (
+          <Box className="project-primary-cell">
+            <DocumentIcon fileName={item.documentFileName} size={36} />
+            <Box>
+              <Typography component="p" className="project-row-title">
+                {String(item.name)}
+              </Typography>
+              <Typography component="p" className="project-row-subtitle">
+                {formatLanguageRoute(item.sourceLang, item.targetLang)}
+              </Typography>
+            </Box>
+          </Box>
+        ),
+      },
+      {
+        key: "lastModifiedAt",
+        label: "Last modified",
+        gridTemplateColumn: "minmax(120px, 0.6fr)",
+        customRender: (row: ProjectSummary) => {
+          const lastModifiedAt = formatDateTime(row.lastModifiedAt);
+          return (
+            <Box className="project-created-cell">
+              <Typography component="p">{lastModifiedAt.date}</Typography>
+              {row.lastModifiedAt && (
+                <Typography component="span">{lastModifiedAt.time}</Typography>
+              )}
+            </Box>
+          );
+        },
+      },
+      {
+        key: "createdAt",
+        label: "Created at",
+        gridTemplateColumn: "minmax(120px, 0.6fr)",
+        customRender: (row: ProjectSummary) => {
+          const createdAt = formatDateTime(row.createdAt);
+          return (
+            <Box className="project-created-cell">
+              <Typography component="p">{createdAt.date}</Typography>
+              <Typography component="span">{createdAt.time}</Typography>
+            </Box>
+          );
+        },
+      },
+      {
+        key: "progressPercent",
+        label: "Progress",
+        gridTemplateColumn: "minmax(160px, 0.7fr)",
+        customRender: ({ progressPercent }: ProjectSummary) => (
+          <Box className="project-progress-cell">
+            <LinearProgress
+              variant="determinate"
+              value={Number(progressPercent)}
+              sx={{
+                height: 8,
+                borderRadius: "999px",
+                backgroundColor: "#e6edf5",
+                "& .MuiLinearProgress-bar": {
+                  borderRadius: "inherit",
+                  background:
+                    Number(progressPercent) >= 100 ? "#22c55e" : "#0d67c8",
+                },
+              }}
+            />
+            <Typography component="span">
+              {Number(progressPercent)}/{0} translated
+            </Typography>
+          </Box>
+        ),
+      },
+      {
+        key: "segmentCount",
+        label: "Segments",
+        gridTemplateColumn: "minmax(100px, 0.4fr)",
+        customRender: ({ segmentCount: value }: ProjectSummary) => (
+          <Box className="project-segment-cell">
+            <Typography component="p">
+              {Number(value) > 0 ? String(value) : "-"}
+            </Typography>
+            <Typography component="span">
+              {Number(value) > 0 ? `${0} words • ${0} characters` : ""}
+            </Typography>
+          </Box>
+        ),
+      },
+    ],
+    action: {
+      useMoreActions: true,
+      actions: [
+        {
+          label: "Edit",
+          icon: <EditOutlinedIcon fontSize="small" />,
+          onClick: (row) => {
+            navigate(`/projects/${row.id}/edit`);
+          },
+        },
+        {
+          label: "Delete",
+          icon: <DeleteOutlineRoundedIcon fontSize="small" />,
+          onClick: (row) => {
+            void onDeleteProject(row.id);
+          },
+        },
+      ],
+    },
+    rowClick: (row) => {
+      navigate(`/projects/${row.id}`);
+    },
+  };
 
   return (
-    <Paper className="project-table-shell" elevation={0}>
-      <Box className="project-table-toolbar">
-        <TextField
-          select
-          defaultValue="all"
-          size="small"
-          className="project-toolbar-select"
-        >
-          <MenuItem value="all">All routes</MenuItem>
-        </TextField>
-
-        <TextField
-          select
-          defaultValue="all"
-          size="small"
-          className="project-toolbar-select"
-        >
-          <MenuItem value="all">All status</MenuItem>
-        </TextField>
-
-        <TextField
-          value={searchTerm}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search projects..."
-          size="small"
-          className="project-toolbar-search"
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchRoundedIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
-        />
-      </Box>
-
-      <Box className="project-table-head">
-        <span aria-hidden="true" />
-        <span>Project</span>
-        <span>Last modified</span>
-        <span>Created at</span>
-        <span>Progress</span>
-        <span>Segments</span>
-        <span>Actions</span>
-      </Box>
-
-      {isLoading ? (
-        <Box className="empty-state project-empty-state">
-          <Typography component="p">Loading projects...</Typography>
-        </Box>
-      ) : projects.length === 0 ? (
-        <Box className="empty-state project-empty-state">
-          <Typography component="p">No project matches this view.</Typography>
-          <Typography component="p">
-            Create a project to manage translations, segments, and review
-            progress.
-          </Typography>
-        </Box>
-      ) : (
-        <Box className="project-table-body">
-          {projects.map((project) => {
-            const createdAt = formatDateTime(project.createdAt);
-            const lastModifiedAt = formatDateTime(project.lastModifiedAt);
-            return (
-              <Box
-                key={project.id}
-                className="project-table-row project-table-row-clickable"
-                onClick={() => navigate(`/projects/${project.id}`)}
-              >
-                <Box className="project-type-cell">
-                  <DocumentIcon
-                    fileName={project.documentFileName ?? project.name}
-                    size={32}
-                  />
-                </Box>
-
-                <Box className="project-primary-cell">
-                  <Box>
-                    <Typography component="p" className="project-row-title">
-                      {project.name}
-                    </Typography>
-                    <Typography component="p" className="project-row-subtitle">
-                      {formatLanguageRoute(
-                        project.sourceLang,
-                        project.targetLang,
-                      )}
-                    </Typography>
-                  </Box>
-                </Box>
-
-                <Box className="project-created-cell">
-                  <Typography component="p">{lastModifiedAt.date}</Typography>
-                  {project.lastModifiedAt && (
-                    <Typography component="span">
-                      {lastModifiedAt.time}
-                    </Typography>
-                  )}
-                </Box>
-
-                <Box className="project-created-cell">
-                  <Typography component="p">{createdAt.date}</Typography>
-                  <Typography component="span">{createdAt.time}</Typography>
-                </Box>
-
-                <Box className="project-progress-cell">
-                  <LinearProgress
-                    variant="determinate"
-                    value={project.progressPercent}
-                    sx={{
-                      height: 8,
-                      borderRadius: "999px",
-                      backgroundColor: "#e6edf5",
-                      "& .MuiLinearProgress-bar": {
-                        borderRadius: "inherit",
-                        background:
-                          project.progressPercent >= 100
-                            ? "#22c55e"
-                            : "#0d67c8",
-                      },
-                    }}
-                  />
-                  <Typography component="span">
-                    {project.translatedSegmentCount}/{project.segmentCount || 0}{" "}
-                    translated
-                    {project.status === "auto-translate-processing"
-                      ? " (auto translating...)"
-                      : ""}
-                  </Typography>
-                </Box>
-
-                <Box className="project-segment-cell">
-                  <Typography component="p">
-                    {project.segmentCount > 0 ? project.segmentCount : "-"}
-                  </Typography>
-
-                  <Typography component="span">
-                    {project.segmentCount > 0
-                      ? `${project.wordCount} words • ${project.characterCount} characters`
-                      : ""}
-                  </Typography>
-                </Box>
-
-                <Box className="project-action-cell">
-                  <IconButton
-                    size="small"
-                    aria-label={`More actions for ${project.name}`}
-                    onClick={(event) => handleOpenMenu(event, project)}
-                  >
-                    <MoreVertRoundedIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              </Box>
-            );
-          })}
-        </Box>
-      )}
-
-      <Menu
-        anchorEl={menuAnchorEl}
-        open={Boolean(menuAnchorEl && menuProject)}
-        onClose={handleCloseMenu}
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "right",
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "right",
-        }}
-      >
-        <MenuItem
-          onClick={() => {
-            if (!menuProject) {
-              return;
-            }
-
-            navigate(`/projects/${menuProject.id}/edit`);
-            handleCloseMenu();
-          }}
-        >
-          <EditOutlinedIcon fontSize="small" />
-          <Typography component="span" sx={{ ml: 1 }}>
-            Edit project
-          </Typography>
-        </MenuItem>
-        <MenuItem
-          disabled={isDeleting}
-          onClick={() => {
-            if (!menuProject) {
-              return;
-            }
-
-            void onDeleteProject(menuProject.id);
-            handleCloseMenu();
-          }}
-        >
-          <DeleteOutlineRoundedIcon fontSize="small" />
-          <Typography component="span" sx={{ ml: 1 }}>
-            Delete project
-          </Typography>
-        </MenuItem>
-      </Menu>
-    </Paper>
+    <SharedTable
+      data={projects}
+      tableDef={tableDef}
+      searchTerm={searchTerm}
+      isLoading={isLoading}
+      isDeleting={isDeleting}
+      onSearchChange={onSearchChange}
+      emptyStateText="No project matches this view."
+      emptyStateSubtext="Create a project to manage translations, segments, and review progress."
+    />
   );
 }
