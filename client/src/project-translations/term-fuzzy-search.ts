@@ -1,5 +1,8 @@
 import type { ProjectTerm } from "../app/types"
-import { TERM_FUZZY_MATCH_THRESHOLD } from "./constants"
+import {
+  TERM_FUZZY_MATCH_MAX_RESULTS,
+  TERM_FUZZY_MATCH_THRESHOLD,
+} from "./constants"
 
 export type FuzzyMatchedProjectTerm = {
   term: ProjectTerm
@@ -39,6 +42,7 @@ export function searchFuzzyProjectTerms(
 
       return left.term.sourceTerm.localeCompare(right.term.sourceTerm)
     })
+    .slice(0, TERM_FUZZY_MATCH_MAX_RESULTS)
 }
 
 export function normalizeTermSourceText(value: string) {

@@ -4,7 +4,10 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import PendingRoundedIcon from "@mui/icons-material/PendingRounded";
 import {
   Box,
+  MenuItem,
+  MenuList,
   Paper,
+  Popover,
   Stack,
   TextField,
   Tooltip,
@@ -27,7 +30,10 @@ import {
 } from "react-window";
 import type { ProjectSegment } from "../../app/types";
 import type { ProjectTerm } from "../../app/types";
-import { searchFuzzyProjectTerms } from "../term-fuzzy-search";
+import {
+  searchFuzzyProjectTerms,
+  type FuzzyMatchedProjectTerm,
+} from "../term-fuzzy-search";
 import { AlignmentToolToolbar } from "./alignment-tool-toolbar";
 import "./alignment-tool.scss";
 
@@ -199,6 +205,36 @@ export function AlignmentTool({
     onInlineTranslateSegment,
     onConfirmSegment,
     flushSegmentDraft,
+    focusSegmentAtIndex: (index) => {
+      if (index < 0 || index >= segments.length) {
+        return;
+      }
+
+      const nextSegment = segments[index];
+      listRef.current?.scrollToRow({
+        index,
+        align: "smart",
+        behavior: "auto",
+      });
+
+      let attempts = 0;
+      const focusNextInput = () => {
+        const inputElement = targetInputRefs.current.get(nextSegment.id);
+        if (!inputElement) {
+          if (attempts < 10) {
+            attempts += 1;
+            window.requestAnimationFrame(focusNextInput);
+          }
+          return;
+        }
+
+        inputElement.focus();
+        const nextCaretPosition = inputElement.value.length;
+        inputElement.setSelectionRange(nextCaretPosition, nextCaretPosition);
+      };
+
+      window.requestAnimationFrame(focusNextInput);
+    },
   };
 
   useEffect(() => {
@@ -411,6 +447,7 @@ type RowData = {
   onInlineTranslateSegment: (segmentId: string) => void;
   onConfirmSegment: (segmentId: string) => void;
   flushSegmentDraft: (segmentId: string) => void;
+  focusSegmentAtIndex: (index: number) => void;
 };
 
 function AlignmentVirtualRow({
@@ -430,8 +467,16 @@ function AlignmentVirtualRow({
   onInlineTranslateSegment,
   onConfirmSegment,
   flushSegmentDraft,
+  focusSegmentAtIndex,
 }: RowComponentProps<RowData>) {
   const segment = segments[index];
+  const inputElementRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
+  const [inlineAssistMenu, setInlineAssistMenu] = useState<{
+    top: number;
+    left: number;
+    matches: FuzzyMatchedProjectTerm[];
+  } | null>(null);
+  const [selectedInlineAssistIndex, setSelectedInlineAssistIndex] = useState(0);
   const targetValue = draftTargets[segment.id] ?? segment.targetText;
   const normalizedTargetValue = targetValue.trim();
   const hasTermConflict = projectTerms.some(
@@ -453,6 +498,43 @@ function AlignmentVirtualRow({
   const inlinePlaceholder = isInlineTranslating
     ? `Translating (by ${inlineTranslateProviderName || "translate provider"})...`
     : exactMatchedTerm?.targetTerm || "Type target translation...";
+
+  const handleApplyTerm = useCallback(
+    (nextTargetText: string) => {
+      onTargetDraftChange(segment.id, nextTargetText);
+      setInlineAssistMenu(null);
+      setSelectedInlineAssistIndex(0);
+
+      window.requestAnimationFrame(() => {
+        const inputElement = inputElementRef.current;
+        if (!inputElement) {
+          return;
+        }
+
+        inputElement.focus();
+        const nextCaretPosition = nextTargetText.length;
+        inputElement.setSelectionRange(nextCaretPosition, nextCaretPosition);
+      });
+    },
+    [onTargetDraftChange, segment.id],
+  );
+
+  const handleOpenInlineAssistMenu = useCallback(
+    (inputElement: HTMLTextAreaElement | HTMLInputElement, matches: FuzzyMatchedProjectTerm[]) => {
+      const caretPosition = inputElement.selectionStart ?? inputElement.value.length;
+      const caretCoordinates = getTextareaCaretCoordinates(inputElement, caretPosition);
+      const inputBounds = inputElement.getBoundingClientRect();
+
+      setInlineAssistMenu({
+        top: inputBounds.top + caretCoordinates.top + 28,
+        left: inputBounds.left + caretCoordinates.left + 12,
+        matches,
+      });
+      setSelectedInlineAssistIndex(0);
+    },
+    [],
+  );
+
   return (
     <div style={style}>
       <Box className={`alignment-grid-row${isActive ? " active" : ""}`}>
@@ -469,9 +551,76 @@ function AlignmentVirtualRow({
           minRows={2}
           fullWidth
           value={targetValue}
-          onChange={(event) => onTargetDraftChange(segment.id, event.target.value)}
-          inputRef={(element) => registerTargetInput(segment.id, element)}
+          onChange={(event) => {
+            setInlineAssistMenu(null);
+            setSelectedInlineAssistIndex(0);
+            onTargetDraftChange(segment.id, event.target.value);
+          }}
+          inputRef={(element) => {
+            inputElementRef.current = element;
+            registerTargetInput(segment.id, element);
+          }}
           onKeyDown={(event) => {
+            if (inlineAssistMenu) {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                event.stopPropagation();
+                setSelectedInlineAssistIndex((currentIndex) => {
+                  const lastIndex = inlineAssistMenu.matches.length;
+                  return currentIndex >= lastIndex ? 0 : currentIndex + 1;
+                });
+                return;
+              }
+
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                event.stopPropagation();
+                setSelectedInlineAssistIndex((currentIndex) => {
+                  const lastIndex = inlineAssistMenu.matches.length;
+                  return currentIndex <= 0 ? lastIndex : currentIndex - 1;
+                });
+                return;
+              }
+
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                setInlineAssistMenu(null);
+                setSelectedInlineAssistIndex(0);
+                return;
+              }
+
+              if (event.key === "Enter" || event.key === "Tab") {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const selectedMatch = inlineAssistMenu.matches[selectedInlineAssistIndex];
+                if (selectedMatch) {
+                  handleApplyTerm(selectedMatch.term.targetTerm);
+                  return;
+                }
+
+                setInlineAssistMenu(null);
+                setSelectedInlineAssistIndex(0);
+                onInlineTranslateSegment(segment.id);
+                return;
+              }
+            }
+
+            if (!inlineAssistMenu && event.key === "ArrowDown") {
+              event.preventDefault();
+              event.stopPropagation();
+              focusSegmentAtIndex(index + 1);
+              return;
+            }
+
+            if (!inlineAssistMenu && event.key === "ArrowUp") {
+              event.preventDefault();
+              event.stopPropagation();
+              focusSegmentAtIndex(index - 1);
+              return;
+            }
+
             if (
               event.key === "Tab" &&
               !event.shiftKey &&
@@ -499,6 +648,22 @@ function AlignmentVirtualRow({
             if (event.ctrlKey && event.code === "Space") {
               event.preventDefault();
               event.stopPropagation();
+              if (normalizedTargetValue.length === 0 && fuzzyMatches.length > 0) {
+                const inputElement = inputElementRef.current;
+                if (inputElement) {
+                  handleOpenInlineAssistMenu(inputElement, fuzzyMatches);
+                  return;
+                }
+
+                setInlineAssistMenu({
+                  top: window.innerHeight / 2,
+                  left: window.innerWidth / 2,
+                  matches: fuzzyMatches,
+                });
+                setSelectedInlineAssistIndex(0);
+                return;
+              }
+
               onInlineTranslateSegment(segment.id);
               return;
             }
@@ -511,11 +676,82 @@ function AlignmentVirtualRow({
             }
           }}
           onFocus={() => onActiveSegmentChange(segment.externalSegmentId)}
-          onBlur={() => onActiveSegmentChange(null)}
+          onBlur={() => {
+            onActiveSegmentChange(null);
+            window.setTimeout(() => {
+              if (document.activeElement === inputElementRef.current) {
+                return;
+              }
+
+              setInlineAssistMenu(null);
+              setSelectedInlineAssistIndex(0);
+            }, 0);
+          }}
           placeholder={inlinePlaceholder}
           disabled={isReadOnly || isConfirming}
           className="alignment-target-field"
         />
+
+        <Popover
+          open={Boolean(inlineAssistMenu)}
+          onClose={() => {
+            setInlineAssistMenu(null);
+            setSelectedInlineAssistIndex(0);
+          }}
+          anchorReference="anchorPosition"
+          anchorPosition={
+            inlineAssistMenu
+              ? { top: inlineAssistMenu.top, left: inlineAssistMenu.left }
+              : undefined
+          }
+          transformOrigin={{ vertical: "top", horizontal: "left" }}
+          disableAutoFocus
+          disableEnforceFocus
+          disableRestoreFocus
+          slotProps={{
+            paper: {
+              className: "alignment-inline-assist-popover",
+            },
+          }}
+        >
+          <MenuList dense autoFocusItem={false}>
+            {inlineAssistMenu?.matches.map((match, matchIndex) => (
+              <MenuItem
+                key={match.term.id}
+                selected={matchIndex === selectedInlineAssistIndex}
+                onClick={() => handleApplyTerm(match.term.targetTerm)}
+                className="alignment-inline-assist-item"
+              >
+                <Box className="alignment-inline-assist-copy">
+                  <Tooltip title={match.term.targetTerm} placement="right" arrow>
+                    <Typography component="span" className="alignment-inline-assist-target">
+                      {match.term.targetTerm}
+                    </Typography>
+                  </Tooltip>
+                  <Typography component="span" className="alignment-inline-assist-score">
+                    {`${Math.round(match.score * 100)}%`}
+                  </Typography>
+                </Box>
+              </MenuItem>
+            ))}
+            <MenuItem
+              selected={
+                selectedInlineAssistIndex ===
+                (inlineAssistMenu?.matches.length ?? Number.POSITIVE_INFINITY)
+              }
+              onClick={() => {
+                setInlineAssistMenu(null);
+                setSelectedInlineAssistIndex(0);
+                onInlineTranslateSegment(segment.id);
+              }}
+              className="alignment-inline-assist-item alignment-inline-assist-translate"
+            >
+              <Typography component="span">
+                {`Translate with ${inlineTranslateProviderName || "Translation Provider"}`}
+              </Typography>
+            </MenuItem>
+          </MenuList>
+        </Popover>
 
         <Box className="alignment-score-cell">
           <AlignmentScoreCell
@@ -684,4 +920,47 @@ function getAlignmentStatusPresentation({
     icon: CloseRoundedIcon,
     spinning: false,
   };
+}
+
+function getTextareaCaretCoordinates(
+  inputElement: HTMLTextAreaElement | HTMLInputElement,
+  caretPosition: number,
+) {
+  const mirrorElement = document.createElement("div");
+  const mirrorSpan = document.createElement("span");
+  const computedStyle = window.getComputedStyle(inputElement);
+
+  mirrorElement.style.position = "fixed";
+  mirrorElement.style.visibility = "hidden";
+  mirrorElement.style.pointerEvents = "none";
+  mirrorElement.style.top = "0";
+  mirrorElement.style.left = "0";
+  mirrorElement.style.whiteSpace = "pre-wrap";
+  mirrorElement.style.wordBreak = "break-word";
+  mirrorElement.style.overflowWrap = "anywhere";
+  mirrorElement.style.boxSizing = computedStyle.boxSizing;
+  mirrorElement.style.width = computedStyle.width;
+  mirrorElement.style.padding = computedStyle.padding;
+  mirrorElement.style.border = computedStyle.border;
+  mirrorElement.style.font = computedStyle.font;
+  mirrorElement.style.fontFamily = computedStyle.fontFamily;
+  mirrorElement.style.fontSize = computedStyle.fontSize;
+  mirrorElement.style.fontWeight = computedStyle.fontWeight;
+  mirrorElement.style.fontStyle = computedStyle.fontStyle;
+  mirrorElement.style.letterSpacing = computedStyle.letterSpacing;
+  mirrorElement.style.lineHeight = computedStyle.lineHeight;
+  mirrorElement.style.textTransform = computedStyle.textTransform;
+  mirrorElement.style.textIndent = computedStyle.textIndent;
+
+  const beforeCaretText = inputElement.value.slice(0, caretPosition) || " ";
+  mirrorElement.textContent = beforeCaretText;
+  mirrorSpan.textContent = inputElement.value.slice(caretPosition) || " ";
+  mirrorElement.appendChild(mirrorSpan);
+  document.body.appendChild(mirrorElement);
+
+  const top = mirrorSpan.offsetTop - inputElement.scrollTop;
+  const left = mirrorSpan.offsetLeft - inputElement.scrollLeft;
+  document.body.removeChild(mirrorElement);
+
+  return { top, left };
 }

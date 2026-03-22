@@ -1,1 +1,2 @@
 export const TERM_FUZZY_MATCH_THRESHOLD = 0.9
+export const TERM_FUZZY_MATCH_MAX_RESULTS = 10
