@@ -256,7 +256,7 @@ export function createApiRouter() {
     }
   });
 
-  router.post("/api/projects/:projectId/segments/:segmentId/split", (req, res) => {
+  router.post("/api/projects/:projectId/segments/:segmentId/split", async (req, res) => {
     try {
       const projectId = String(req.params.projectId);
       const segmentId = String(req.params.segmentId);
@@ -274,7 +274,7 @@ export function createApiRouter() {
         return;
       }
 
-      const result = splitProjectSegment(projectId, segmentId, req.body.splitIndex);
+      const result = await splitProjectSegment(projectId, segmentId, req.body.splitIndex);
       res.json(result);
     } catch (error) {
       const message =

@@ -8,6 +8,7 @@ import { projectContentCountsMigration } from "./202603210006_project-content-co
 import { translationUnitMemoryLinkMigration } from "./202603210007_translation-unit-memory-link";
 import { segmentMergeSupportMigration } from "./202603210008_segment-merge-support";
 import { segmentSplitSupportMigration } from "./202603210009_segment-split-support";
+import { segmentOriginExternalIdsMigration } from "./202603210010_segment-origin-external-ids";
 
 export const migrations: MigrationDefinition[] = [
   initialTranslationMemoryMigration,
@@ -19,4 +20,5 @@ export const migrations: MigrationDefinition[] = [
   translationUnitMemoryLinkMigration,
   segmentMergeSupportMigration,
   segmentSplitSupportMigration,
+  segmentOriginExternalIdsMigration,
 ];

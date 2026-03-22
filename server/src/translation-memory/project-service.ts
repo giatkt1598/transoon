@@ -49,11 +49,23 @@ export type ProjectSegment = Pick<
   | "targetText"
   | "position"
   | "translationStatus"
->;
+> & {
+  previewExternalSegmentIds: string[];
+};
 
-type StoredProjectSegment = ProjectSegment & {
+type StoredProjectSegment = Pick<
+  SegmentEntity,
+  | "id"
+  | "documentId"
+  | "externalSegmentId"
+  | "sourceText"
+  | "targetText"
+  | "position"
+  | "translationStatus"
+> & {
   mergedIntoSegmentId: string | null;
   splitGroupId: string | null;
+  originExternalSegmentIdsJson: string;
   sourceLanguage: string;
   targetLanguage: string;
 };
@@ -189,11 +201,14 @@ export function getProjectDetailById(projectId: string) {
 }
 
 export function listProjectSegments(projectId: string) {
-  return listStoredProjectSegments(projectId)
+  const storedSegments = listStoredProjectSegments(projectId);
+
+  return storedSegments
     .filter((segment) => segment.mergedIntoSegmentId === null)
     .map((segment, index) => ({
       ...segment,
       position: index + 1,
+      previewExternalSegmentIds: resolvePreviewExternalSegmentIds(segment),
     })) as ProjectSegment[];
 }
 
@@ -206,6 +221,7 @@ function listStoredProjectSegments(projectId: string) {
       s.externalSegmentId,
       s.mergedIntoSegmentId,
       s.splitGroupId,
+      s.originExternalSegmentIdsJson,
       s.sourceLanguage,
       s.targetLanguage,
       s.sourceText,
@@ -262,6 +278,7 @@ export async function generateProjectSegments(projectId: string) {
         externalSegmentId: segment.id,
         mergedIntoSegmentId: null,
         splitGroupId: null,
+        originExternalSegmentIdsJson: JSON.stringify([segment.id]),
         sourceLanguage: getProjectById(projectId)?.sourceLang ?? appConfig.defaultSourceLanguage,
         targetLanguage: getProjectById(projectId)?.targetLang ?? appConfig.defaultTargetLanguage,
         sourceText,
@@ -320,9 +337,7 @@ export async function exportProjectDocument(
   const absoluteStoragePath = path.resolve(process.cwd(), document.storagePath);
   const fileBuffer = readFileSync(absoluteStoragePath);
   const extractedDocument = await extractDocument(document.fileName, fileBuffer);
-  const savedSegmentMap = buildExportSegmentTextMap(
-    listStoredProjectSegments(projectId),
-  );
+  const savedSegmentMap = buildExportSegmentTextMap(listProjectSegments(projectId));
   const nextSegments = extractedDocument.segments.map(
     (segment) => savedSegmentMap.get(segment.id) ?? segment.text,
   );
@@ -478,11 +493,18 @@ export function mergeProjectSegments(
         ];
   const [leadingSegment, trailingSegment] = orderedSegments;
   const existingStoredSegments = listStoredProjectSegments(projectId);
+  const leadingStoredSegment = existingStoredSegments.find(
+    (segment) => segment.id === leadingSegment.id,
+  );
   const trailingStoredSegment = existingStoredSegments.find(
     (segment) => segment.id === trailingSegment.id,
   );
 
-  if (!trailingStoredSegment || trailingStoredSegment.mergedIntoSegmentId !== null) {
+  if (
+    !leadingStoredSegment ||
+    !trailingStoredSegment ||
+    trailingStoredSegment.mergedIntoSegmentId !== null
+  ) {
     throw new Error("Merged segments are no longer available.");
   }
 
@@ -503,6 +525,12 @@ export function mergeProjectSegments(
 
   try {
     repositories.segments.updateById(leadingSegment.id, {
+      originExternalSegmentIdsJson: JSON.stringify(
+        combineOriginExternalSegmentIds(
+          resolvePreviewExternalSegmentIds(leadingStoredSegment),
+          resolvePreviewExternalSegmentIds(trailingStoredSegment),
+        ),
+      ),
       sourceText: mergedSourceText,
       sourceTextNormalized: normalizeText(mergedSourceText),
       sourceTextHash: hashText(mergedSourceText),
@@ -552,11 +580,11 @@ export function mergeProjectSegments(
   };
 }
 
-export function splitProjectSegment(
+export async function splitProjectSegment(
   projectId: string,
   segmentId: string,
   splitIndex: number,
-): SplitProjectSegmentResult {
+): Promise<SplitProjectSegmentResult> {
   assertProjectIsEditable(projectId);
 
   const storedSegments = listStoredProjectSegments(projectId);
@@ -583,6 +611,17 @@ export function splitProjectSegment(
   const now = new Date().toISOString();
   const nextSegmentId = randomUUID();
   const splitGroupId = segment.splitGroupId ?? segment.id;
+  const originExternalSegmentIds = resolvePreviewExternalSegmentIds(segment);
+  const originalSourceTextByExternalSegmentId =
+    await loadOriginalSourceTextByExternalSegmentId(projectId);
+  const matchedOriginSplit = resolveOriginExternalSegmentIdSplit(
+    originExternalSegmentIds,
+    originalSourceTextByExternalSegmentId,
+    sourceTextPartOne,
+    sourceTextPartTwo,
+  );
+  const nextOriginExternalSegmentIds =
+    matchedOriginSplit ?? [originExternalSegmentIds, originExternalSegmentIds];
   const visibleSegments = listProjectSegments(projectId);
   const visibleIndex = visibleSegments.findIndex(
     (currentSegment) => currentSegment.id === segment.id,
@@ -616,6 +655,7 @@ export function splitProjectSegment(
 
     repositories.segments.updateById(segment.id, {
       splitGroupId,
+      originExternalSegmentIdsJson: JSON.stringify(nextOriginExternalSegmentIds[0]),
       sourceText: sourceTextPartOne,
       sourceTextNormalized: normalizeText(sourceTextPartOne),
       sourceTextHash: hashText(sourceTextPartOne),
@@ -635,6 +675,7 @@ export function splitProjectSegment(
       externalSegmentId: `${segment.externalSegmentId}#split-${nextSegmentId.slice(0, 8)}`,
       mergedIntoSegmentId: null,
       splitGroupId,
+      originExternalSegmentIdsJson: JSON.stringify(nextOriginExternalSegmentIds[1]),
       sourceLanguage: segment.sourceLanguage,
       targetLanguage: segment.targetLanguage,
       sourceText: sourceTextPartTwo,
@@ -1316,55 +1357,137 @@ function joinSegmentTexts(leftText: string, rightText: string) {
   return `${leftValue} ${rightValue}`;
 }
 
-function buildExportSegmentTextMap(segments: StoredProjectSegment[]) {
+function buildExportSegmentTextMap(segments: ProjectSegment[]) {
   const exportTextByExternalSegmentId = new Map<string, string>();
-  const splitGroups = new Map<string, StoredProjectSegment[]>();
 
   segments.forEach((segment) => {
-    if (segment.splitGroupId) {
-      const currentSegments = splitGroups.get(segment.splitGroupId) ?? [];
-      currentSegments.push(segment);
-      splitGroups.set(segment.splitGroupId, currentSegments);
-      return;
-    }
+    const originExternalSegmentIds = segment.previewExternalSegmentIds.length
+      ? segment.previewExternalSegmentIds
+      : [segment.externalSegmentId];
+    const exportText = resolveSegmentExportText(segment);
 
-    exportTextByExternalSegmentId.set(
-      segment.externalSegmentId,
-      resolveSegmentExportText(segment),
-    );
-  });
+    originExternalSegmentIds.forEach((originExternalSegmentId, index) => {
+      const currentText =
+        exportTextByExternalSegmentId.get(originExternalSegmentId) ?? "";
+      const nextText = index === 0 ? exportText : "";
 
-  splitGroups.forEach((groupSegments) => {
-    const orderedSegments = [...groupSegments].sort(
-      (left, right) => left.position - right.position,
-    );
-    const rootSegment = orderedSegments[0];
-    if (!rootSegment) {
-      return;
-    }
-
-    const combinedText = orderedSegments.reduce(
-      (currentText, segment) =>
-        joinSegmentTexts(currentText, resolveSegmentExportText(segment)),
-      "",
-    );
-    exportTextByExternalSegmentId.set(
-      rootSegment.externalSegmentId,
-      combinedText.trim().length > 0 ? combinedText : rootSegment.sourceText,
-    );
+      exportTextByExternalSegmentId.set(
+        originExternalSegmentId,
+        joinSegmentTexts(currentText, nextText),
+      );
+    });
   });
 
   return exportTextByExternalSegmentId;
 }
 
-function resolveSegmentExportText(segment: StoredProjectSegment) {
-  if (segment.mergedIntoSegmentId !== null) {
-    return segment.targetText;
-  }
-
+function resolveSegmentExportText(segment: Pick<ProjectSegment, "sourceText" | "targetText">) {
   return segment.targetText.trim().length > 0
     ? segment.targetText
     : segment.sourceText;
+}
+
+function resolvePreviewExternalSegmentIds(segment: {
+  externalSegmentId: string;
+  originExternalSegmentIdsJson?: string;
+}) {
+  if (!segment.originExternalSegmentIdsJson) {
+    return [segment.externalSegmentId];
+  }
+
+  try {
+    const parsedValue = JSON.parse(segment.originExternalSegmentIdsJson);
+    if (!Array.isArray(parsedValue)) {
+      return [segment.externalSegmentId];
+    }
+
+    const normalizedIds = parsedValue.filter(
+      (value): value is string => typeof value === "string" && value.trim().length > 0,
+    );
+
+    return normalizedIds.length > 0
+      ? Array.from(new Set(normalizedIds))
+      : [segment.externalSegmentId];
+  } catch {
+    return [segment.externalSegmentId];
+  }
+}
+
+function combineOriginExternalSegmentIds(
+  leftOriginExternalSegmentIds: string[],
+  rightOriginExternalSegmentIds: string[],
+) {
+  return Array.from(
+    new Set([...leftOriginExternalSegmentIds, ...rightOriginExternalSegmentIds]),
+  );
+}
+
+function resolveOriginExternalSegmentIdSplit(
+  originExternalSegmentIds: string[],
+  originalSourceTextByExternalSegmentId: Map<string, string>,
+  sourceTextPartOne: string,
+  sourceTextPartTwo: string,
+) {
+  if (originExternalSegmentIds.length <= 1) {
+    return null;
+  }
+
+  const originSegments = originExternalSegmentIds
+    .map(
+      (originExternalSegmentId) =>
+        originalSourceTextByExternalSegmentId.get(originExternalSegmentId) ?? null,
+    );
+  if (originSegments.some((segmentSourceText) => segmentSourceText === null)) {
+    return null;
+  }
+
+  const normalizedPartOne = normalizeBoundaryMatchText(sourceTextPartOne);
+  const normalizedPartTwo = normalizeBoundaryMatchText(sourceTextPartTwo);
+
+  for (
+    let splitOriginIndex = 1;
+    splitOriginIndex < originExternalSegmentIds.length;
+    splitOriginIndex += 1
+  ) {
+    const leftOriginIds = originExternalSegmentIds.slice(0, splitOriginIndex);
+    const rightOriginIds = originExternalSegmentIds.slice(splitOriginIndex);
+    const leftSourceText = originSegments
+      .slice(0, splitOriginIndex)
+      .map((segmentSourceText) => segmentSourceText ?? "")
+      .join("");
+    const rightSourceText = originSegments
+      .slice(splitOriginIndex)
+      .map((segmentSourceText) => segmentSourceText ?? "")
+      .join("");
+
+    if (
+      normalizeBoundaryMatchText(leftSourceText) === normalizedPartOne &&
+      normalizeBoundaryMatchText(rightSourceText) === normalizedPartTwo
+    ) {
+      return [leftOriginIds, rightOriginIds] as const;
+    }
+  }
+
+  return null;
+}
+
+function normalizeBoundaryMatchText(value: string) {
+  return value.replace(/\s+/gu, "").trim();
+}
+
+async function loadOriginalSourceTextByExternalSegmentId(projectId: string) {
+  const document = getPrimaryProjectDocument(projectId);
+  if (!document?.storagePath) {
+    return new Map<string, string>();
+  }
+
+  const absoluteStoragePath = path.resolve(process.cwd(), document.storagePath);
+  const fileBuffer = readFileSync(absoluteStoragePath);
+  const extractedDocument = await extractDocument(document.fileName, fileBuffer);
+
+  return new Map(
+    extractedDocument.segments.map((segment) => [segment.id, segment.text] as const),
+  );
 }
 
 function normalizeFuzzyText(value: string) {

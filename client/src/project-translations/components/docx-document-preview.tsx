@@ -17,13 +17,40 @@ export function DocxDocumentPreview({
   const renderedHtml = useMemo(() => preview.html, [preview.html])
 
   const renderedTextMap = useMemo(() => {
-    return new Map(
-      segments.map((segment) => [
-        segment.externalSegmentId,
-        segment.targetText.trim().length > 0 ? segment.targetText : segment.sourceText,
-      ]),
-    )
+    const nextRenderedTextMap = new Map<string, string>()
+
+    segments.forEach((segment) => {
+      const segmentText =
+        segment.targetText.trim().length > 0 ? segment.targetText : segment.sourceText
+      const previewExternalSegmentIds =
+        segment.previewExternalSegmentIds.length > 0
+          ? segment.previewExternalSegmentIds
+          : [segment.externalSegmentId]
+
+      previewExternalSegmentIds.forEach((previewExternalSegmentId, index) => {
+        const currentText = nextRenderedTextMap.get(previewExternalSegmentId) ?? ''
+        const nextText = index === 0 ? segmentText : ''
+        nextRenderedTextMap.set(
+          previewExternalSegmentId,
+          `${currentText}${nextText}`,
+        )
+      })
+    })
+
+    return nextRenderedTextMap
   }, [segments])
+
+  const activePreviewSegmentIds = useMemo(
+    () =>
+      activeSegmentExternalId
+        ? (segments.find((segment) => segment.externalSegmentId === activeSegmentExternalId)
+            ?.previewExternalSegmentIds.filter(
+              (previewExternalSegmentId) =>
+                (renderedTextMap.get(previewExternalSegmentId) ?? '').length > 0,
+            ) ?? [])
+        : [],
+    [activeSegmentExternalId, renderedTextMap, segments],
+  )
 
   useEffect(() => {
     const container = containerRef.current
@@ -62,24 +89,27 @@ export function DocxDocumentPreview({
       .querySelectorAll<HTMLElement>('[data-preview-block-id]')
       .forEach((element) => element.classList.remove('active'))
 
-    if (!activeSegmentExternalId) {
+    if (activePreviewSegmentIds.length === 0) {
       return
     }
 
-    const activeSegmentElement =
-      Array.from(container.querySelectorAll<HTMLElement>('[data-preview-segment-id]')).find(
-        (element) => element.dataset.previewSegmentId === activeSegmentExternalId,
-      ) ?? null
-    if (!activeSegmentElement) {
+    const activeSegmentElements = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-preview-segment-id]'),
+    ).filter((element) =>
+      activePreviewSegmentIds.includes(element.dataset.previewSegmentId ?? ''),
+    )
+    if (activeSegmentElements.length === 0) {
       return
     }
 
-    activeSegmentElement.classList.add('active')
-    activeSegmentElement
-      .closest<HTMLElement>('[data-preview-block-id]')
-      ?.classList.add('active')
-    activeSegmentElement.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-  }, [activeSegmentExternalId, renderedHtml, preview.blocks, renderedTextMap])
+    activeSegmentElements.forEach((activeSegmentElement) => {
+      activeSegmentElement.classList.add('active')
+      activeSegmentElement
+        .closest<HTMLElement>('[data-preview-block-id]')
+        ?.classList.add('active')
+    })
+    activeSegmentElements[0]?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [activePreviewSegmentIds, renderedHtml, preview.blocks, renderedTextMap])
 
   return (
     <Box className="document-preview-docx">

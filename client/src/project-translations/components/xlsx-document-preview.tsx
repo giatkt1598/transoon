@@ -54,15 +54,32 @@ export function XlsxDocumentPreview({
   const gridApiRef = useRef<GridApi<XlsxGridRow> | null>(null);
 
   const renderedTextMap = useMemo(
-    () =>
-      new Map(
-        segments.map((segment) => [
-          segment.externalSegmentId,
+    () => {
+      const nextRenderedTextMap = new Map<string, string>()
+
+      segments.forEach((segment) => {
+        const segmentText =
           segment.targetText.trim().length > 0
             ? segment.targetText
-            : segment.sourceText,
-        ]),
-      ),
+            : segment.sourceText
+        const previewExternalSegmentIds =
+          segment.previewExternalSegmentIds.length > 0
+            ? segment.previewExternalSegmentIds
+            : [segment.externalSegmentId]
+
+        previewExternalSegmentIds.forEach((previewExternalSegmentId, index) => {
+          const currentText =
+            nextRenderedTextMap.get(previewExternalSegmentId) ?? ''
+          const nextText = index === 0 ? segmentText : ''
+          nextRenderedTextMap.set(
+            previewExternalSegmentId,
+            `${currentText}${nextText}`,
+          )
+        })
+      })
+
+      return nextRenderedTextMap
+    },
     [segments],
   );
 
@@ -87,9 +104,22 @@ export function XlsxDocumentPreview({
     return lookup;
   }, [preview.sheets]);
 
-  const activeCellPosition = activeSegmentExternalId
-    ? (cellPositionLookup.get(activeSegmentExternalId) ?? null)
-    : null;
+  const activePreviewSegmentIds = useMemo(
+    () =>
+      activeSegmentExternalId
+        ? (segments
+            .find((segment) => segment.externalSegmentId === activeSegmentExternalId)
+            ?.previewExternalSegmentIds.filter(
+              (previewExternalSegmentId) =>
+                (renderedTextMap.get(previewExternalSegmentId) ?? "").length > 0,
+            ) ?? [])
+        : [],
+    [activeSegmentExternalId, renderedTextMap, segments],
+  );
+  const activeCellPosition =
+    activePreviewSegmentIds
+      .map((previewExternalSegmentId) => cellPositionLookup.get(previewExternalSegmentId) ?? null)
+      .find((position) => position !== null) ?? null;
   const activeSheetId = activeCellPosition
     ? (preview.sheets[activeCellPosition.sheetIndex]?.sheetId ?? null)
     : null;
@@ -145,12 +175,12 @@ export function XlsxDocumentPreview({
         cellClass: (params: CellClassParams<XlsxGridRow>) =>
           buildCellClasses(
             getPreviewCell(params.value),
-            activeSegmentExternalId,
+            activePreviewSegmentIds,
           ),
         cellStyle: (params: CellClassParams<XlsxGridRow>) =>
           buildCellContainerStyle(getPreviewCell(params.value)),
         cellRenderer: (params: ICellRendererParams<XlsxGridRow>) =>
-          renderPreviewCell(params, renderedTextMap, activeSegmentExternalId),
+          renderPreviewCell(params, renderedTextMap, activePreviewSegmentIds),
         colSpan: (params: ColSpanParams<XlsxGridRow>) => {
           const cell = getPreviewCell(params.data?.[column.field]);
           if (!cell || cell.merge.hidden) {
@@ -169,7 +199,7 @@ export function XlsxDocumentPreview({
         },
       })),
     ];
-  }, [activeSegmentExternalId, renderedTextMap, selectedSheet]);
+  }, [activePreviewSegmentIds, renderedTextMap, selectedSheet]);
 
   useEffect(() => {
     if (
@@ -254,7 +284,7 @@ function getPreviewCell(value: unknown) {
 
 function buildCellClasses(
   cell: XlsxPreviewCell | null,
-  activeSegmentExternalId: string | null,
+  activePreviewSegmentIds: string[],
 ) {
   if (!cell) {
     return "xlsx-preview-grid-cell";
@@ -263,7 +293,9 @@ function buildCellClasses(
   return [
     "xlsx-preview-grid-cell",
     cell.merge.hidden ? "xlsx-preview-grid-cell-hidden" : "",
-    activeSegmentExternalId && cell.segmentIds.includes(activeSegmentExternalId)
+    activePreviewSegmentIds.some((previewSegmentId) =>
+      cell.segmentIds.includes(previewSegmentId),
+    )
       ? "xlsx-preview-grid-cell-active"
       : "",
   ]
@@ -294,7 +326,7 @@ function buildCellContainerStyle(
 function renderPreviewCell(
   params: ICellRendererParams<XlsxGridRow>,
   renderedTextMap: Map<string, string>,
-  activeSegmentExternalId: string | null,
+  activePreviewSegmentIds: string[],
 ) {
   const cell = getPreviewCell(params.value);
   if (!cell) {
@@ -302,9 +334,9 @@ function renderPreviewCell(
   }
 
   const text = buildRenderedCellText(cell, renderedTextMap);
-  const isActive = activeSegmentExternalId
-    ? cell.segmentIds.includes(activeSegmentExternalId)
-    : false;
+  const isActive = activePreviewSegmentIds.some((previewSegmentId) =>
+    cell.segmentIds.includes(previewSegmentId),
+  );
 
   return (
     <div

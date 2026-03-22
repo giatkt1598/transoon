@@ -106,6 +106,7 @@ export type ProjectSegment = {
   id: string
   documentId: string
   externalSegmentId: string
+  previewExternalSegmentIds: string[]
   sourceText: string
   targetText: string
   position: number
