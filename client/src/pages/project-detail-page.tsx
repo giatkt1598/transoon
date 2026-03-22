@@ -59,6 +59,7 @@ export function ProjectDetailPage() {
   } = useProjectDetail({ projectId });
   const {
     segments,
+    savedSegmentTargets,
     hasSegments,
     isReadOnly,
     isLoadingSegments,
@@ -282,6 +283,7 @@ export function ProjectDetailPage() {
                     alignmentPane={
                       <AlignmentTool
                         segments={segments}
+                        savedSegmentTargets={savedSegmentTargets}
                         sourceLanguageLabel={getLanguageLabel(
                           projectDetail.sourceLang,
                         )}
@@ -339,6 +341,7 @@ export function ProjectDetailPage() {
                 ) : (
                   <AlignmentTool
                     segments={segments}
+                    savedSegmentTargets={savedSegmentTargets}
                     sourceLanguageLabel={getLanguageLabel(
                       projectDetail.sourceLang,
                     )}

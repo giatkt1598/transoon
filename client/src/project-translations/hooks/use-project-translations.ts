@@ -538,6 +538,7 @@ export function useProjectTranslations({
 
   return {
     segments,
+    savedSegmentTargets,
     hasSegments,
     isReadOnly,
     isLoadingSegments,

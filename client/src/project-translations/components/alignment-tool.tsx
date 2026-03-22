@@ -42,6 +42,7 @@ const TARGET_CHANGE_EMIT_INTERVAL_MS = 300;
 
 type AlignmentToolProps = {
   segments: ProjectSegment[];
+  savedSegmentTargets: Record<string, string>;
   sourceLanguageLabel: string;
   targetLanguageLabel: string;
   isLoading: boolean;
@@ -76,6 +77,7 @@ type AlignmentToolProps = {
 
 export function AlignmentTool({
   segments,
+  savedSegmentTargets,
   sourceLanguageLabel,
   targetLanguageLabel,
   isLoading,
@@ -169,6 +171,7 @@ export function AlignmentTool({
 
   const rowData: RowData = {
     segments,
+    savedSegmentTargets,
     draftTargets,
     projectTerms,
     isReadOnly,
@@ -456,6 +459,7 @@ export function AlignmentTool({
 
 type RowData = {
   segments: ProjectSegment[];
+  savedSegmentTargets: Record<string, string>;
   draftTargets: Record<string, string>;
   projectTerms: ProjectTerm[];
   isReadOnly: boolean;
@@ -479,6 +483,7 @@ function AlignmentVirtualRow({
   index,
   style,
   segments,
+  savedSegmentTargets,
   draftTargets,
   projectTerms,
   isReadOnly,
@@ -506,6 +511,9 @@ function AlignmentVirtualRow({
   const [selectedInlineAssistIndex, setSelectedInlineAssistIndex] = useState(0);
   const targetValue = draftTargets[segment.id] ?? segment.targetText;
   const normalizedTargetValue = targetValue.trim();
+  const savedTargetValue = savedSegmentTargets[segment.id] ?? "";
+  const displayTranslationStatus =
+    targetValue !== savedTargetValue ? "pending" : segment.translationStatus;
   const hasTermConflict = projectTerms.some(
     (term) =>
       term.sourceTermNormalized === segment.sourceText.trim().toLowerCase() &&
@@ -831,7 +839,7 @@ function AlignmentVirtualRow({
 
         <Box className="alignment-score-cell">
           <AlignmentScoreCell
-            translationStatus={segment.translationStatus}
+            translationStatus={displayTranslationStatus}
             isInlineTranslating={isInlineTranslating}
             isConfirming={isConfirming}
             termMatchScore={appliedTermMatchScore}
@@ -844,7 +852,7 @@ function AlignmentVirtualRow({
 
         <Box className="alignment-status-cell">
           <AlignmentStatusCell
-            translationStatus={segment.translationStatus}
+            translationStatus={displayTranslationStatus}
             isInlineTranslating={isInlineTranslating}
             isConfirming={isConfirming}
           />

@@ -388,9 +388,9 @@ export function saveProjectSegments(
           ? normalizeText(targetText)
           : "",
         targetTextHash: trimmedTargetText ? hashText(targetText) : null,
-        translationStatus: trimmedTargetText ? "reviewed" : "pending",
+        translationStatus: "pending",
         providerName: null,
-        reviewedByHuman: trimmedTargetText ? 1 : 0,
+        reviewedByHuman: 0,
         updatedAt: now,
       });
     }
