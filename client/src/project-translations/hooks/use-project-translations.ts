@@ -19,6 +19,7 @@ import {
   inlineTranslateProjectSegment,
   mergeProjectSegments,
   saveProjectSegments,
+  splitProjectSegment,
 } from '../../project-management/api'
 
 type UseProjectTranslationsOptions = {
@@ -467,6 +468,39 @@ export function useProjectTranslations({
     }
   }
 
+  async function handleSplitSegment(segmentId: string, splitIndex: number) {
+    if (!projectId || isReadOnly) {
+      return
+    }
+
+    try {
+      setSegmentsError(null)
+
+      if (hasPendingSegmentChanges) {
+        await saveDirtySegments()
+      }
+
+      const result = await splitProjectSegment(projectId, segmentId, splitIndex)
+      setSegments(result.segments)
+      setSavedSegmentTargets(createSavedSegmentTargetMap(result.segments))
+
+      if (result.project) {
+        onProjectDetailChange(result.project)
+      }
+
+      if (result.segmentsCreated[0]) {
+        setActiveSegmentExternalId(result.segmentsCreated[0].externalSegmentId)
+      }
+
+      toast.success('Segment split successfully.')
+    } catch (splitError) {
+      const message =
+        splitError instanceof Error ? splitError.message : 'Could not split the segment.'
+      setSegmentsError(message)
+      toast.error(message)
+    }
+  }
+
   useEffect(() => {
     return () => {
       inlineTranslationRef.current?.controller.abort()
@@ -605,6 +639,7 @@ export function useProjectTranslations({
     handleActiveSegmentChange,
     handleInlineTranslateSegment,
     handleConfirmSegment,
+    handleSplitSegment,
     handleMergeSegments,
     handleSaveSegments,
     handleExportDocument,

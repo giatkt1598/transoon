@@ -40,6 +40,7 @@ import {
 } from "../term-fuzzy-search";
 import { TERM_FUZZY_MATCH_THRESHOLD } from "../constants";
 import { AlignmentToolToolbar } from "./alignment-tool-toolbar";
+import { SplitSegmentDialog } from "./split-segment-dialog";
 import "./alignment-tool.scss";
 
 const TARGET_CHANGE_EMIT_INTERVAL_MS = 300;
@@ -74,6 +75,7 @@ type AlignmentToolProps = {
   onActiveSegmentChange: (segmentExternalId: string | null) => void;
   onInlineTranslateSegment: (segmentId: string) => void;
   onConfirmSegment: (segmentId: string, targetText?: string) => void;
+  onSplitSegment?: (segmentId: string, splitIndex: number) => void;
   onSaveAll: () => void;
   onJoinSelected?: (segmentIds: string[]) => void;
   onExport: () => void;
@@ -109,6 +111,7 @@ export function AlignmentTool({
   onActiveSegmentChange,
   onInlineTranslateSegment,
   onConfirmSegment,
+  onSplitSegment,
   onSaveAll,
   onJoinSelected,
   onExport,
@@ -124,6 +127,10 @@ export function AlignmentTool({
   const [draftTargets, setDraftTargets] = useState<Record<string, string>>({});
   const [isShiftSelectionMode, setIsShiftSelectionMode] = useState(false);
   const [checkedSegmentIds, setCheckedSegmentIds] = useState<string[]>([]);
+  const [splitDialogSegmentId, setSplitDialogSegmentId] = useState<string | null>(
+    null,
+  );
+  const [splitCaretPosition, setSplitCaretPosition] = useState(0);
   const targetInputRefs = useRef(
     new Map<string, HTMLTextAreaElement | HTMLInputElement>(),
   );
@@ -226,6 +233,22 @@ export function AlignmentTool({
     },
     onActiveSegmentChange,
     onInlineTranslateSegment,
+    onOpenSplitDialog: () => {
+      if (isReadOnly || !activeSegmentExternalId) {
+        return;
+      }
+
+      const segmentToSplit = segments.find(
+        (segment) => segment.externalSegmentId === activeSegmentExternalId,
+      );
+      if (!segmentToSplit) {
+        return;
+      }
+
+      const nextCaretPosition = Math.floor(segmentToSplit.sourceText.length / 2);
+      setSplitDialogSegmentId(segmentToSplit.id);
+      setSplitCaretPosition(nextCaretPosition);
+    },
     onConfirmSegment,
     flushSegmentDraft,
     onSelectSegmentRange: (segmentId) => {
@@ -276,6 +299,15 @@ export function AlignmentTool({
   const activeSegmentTargetText = activeSegment
     ? draftTargets[activeSegment.id] ?? activeSegment.targetText
     : "";
+  const splitDialogSegment = splitDialogSegmentId
+    ? segments.find((segment) => segment.id === splitDialogSegmentId) ?? null
+    : null;
+  const splitSourceText = splitDialogSegment?.sourceText ?? "";
+  const boundedSplitCaretPosition = Math.max(
+    0,
+    Math.min(splitCaretPosition, splitSourceText.length),
+  );
+  const canSplitCurrent = Boolean(activeSegment) && !isReadOnly;
   const canConfirmCurrent =
     Boolean(activeSegment) && !isReadOnly && !confirmingSegmentId;
 
@@ -309,6 +341,20 @@ export function AlignmentTool({
     },
     [clearSelectionMode, onJoinSelected, segments],
   );
+
+  const openSplitDialog = useCallback(() => {
+    if (!activeSegment || isReadOnly) {
+      return;
+    }
+
+    const nextCaretPosition = Math.floor(activeSegment.sourceText.length / 2);
+    setSplitDialogSegmentId(activeSegment.id);
+    setSplitCaretPosition(nextCaretPosition);
+  }, [activeSegment, isReadOnly]);
+
+  const closeSplitDialog = useCallback(() => {
+    setSplitDialogSegmentId(null);
+  }, []);
 
   useEffect(() => {
     setDraftTargets((currentDraftTargets) => {
@@ -540,9 +586,11 @@ export function AlignmentTool({
         isExporting={isExporting}
         hasPendingChanges={hasPendingChanges}
         isPreviewVisible={isPreviewVisible}
+        canSplitCurrent={canSplitCurrent}
         canConfirmCurrent={canConfirmCurrent}
         showMergeTooltip={checkedSegmentIds.length === 0}
         onSaveAll={onSaveAll}
+        onOpenSplitDialog={openSplitDialog}
         onConfirmCurrent={() => {
           if (!activeSegment) {
             return;
@@ -594,6 +642,22 @@ export function AlignmentTool({
           </Box>
         )}
       </Box>
+
+      <SplitSegmentDialog
+        open={Boolean(splitDialogSegment)}
+        sourceText={splitSourceText}
+        caretPosition={boundedSplitCaretPosition}
+        onCaretPositionChange={setSplitCaretPosition}
+        onClose={closeSplitDialog}
+        onSplit={() => {
+          if (!splitDialogSegment) {
+            return;
+          }
+
+          onSplitSegment?.(splitDialogSegment.id, boundedSplitCaretPosition);
+          closeSplitDialog();
+        }}
+      />
     </Paper>
   );
 }
@@ -618,6 +682,7 @@ type RowData = {
   onTargetDraftChange: (segmentId: string, targetText: string) => void;
   onActiveSegmentChange: (segmentExternalId: string | null) => void;
   onInlineTranslateSegment: (segmentId: string) => void;
+  onOpenSplitDialog: () => void;
   onConfirmSegment: (segmentId: string, targetText?: string) => void;
   flushSegmentDraft: (segmentId: string) => void;
   onSelectSegmentRange: (segmentId: string) => void;
@@ -643,6 +708,7 @@ function AlignmentVirtualRow({
   onTargetDraftChange,
   onActiveSegmentChange,
   onInlineTranslateSegment,
+  onOpenSplitDialog,
   onConfirmSegment,
   flushSegmentDraft,
   onSelectSegmentRange,
@@ -928,6 +994,13 @@ function AlignmentVirtualRow({
               }
 
               onInlineTranslateSegment(segment.id);
+              return;
+            }
+
+            if (event.ctrlKey && event.code === "Backslash") {
+              event.preventDefault();
+              event.stopPropagation();
+              onOpenSplitDialog();
               return;
             }
 

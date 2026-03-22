@@ -1,39 +1,41 @@
-import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
-import CallSplitOutlinedIcon from '@mui/icons-material/CallSplitOutlined'
-import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
-import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
-import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined'
-import FindReplaceOutlinedIcon from '@mui/icons-material/FindReplaceOutlined'
-import MergeTypeOutlinedIcon from '@mui/icons-material/MergeTypeOutlined'
-import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined'
-import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
-import { Box, Button, Paper, Tooltip, Typography } from '@mui/material'
+import AutoFixHighRoundedIcon from "@mui/icons-material/AutoFixHighRounded";
+import CallSplitOutlinedIcon from "@mui/icons-material/CallSplitOutlined";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
+import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
+import FindReplaceOutlinedIcon from "@mui/icons-material/FindReplaceOutlined";
+import MergeTypeOutlinedIcon from "@mui/icons-material/MergeTypeOutlined";
+import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import { Box, Button, Paper, Tooltip, Typography } from "@mui/material";
 
 const toolbarActions = [
-  { label: 'Split', icon: <CallSplitOutlinedIcon fontSize="small" /> },
-  { label: 'Merge', icon: <MergeTypeOutlinedIcon fontSize="small" /> },
-  { label: 'Comments', icon: <NotesOutlinedIcon fontSize="small" /> },
-  { label: 'Filter', icon: <FilterAltOutlinedIcon fontSize="small" /> },
-  { label: 'Find', icon: <FindReplaceOutlinedIcon fontSize="small" /> },
-]
+  { label: "Split", icon: <CallSplitOutlinedIcon fontSize="small" /> },
+  { label: "Merge", icon: <MergeTypeOutlinedIcon fontSize="small" /> },
+  { label: "Comments", icon: <NotesOutlinedIcon fontSize="small" /> },
+  { label: "Filter", icon: <FilterAltOutlinedIcon fontSize="small" /> },
+  { label: "Find", icon: <FindReplaceOutlinedIcon fontSize="small" /> },
+];
 
 type AlignmentToolToolbarProps = {
-  isReadOnly: boolean
-  isBusy: boolean
-  isSaving: boolean
-  isExporting: boolean
-  hasPendingChanges: boolean
-  isPreviewVisible: boolean
-  canConfirmCurrent: boolean
-  showMergeTooltip: boolean
-  onSaveAll: () => void
-  onConfirmCurrent: () => void
-  onJoinSelected: () => void
-  onExport: () => void
-  onOpenAutoTranslate: () => void
-  onShowPreview: () => void
-}
+  isReadOnly: boolean;
+  isBusy: boolean;
+  isSaving: boolean;
+  isExporting: boolean;
+  hasPendingChanges: boolean;
+  isPreviewVisible: boolean;
+  canSplitCurrent: boolean;
+  canConfirmCurrent: boolean;
+  showMergeTooltip: boolean;
+  onSaveAll: () => void;
+  onOpenSplitDialog: () => void;
+  onConfirmCurrent: () => void;
+  onJoinSelected: () => void;
+  onExport: () => void;
+  onOpenAutoTranslate: () => void;
+  onShowPreview: () => void;
+};
 
 export function AlignmentToolToolbar({
   isReadOnly,
@@ -42,9 +44,11 @@ export function AlignmentToolToolbar({
   isExporting,
   hasPendingChanges,
   isPreviewVisible,
+  canSplitCurrent,
   canConfirmCurrent,
   showMergeTooltip,
   onSaveAll,
+  onOpenSplitDialog,
   onConfirmCurrent,
   onJoinSelected,
   onExport,
@@ -64,7 +68,7 @@ export function AlignmentToolToolbar({
               onClick={onSaveAll}
               className="alignment-toolbar-button"
             >
-              {isSaving ? 'Saving...' : hasPendingChanges ? 'Save*' : 'Save'}
+              {isSaving ? "Saving..." : hasPendingChanges ? "Save*" : "Save"}
             </Button>
           </span>
         </Tooltip>
@@ -76,7 +80,7 @@ export function AlignmentToolToolbar({
           onClick={onExport}
           className="alignment-toolbar-button"
         >
-          {isExporting ? 'Exporting...' : 'Export'}
+          {isExporting ? "Exporting..." : "Export"}
         </Button>
         {!isPreviewVisible ? (
           <Button
@@ -114,8 +118,29 @@ export function AlignmentToolToolbar({
             </Button>
           </span>
         </Tooltip>
-        {toolbarActions.map((action) => (
-          action.label === 'Merge' ? (
+        {toolbarActions.map((action) =>
+          action.label === "Split" ? (
+            <Tooltip
+              key={action.label}
+              title="Ctrl + \"
+              arrow
+              placement="bottom"
+            >
+              <span>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={action.icon}
+                  disabled={!canSplitCurrent}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={onOpenSplitDialog}
+                  className="alignment-toolbar-button"
+                >
+                  {action.label}
+                </Button>
+              </span>
+            </Tooltip>
+          ) : action.label === "Merge" ? (
             <Tooltip
               key={action.label}
               arrow
@@ -126,9 +151,15 @@ export function AlignmentToolToolbar({
               disableTouchListener={!showMergeTooltip}
               title={
                 <Box>
-                  <Typography variant="body2">1. Press Shift to show checkboxes.</Typography>
-                  <Typography variant="body2">2. Check 2 adjacent rows.</Typography>
-                  <Typography variant="body2">3. Click Merge again to apply.</Typography>
+                  <Typography variant="body2">
+                    1. Press Shift to show checkboxes.
+                  </Typography>
+                  <Typography variant="body2">
+                    2. Check 2 adjacent rows.
+                  </Typography>
+                  <Typography variant="body2">
+                    3. Click Merge again to apply.
+                  </Typography>
                 </Box>
               }
             >
@@ -154,9 +185,9 @@ export function AlignmentToolToolbar({
             >
               {action.label}
             </Button>
-          )
-        ))}
+          ),
+        )}
       </Box>
     </Paper>
-  )
+  );
 }

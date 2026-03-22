@@ -53,6 +53,9 @@ export type ProjectSegment = Pick<
 
 type StoredProjectSegment = ProjectSegment & {
   mergedIntoSegmentId: string | null;
+  splitGroupId: string | null;
+  sourceLanguage: string;
+  targetLanguage: string;
 };
 
 export type SaveProjectSegmentInput = {
@@ -78,6 +81,12 @@ export type MergeProjectSegmentsResult = {
   project: ProjectDetail | null;
   segments: ProjectSegment[];
   mergedSegment: ProjectSegment;
+};
+
+export type SplitProjectSegmentResult = {
+  project: ProjectDetail | null;
+  segments: ProjectSegment[];
+  segmentsCreated: ProjectSegment[];
 };
 
 export type ExportProjectDocumentResult = {
@@ -196,6 +205,9 @@ function listStoredProjectSegments(projectId: string) {
       s.documentId,
       s.externalSegmentId,
       s.mergedIntoSegmentId,
+      s.splitGroupId,
+      s.sourceLanguage,
+      s.targetLanguage,
       s.sourceText,
       s.targetText,
       s.position,
@@ -249,6 +261,7 @@ export async function generateProjectSegments(projectId: string) {
         documentId: document.id,
         externalSegmentId: segment.id,
         mergedIntoSegmentId: null,
+        splitGroupId: null,
         sourceLanguage: getProjectById(projectId)?.sourceLang ?? appConfig.defaultSourceLanguage,
         targetLanguage: getProjectById(projectId)?.targetLang ?? appConfig.defaultTargetLanguage,
         sourceText,
@@ -307,15 +320,8 @@ export async function exportProjectDocument(
   const absoluteStoragePath = path.resolve(process.cwd(), document.storagePath);
   const fileBuffer = readFileSync(absoluteStoragePath);
   const extractedDocument = await extractDocument(document.fileName, fileBuffer);
-  const savedSegmentMap = new Map(
-    listStoredProjectSegments(projectId).map((segment) => [
-      segment.externalSegmentId,
-      segment.mergedIntoSegmentId !== null
-        ? segment.targetText
-        : segment.targetText.trim().length > 0
-          ? segment.targetText
-          : segment.sourceText,
-    ] as const),
+  const savedSegmentMap = buildExportSegmentTextMap(
+    listStoredProjectSegments(projectId),
   );
   const nextSegments = extractedDocument.segments.map(
     (segment) => savedSegmentMap.get(segment.id) ?? segment.text,
@@ -543,6 +549,128 @@ export function mergeProjectSegments(
     project: getProjectDetailById(projectId),
     segments: listProjectSegments(projectId),
     mergedSegment,
+  };
+}
+
+export function splitProjectSegment(
+  projectId: string,
+  segmentId: string,
+  splitIndex: number,
+): SplitProjectSegmentResult {
+  assertProjectIsEditable(projectId);
+
+  const storedSegments = listStoredProjectSegments(projectId);
+  const segment = storedSegments.find(
+    (currentSegment) => currentSegment.id === segmentId,
+  );
+  if (!segment || segment.mergedIntoSegmentId !== null) {
+    throw new Error("Segment was not found in this project.");
+  }
+
+  const boundedSplitIndex = Math.max(
+    0,
+    Math.min(Math.trunc(splitIndex), segment.sourceText.length),
+  );
+  const sourceTextPartOne = segment.sourceText.slice(0, boundedSplitIndex).trim();
+  const sourceTextPartTwo = segment.sourceText.slice(boundedSplitIndex).trim();
+
+  if (!sourceTextPartOne || !sourceTextPartTwo) {
+    throw new Error("Split position must produce two non-empty source segments.");
+  }
+
+  const database = getTranslationMemoryDatabase();
+  const repositories = createTranslationMemoryRepositories(database);
+  const now = new Date().toISOString();
+  const nextSegmentId = randomUUID();
+  const splitGroupId = segment.splitGroupId ?? segment.id;
+  const visibleSegments = listProjectSegments(projectId);
+  const visibleIndex = visibleSegments.findIndex(
+    (currentSegment) => currentSegment.id === segment.id,
+  );
+  const nextPosition = segment.position + 1;
+
+  database.exec("BEGIN");
+
+  try {
+    const temporaryPositionOffset = 1000000;
+
+    database
+      .prepare(
+        `
+          UPDATE segments
+          SET position = position + ?
+          WHERE documentId = ? AND position >= ?
+        `,
+      )
+      .run(temporaryPositionOffset, segment.documentId, nextPosition);
+
+    database
+      .prepare(
+        `
+          UPDATE segments
+          SET position = position - ?
+          WHERE documentId = ? AND position >= ?
+        `,
+      )
+      .run(temporaryPositionOffset - 1, segment.documentId, nextPosition + temporaryPositionOffset);
+
+    repositories.segments.updateById(segment.id, {
+      splitGroupId,
+      sourceText: sourceTextPartOne,
+      sourceTextNormalized: normalizeText(sourceTextPartOne),
+      sourceTextHash: hashText(sourceTextPartOne),
+      targetText: "",
+      targetTextNormalized: "",
+      targetTextHash: null,
+      tokensJson: JSON.stringify([{ type: "text", value: sourceTextPartOne }]),
+      translationStatus: "pending",
+      providerName: null,
+      reviewedByHuman: 0,
+      updatedAt: now,
+    });
+
+    repositories.segments.insert({
+      id: nextSegmentId,
+      documentId: segment.documentId,
+      externalSegmentId: `${segment.externalSegmentId}#split-${nextSegmentId.slice(0, 8)}`,
+      mergedIntoSegmentId: null,
+      splitGroupId,
+      sourceLanguage: segment.sourceLanguage,
+      targetLanguage: segment.targetLanguage,
+      sourceText: sourceTextPartTwo,
+      sourceTextNormalized: normalizeText(sourceTextPartTwo),
+      sourceTextHash: hashText(sourceTextPartTwo),
+      targetText: "",
+      targetTextNormalized: "",
+      targetTextHash: null,
+      tokensJson: JSON.stringify([{ type: "text", value: sourceTextPartTwo }]),
+      position: nextPosition,
+      translationStatus: "pending",
+      providerName: null,
+      reviewedByHuman: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    touchProject(projectId, now);
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  const nextSegments = listProjectSegments(projectId);
+  const createdSegments = nextSegments.filter((currentSegment) =>
+    [segment.id, nextSegmentId].includes(currentSegment.id),
+  );
+
+  return {
+    project: getProjectDetailById(projectId),
+    segments: nextSegments,
+    segmentsCreated:
+      visibleIndex >= 0
+        ? nextSegments.slice(visibleIndex, visibleIndex + 2)
+        : createdSegments,
   };
 }
 
@@ -1186,6 +1314,57 @@ function joinSegmentTexts(leftText: string, rightText: string) {
   }
 
   return `${leftValue} ${rightValue}`;
+}
+
+function buildExportSegmentTextMap(segments: StoredProjectSegment[]) {
+  const exportTextByExternalSegmentId = new Map<string, string>();
+  const splitGroups = new Map<string, StoredProjectSegment[]>();
+
+  segments.forEach((segment) => {
+    if (segment.splitGroupId) {
+      const currentSegments = splitGroups.get(segment.splitGroupId) ?? [];
+      currentSegments.push(segment);
+      splitGroups.set(segment.splitGroupId, currentSegments);
+      return;
+    }
+
+    exportTextByExternalSegmentId.set(
+      segment.externalSegmentId,
+      resolveSegmentExportText(segment),
+    );
+  });
+
+  splitGroups.forEach((groupSegments) => {
+    const orderedSegments = [...groupSegments].sort(
+      (left, right) => left.position - right.position,
+    );
+    const rootSegment = orderedSegments[0];
+    if (!rootSegment) {
+      return;
+    }
+
+    const combinedText = orderedSegments.reduce(
+      (currentText, segment) =>
+        joinSegmentTexts(currentText, resolveSegmentExportText(segment)),
+      "",
+    );
+    exportTextByExternalSegmentId.set(
+      rootSegment.externalSegmentId,
+      combinedText.trim().length > 0 ? combinedText : rootSegment.sourceText,
+    );
+  });
+
+  return exportTextByExternalSegmentId;
+}
+
+function resolveSegmentExportText(segment: StoredProjectSegment) {
+  if (segment.mergedIntoSegmentId !== null) {
+    return segment.targetText;
+  }
+
+  return segment.targetText.trim().length > 0
+    ? segment.targetText
+    : segment.sourceText;
 }
 
 function normalizeFuzzyText(value: string) {

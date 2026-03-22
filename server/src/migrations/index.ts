@@ -7,6 +7,7 @@ import { projectLastModifiedMigration } from "./202603210005_project-last-modifi
 import { projectContentCountsMigration } from "./202603210006_project-content-counts";
 import { translationUnitMemoryLinkMigration } from "./202603210007_translation-unit-memory-link";
 import { segmentMergeSupportMigration } from "./202603210008_segment-merge-support";
+import { segmentSplitSupportMigration } from "./202603210009_segment-split-support";
 
 export const migrations: MigrationDefinition[] = [
   initialTranslationMemoryMigration,
@@ -17,4 +18,5 @@ export const migrations: MigrationDefinition[] = [
   projectContentCountsMigration,
   translationUnitMemoryLinkMigration,
   segmentMergeSupportMigration,
+  segmentSplitSupportMigration,
 ];

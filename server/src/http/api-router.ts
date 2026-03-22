@@ -19,6 +19,7 @@ import {
   getProjectDocumentPreview,
   saveProjectSegments,
   mergeProjectSegments,
+  splitProjectSegment,
   startProjectAutoTranslate,
   inlineTranslateProjectSegment,
   updateProject,
@@ -247,6 +248,33 @@ export function createApiRouter() {
       }
 
       const result = mergeProjectSegments(projectId, req.body.segmentIds);
+      res.json(result);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.post("/api/projects/:projectId/segments/:segmentId/split", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const segmentId = String(req.params.segmentId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      assertProjectIsEditable(projectId);
+      const validationError = validateSplitProjectSegmentInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const result = splitProjectSegment(projectId, segmentId, req.body.splitIndex);
       res.json(result);
     } catch (error) {
       const message =
@@ -887,6 +915,19 @@ function validateMergeProjectSegmentsInput(body: unknown) {
 
   if (new Set(segmentIds).size !== segmentIds.length) {
     return "segmentIds must be unique.";
+  }
+
+  return null;
+}
+
+function validateSplitProjectSegmentInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A split segment payload is required.";
+  }
+
+  const { splitIndex } = body as Record<string, unknown>;
+  if (typeof splitIndex !== "number" || !Number.isFinite(splitIndex)) {
+    return "splitIndex must be a valid number.";
   }
 
   return null;

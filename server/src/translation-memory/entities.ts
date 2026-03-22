@@ -51,6 +51,7 @@ export type SegmentEntity = {
   documentId: string;
   externalSegmentId: string;
   mergedIntoSegmentId: string | null;
+  splitGroupId: string | null;
   sourceLanguage: string;
   targetLanguage: string;
   sourceText: string;

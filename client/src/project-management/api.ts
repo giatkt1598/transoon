@@ -8,6 +8,7 @@ import type {
   ProjectDocumentPreview,
   ProjectSegment,
   ProjectSegmentsResponse,
+  SplitProjectSegmentResponse,
   ProjectSummary,
   ProjectTerm,
   ProjectTermsResponse,
@@ -324,6 +325,25 @@ export async function mergeProjectSegments(projectId: string, segmentIds: string
   }
 
   return data as MergedProjectSegmentsResponse
+}
+
+export async function splitProjectSegment(projectId: string, segmentId: string, splitIndex: number) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/segments/${segmentId}/split`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ splitIndex }),
+  })
+  const data = await readJsonResponse<SplitProjectSegmentResponse | { error?: string }>(response)
+
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data ? data.error ?? 'Could not split the segment.' : 'Could not split the segment.',
+    )
+  }
+
+  return data as SplitProjectSegmentResponse
 }
 
 export async function exportProjectDocument(projectId: string) {

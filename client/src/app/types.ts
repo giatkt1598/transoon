@@ -136,6 +136,12 @@ export type MergedProjectSegmentsResponse = {
   mergedSegment: ProjectSegment
 }
 
+export type SplitProjectSegmentResponse = {
+  project: ProjectDetail | null
+  segments: ProjectSegment[]
+  segmentsCreated: ProjectSegment[]
+}
+
 export type DocxPreviewBlock = {
   blockId: string
   segmentIds: string[]
