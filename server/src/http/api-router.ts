@@ -230,7 +230,7 @@ export function createApiRouter() {
     }
   });
 
-  router.post("/api/projects/:projectId/segments/merge", (req, res) => {
+  router.post("/api/projects/:projectId/segments/merge", async (req, res) => {
     try {
       const projectId = String(req.params.projectId);
       const existingProject = getProjectById(projectId);
@@ -247,7 +247,7 @@ export function createApiRouter() {
         return;
       }
 
-      const result = mergeProjectSegments(projectId, req.body.segmentIds);
+      const result = await mergeProjectSegments(projectId, req.body.segmentIds);
       res.json(result);
     } catch (error) {
       const message =

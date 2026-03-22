@@ -62,7 +62,7 @@ export function ProjectListTable({
     column: keyof ProjectSummary;
     direction: SortDirection;
   } | null>({
-    column: "lastModifiedAt",
+    column: "createdAt",
     direction: "desc",
   });
 

@@ -16,8 +16,8 @@ export function DocxDocumentPreview({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const renderedHtml = useMemo(() => preview.html, [preview.html])
 
-  const renderedTextMap = useMemo(() => {
-    const nextRenderedTextMap = new Map<string, string>()
+  const renderedContributionMap = useMemo(() => {
+    const nextRenderedContributionMap = new Map<string, PreviewTextContribution[]>()
 
     segments.forEach((segment) => {
       const segmentText =
@@ -28,29 +28,36 @@ export function DocxDocumentPreview({
           : [segment.externalSegmentId]
 
       previewExternalSegmentIds.forEach((previewExternalSegmentId, index) => {
-        const currentText = nextRenderedTextMap.get(previewExternalSegmentId) ?? ''
+        const currentContributions =
+          nextRenderedContributionMap.get(previewExternalSegmentId) ?? []
         const nextText = index === 0 ? segmentText : ''
-        nextRenderedTextMap.set(
-          previewExternalSegmentId,
-          `${currentText}${nextText}`,
-        )
+        if (!nextText) {
+          return
+        }
+
+        currentContributions.push({
+          ownerExternalSegmentId: segment.externalSegmentId,
+          text: nextText,
+        })
+        nextRenderedContributionMap.set(previewExternalSegmentId, currentContributions)
       })
     })
 
-    return nextRenderedTextMap
+    return nextRenderedContributionMap
   }, [segments])
 
-  const activePreviewSegmentIds = useMemo(
-    () =>
-      activeSegmentExternalId
-        ? (segments.find((segment) => segment.externalSegmentId === activeSegmentExternalId)
-            ?.previewExternalSegmentIds.filter(
-              (previewExternalSegmentId) =>
-                (renderedTextMap.get(previewExternalSegmentId) ?? '').length > 0,
-            ) ?? [])
-        : [],
-    [activeSegmentExternalId, renderedTextMap, segments],
-  )
+  const renderedTextMap = useMemo(() => {
+    const nextRenderedTextMap = new Map<string, string>()
+
+    renderedContributionMap.forEach((contributions, previewExternalSegmentId) => {
+      nextRenderedTextMap.set(
+        previewExternalSegmentId,
+        joinPreviewTextContributions(contributions),
+      )
+    })
+
+    return nextRenderedTextMap
+  }, [renderedContributionMap])
 
   useEffect(() => {
     const container = containerRef.current
@@ -71,9 +78,9 @@ export function DocxDocumentPreview({
         element.classList.add('docx-preview-html-table-cell')
       }
 
-      renderPreviewBlock(element, block, renderedTextMap)
+      renderPreviewBlock(element, block, renderedContributionMap)
     })
-  }, [preview.blocks, renderedHtml, renderedTextMap])
+  }, [preview.blocks, renderedContributionMap, renderedHtml, renderedTextMap])
 
   useEffect(() => {
     const container = containerRef.current
@@ -82,21 +89,21 @@ export function DocxDocumentPreview({
     }
 
     container
-      .querySelectorAll<HTMLElement>('[data-preview-segment-id]')
+      .querySelectorAll<HTMLElement>('[data-preview-contribution-owner]')
       .forEach((element) => element.classList.remove('active'))
 
     container
       .querySelectorAll<HTMLElement>('[data-preview-block-id]')
       .forEach((element) => element.classList.remove('active'))
 
-    if (activePreviewSegmentIds.length === 0) {
+    if (!activeSegmentExternalId) {
       return
     }
 
     const activeSegmentElements = Array.from(
-      container.querySelectorAll<HTMLElement>('[data-preview-segment-id]'),
+      container.querySelectorAll<HTMLElement>('[data-preview-contribution-owner]'),
     ).filter((element) =>
-      activePreviewSegmentIds.includes(element.dataset.previewSegmentId ?? ''),
+      element.dataset.previewContributionOwner === activeSegmentExternalId,
     )
     if (activeSegmentElements.length === 0) {
       return
@@ -109,7 +116,7 @@ export function DocxDocumentPreview({
         ?.classList.add('active')
     })
     activeSegmentElements[0]?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-  }, [activePreviewSegmentIds, renderedHtml, preview.blocks, renderedTextMap])
+  }, [activeSegmentExternalId, renderedContributionMap, renderedHtml, preview.blocks, renderedTextMap])
 
   return (
     <Box className="document-preview-docx">
@@ -170,7 +177,7 @@ function collectTableBlockElements(table: HTMLElement) {
 function renderPreviewBlock(
   element: HTMLElement,
   block: Extract<ProjectDocumentPreview, { documentType: 'docx' }>['blocks'][number],
-  renderedTextMap: Map<string, string>,
+  renderedContributionMap: Map<string, PreviewTextContribution[]>,
 ) {
   if (block.segmentIds.length === 0) {
     return
@@ -185,14 +192,8 @@ function renderPreviewBlock(
   }
 
   block.segmentIds.forEach((segmentId, index) => {
-    const segmentText = renderedTextMap.get(segmentId)
-    if (segmentText !== undefined) {
-      const span = element.ownerDocument.createElement('span')
-      span.className = 'docx-preview-segment'
-      span.setAttribute('data-preview-segment-id', segmentId)
-      span.textContent = segmentText
-      element.appendChild(span)
-    }
+    const contributions = renderedContributionMap.get(segmentId) ?? []
+    appendPreviewContributionSpans(element, segmentId, contributions)
 
     const separatorText = block.separatorTexts?.[index]
     if (separatorText) {
@@ -203,4 +204,69 @@ function renderPreviewBlock(
   if (block.suffixText) {
     element.appendChild(element.ownerDocument.createTextNode(block.suffixText))
   }
+}
+
+type PreviewTextContribution = {
+  ownerExternalSegmentId: string
+  text: string
+}
+
+function appendPreviewContributionSpans(
+  element: HTMLElement,
+  previewSegmentId: string,
+  contributions: PreviewTextContribution[],
+) {
+  contributions.forEach((contribution, index) => {
+    if (index > 0 && shouldInsertImplicitPreviewWhitespace(contributions[index - 1]?.text, contribution.text)) {
+      element.appendChild(element.ownerDocument.createTextNode(' '))
+    }
+
+    const span = element.ownerDocument.createElement('span')
+    span.className = 'docx-preview-segment'
+    span.setAttribute('data-preview-segment-id', previewSegmentId)
+    span.setAttribute('data-preview-contribution-owner', contribution.ownerExternalSegmentId)
+    span.textContent = contribution.text
+    element.appendChild(span)
+  })
+}
+
+function shouldInsertImplicitPreviewWhitespace(
+  leftText: string | undefined,
+  rightText: string | undefined,
+) {
+  if (!leftText || !rightText) {
+    return false
+  }
+
+  const trimmedLeftText = leftText.trim()
+  const trimmedRightText = rightText.trim()
+  if (!trimmedLeftText || !trimmedRightText) {
+    return false
+  }
+
+  return /[\p{L}\p{N}]$/u.test(trimmedLeftText) && /^[\p{L}\p{N}]/u.test(trimmedRightText)
+}
+
+function joinPreviewSegmentTexts(leftText: string, rightText: string) {
+  if (!leftText) {
+    return rightText
+  }
+
+  if (!rightText) {
+    return leftText
+  }
+
+  return shouldInsertImplicitPreviewWhitespace(leftText, rightText)
+    ? `${leftText} ${rightText}`
+    : `${leftText}${rightText}`
+}
+
+function joinPreviewTextContributions(contributions: PreviewTextContribution[]) {
+  let nextText = ''
+
+  contributions.forEach((contribution) => {
+    nextText = joinPreviewSegmentTexts(nextText, contribution.text)
+  })
+
+  return nextText
 }

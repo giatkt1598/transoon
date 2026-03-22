@@ -456,10 +456,10 @@ export function saveProjectSegments(
   };
 }
 
-export function mergeProjectSegments(
+export async function mergeProjectSegments(
   projectId: string,
   segmentIds: string[],
-): MergeProjectSegmentsResult {
+): Promise<MergeProjectSegmentsResult> {
   assertProjectIsEditable(projectId);
 
   if (segmentIds.length !== 2) {
@@ -508,9 +508,17 @@ export function mergeProjectSegments(
     throw new Error("Merged segments are no longer available.");
   }
 
-  const mergedSourceText = joinSegmentTexts(
+  const combinedOriginExternalSegmentIds = combineOriginExternalSegmentIds(
+    resolvePreviewExternalSegmentIds(leadingStoredSegment),
+    resolvePreviewExternalSegmentIds(trailingStoredSegment),
+  );
+  const originalSourceTextByExternalSegmentId =
+    await loadOriginalSourceTextByExternalSegmentId(projectId);
+  const mergedSourceText = resolveMergedSourceText(
     leadingSegment.sourceText,
     trailingSegment.sourceText,
+    combinedOriginExternalSegmentIds,
+    originalSourceTextByExternalSegmentId,
   );
   const mergedTargetText = joinSegmentTexts(
     leadingSegment.targetText,
@@ -526,10 +534,7 @@ export function mergeProjectSegments(
   try {
     repositories.segments.updateById(leadingSegment.id, {
       originExternalSegmentIdsJson: JSON.stringify(
-        combineOriginExternalSegmentIds(
-          resolvePreviewExternalSegmentIds(leadingStoredSegment),
-          resolvePreviewExternalSegmentIds(trailingStoredSegment),
-        ),
+        combinedOriginExternalSegmentIds,
       ),
       sourceText: mergedSourceText,
       sourceTextNormalized: normalizeText(mergedSourceText),
@@ -1473,6 +1478,25 @@ function resolveOriginExternalSegmentIdSplit(
 
 function normalizeBoundaryMatchText(value: string) {
   return value.replace(/\s+/gu, "").trim();
+}
+
+function resolveMergedSourceText(
+  leftSourceText: string,
+  rightSourceText: string,
+  combinedOriginExternalSegmentIds: string[],
+  originalSourceTextByExternalSegmentId: Map<string, string>,
+) {
+  if (combinedOriginExternalSegmentIds.length === 1) {
+    const originalSourceText = originalSourceTextByExternalSegmentId.get(
+      combinedOriginExternalSegmentIds[0],
+    );
+
+    if (typeof originalSourceText === "string" && originalSourceText.trim().length > 0) {
+      return originalSourceText.trim();
+    }
+  }
+
+  return joinSegmentTexts(leftSourceText, rightSourceText);
 }
 
 async function loadOriginalSourceTextByExternalSegmentId(projectId: string) {

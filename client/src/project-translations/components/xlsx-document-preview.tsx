@@ -11,7 +11,7 @@ import type {
 import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import { Box, Tab, Tabs, Typography } from "@mui/material";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type {
   ProjectDocumentPreview,
   ProjectSegment,
@@ -36,6 +36,11 @@ type XlsxGridRow = {
   [field: string]: XlsxPreviewCell | string | number | null;
 };
 
+type PreviewTextContribution = {
+  ownerExternalSegmentId: string;
+  text: string;
+};
+
 const defaultColDef: ColDef<XlsxGridRow> = {
   sortable: false,
   resizable: false,
@@ -53,9 +58,9 @@ export function XlsxDocumentPreview({
   );
   const gridApiRef = useRef<GridApi<XlsxGridRow> | null>(null);
 
-  const renderedTextMap = useMemo(
+  const renderedContributionMap = useMemo(
     () => {
-      const nextRenderedTextMap = new Map<string, string>()
+      const nextRenderedContributionMap = new Map<string, PreviewTextContribution[]>()
 
       segments.forEach((segment) => {
         const segmentText =
@@ -68,20 +73,41 @@ export function XlsxDocumentPreview({
             : [segment.externalSegmentId]
 
         previewExternalSegmentIds.forEach((previewExternalSegmentId, index) => {
-          const currentText =
-            nextRenderedTextMap.get(previewExternalSegmentId) ?? ''
+          const currentContributions =
+            nextRenderedContributionMap.get(previewExternalSegmentId) ?? []
           const nextText = index === 0 ? segmentText : ''
-          nextRenderedTextMap.set(
+          if (!nextText) {
+            return
+          }
+
+          currentContributions.push({
+            ownerExternalSegmentId: segment.externalSegmentId,
+            text: nextText,
+          })
+          nextRenderedContributionMap.set(
             previewExternalSegmentId,
-            `${currentText}${nextText}`,
+            currentContributions,
           )
         })
       })
 
-      return nextRenderedTextMap
+      return nextRenderedContributionMap
     },
     [segments],
   );
+
+  const renderedTextMap = useMemo(() => {
+    const nextRenderedTextMap = new Map<string, string>();
+
+    renderedContributionMap.forEach((contributions, previewExternalSegmentId) => {
+      nextRenderedTextMap.set(
+        previewExternalSegmentId,
+        joinPreviewTextContributions(contributions),
+      );
+    });
+
+    return nextRenderedTextMap;
+  }, [renderedContributionMap]);
 
   const cellPositionLookup = useMemo(() => {
     const lookup = new Map<
@@ -173,14 +199,15 @@ export function XlsxDocumentPreview({
         width: column.width,
         minWidth: Math.max(72, Math.min(column.width, 120)),
         cellClass: (params: CellClassParams<XlsxGridRow>) =>
-          buildCellClasses(
-            getPreviewCell(params.value),
-            activePreviewSegmentIds,
-          ),
+          buildCellClasses(getPreviewCell(params.value)),
         cellStyle: (params: CellClassParams<XlsxGridRow>) =>
           buildCellContainerStyle(getPreviewCell(params.value)),
         cellRenderer: (params: ICellRendererParams<XlsxGridRow>) =>
-          renderPreviewCell(params, renderedTextMap, activePreviewSegmentIds),
+          renderPreviewCell(
+            params,
+            renderedContributionMap,
+            activeSegmentExternalId,
+          ),
         colSpan: (params: ColSpanParams<XlsxGridRow>) => {
           const cell = getPreviewCell(params.data?.[column.field]);
           if (!cell || cell.merge.hidden) {
@@ -199,7 +226,7 @@ export function XlsxDocumentPreview({
         },
       })),
     ];
-  }, [activePreviewSegmentIds, renderedTextMap, selectedSheet]);
+  }, [activeSegmentExternalId, renderedContributionMap, selectedSheet]);
 
   useEffect(() => {
     if (
@@ -284,7 +311,6 @@ function getPreviewCell(value: unknown) {
 
 function buildCellClasses(
   cell: XlsxPreviewCell | null,
-  activePreviewSegmentIds: string[],
 ) {
   if (!cell) {
     return "xlsx-preview-grid-cell";
@@ -293,11 +319,6 @@ function buildCellClasses(
   return [
     "xlsx-preview-grid-cell",
     cell.merge.hidden ? "xlsx-preview-grid-cell-hidden" : "",
-    activePreviewSegmentIds.some((previewSegmentId) =>
-      cell.segmentIds.includes(previewSegmentId),
-    )
-      ? "xlsx-preview-grid-cell-active"
-      : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -325,35 +346,30 @@ function buildCellContainerStyle(
 
 function renderPreviewCell(
   params: ICellRendererParams<XlsxGridRow>,
-  renderedTextMap: Map<string, string>,
-  activePreviewSegmentIds: string[],
+  renderedContributionMap: Map<string, PreviewTextContribution[]>,
+  activeSegmentExternalId: string | null,
 ) {
   const cell = getPreviewCell(params.value);
   if (!cell) {
     return null;
   }
 
-  const text = buildRenderedCellText(cell, renderedTextMap);
-  const isActive = activePreviewSegmentIds.some((previewSegmentId) =>
-    cell.segmentIds.includes(previewSegmentId),
-  );
+  const text = buildRenderedCellText(cell, renderedContributionMap);
 
   return (
     <div
-      className={["xlsx-preview-cell-content", isActive ? "active" : ""]
-        .filter(Boolean)
-        .join(" ")}
+      className="xlsx-preview-cell-content"
       style={buildCellContentStyle(cell)}
       title={text}
     >
-      {text || "\u00A0"}
+      {renderPreviewCellContent(cell, renderedContributionMap, activeSegmentExternalId)}
     </div>
   );
 }
 
 function buildRenderedCellText(
   cell: XlsxPreviewCell,
-  renderedTextMap: Map<string, string>,
+  renderedContributionMap: Map<string, PreviewTextContribution[]>,
 ) {
   if (cell.segmentIds.length === 0) {
     return cell.displayText;
@@ -361,11 +377,130 @@ function buildRenderedCellText(
 
   let nextText = cell.prefixText;
   cell.segmentIds.forEach((segmentId, index) => {
-    nextText += renderedTextMap.get(segmentId) ?? "";
-    nextText += cell.separatorTexts[index] ?? "";
+    const segmentText = joinPreviewTextContributions(
+      renderedContributionMap.get(segmentId) ?? [],
+    );
+    const separatorText = cell.separatorTexts[index] ?? "";
+    const nextSegmentId = cell.segmentIds[index + 1];
+    const nextSegmentText = nextSegmentId
+      ? joinPreviewTextContributions(renderedContributionMap.get(nextSegmentId) ?? [])
+      : "";
+
+    nextText += segmentText;
+    nextText += separatorText || (shouldInsertImplicitPreviewWhitespace(segmentText, nextSegmentText) ? " " : "");
   });
 
   nextText += cell.suffixText;
+  return nextText;
+}
+
+function renderPreviewCellContent(
+  cell: XlsxPreviewCell,
+  renderedContributionMap: Map<string, PreviewTextContribution[]>,
+  activeSegmentExternalId: string | null,
+) {
+  if (cell.segmentIds.length === 0) {
+    return cell.displayText || "\u00A0";
+  }
+
+  const content: ReactNode[] = [];
+
+  if (cell.prefixText) {
+    content.push(cell.prefixText);
+  }
+
+  let previousRenderedText = cell.prefixText ?? "";
+  cell.segmentIds.forEach((segmentId, segmentIndex) => {
+    const contributions = renderedContributionMap.get(segmentId) ?? [];
+    const segmentText = joinPreviewTextContributions(contributions);
+    const shouldPrefixSegmentWithWhitespace =
+      segmentText &&
+      shouldInsertImplicitPreviewWhitespace(previousRenderedText, segmentText);
+
+    contributions.forEach((contribution, contributionIndex) => {
+      const contributionText =
+        shouldPrefixSegmentWithWhitespace && contributionIndex === 0
+          ? ` ${contribution.text}`
+          : contribution.text;
+
+      if (
+        contributionIndex > 0 &&
+        shouldInsertImplicitPreviewWhitespace(
+          contributions[contributionIndex - 1]?.text ?? "",
+          contribution.text,
+        )
+      ) {
+        content.push("\u00A0");
+      }
+
+      content.push(
+        <span
+          key={`${segmentId}-${contribution.ownerExternalSegmentId}-${contributionIndex}`}
+          className={[
+            "xlsx-preview-text-contribution",
+            activeSegmentExternalId === contribution.ownerExternalSegmentId ? "active" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          data-preview-contribution-owner={contribution.ownerExternalSegmentId}
+        >
+          {contributionText}
+        </span>,
+      );
+    });
+
+    const separatorText = cell.separatorTexts[segmentIndex] ?? "";
+    if (separatorText) {
+      content.push(separatorText);
+      previousRenderedText = separatorText;
+      return;
+    }
+
+    previousRenderedText = segmentText;
+  });
+
+  if (cell.suffixText) {
+    content.push(cell.suffixText);
+  }
+
+  return content.length > 0 ? content : "\u00A0";
+}
+
+function shouldInsertImplicitPreviewWhitespace(
+  leftText: string,
+  rightText: string,
+) {
+  const trimmedLeftText = leftText.trim();
+  const trimmedRightText = rightText.trim();
+
+  if (!trimmedLeftText || !trimmedRightText) {
+    return false;
+  }
+
+  return /[\p{L}\p{N}]$/u.test(trimmedLeftText) && /^[\p{L}\p{N}]/u.test(trimmedRightText);
+}
+
+function joinPreviewSegmentTexts(leftText: string, rightText: string) {
+  if (!leftText) {
+    return rightText;
+  }
+
+  if (!rightText) {
+    return leftText;
+  }
+
+  return shouldInsertImplicitPreviewWhitespace(leftText, rightText)
+    ? `${leftText} ${rightText}`
+    : `${leftText}${rightText}`;
+}
+
+function joinPreviewTextContributions(contributions: PreviewTextContribution[]) {
+  let nextText = "";
+
+  contributions.forEach((contribution) => {
+    nextText = joinPreviewSegmentTexts(nextText, contribution.text);
+  });
+
   return nextText;
 }
 
