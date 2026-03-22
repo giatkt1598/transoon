@@ -63,7 +63,6 @@ export function SharedTable<T extends { id: string }>({
   isDeleting,
   onSearchChange,
   onSortChange,
-  onItemClick,
   emptyStateText = "No items match this view.",
   emptyStateSubtext = "Create an item to get started.",
 }: SharedTableProps<T>) {
@@ -193,12 +192,11 @@ export function SharedTable<T extends { id: string }>({
           {data.map((item, index) => (
             <Box
               key={item.id}
-              className={`shared-table-row ${onItemClick ? "shared-table-row-clickable" : ""}`}
+              className={`shared-table-row ${tableDef.rowClick ? "shared-table-row-clickable" : ""}`}
               onClick={() => {
                 if (tableDef.rowClick) {
                   tableDef.rowClick(item, index);
                 }
-                onItemClick?.(item);
               }}
               style={{
                 display: "grid",
