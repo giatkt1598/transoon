@@ -427,9 +427,6 @@ export function confirmProjectSegment(
   }
 
   const targetText = (targetTextInput ?? segment.targetText ?? "").trim();
-  if (!targetText) {
-    throw new Error("Enter a target translation before confirming the segment.");
-  }
 
   const database = getTranslationMemoryDatabase();
   const repositories = createTranslationMemoryRepositories(database);
@@ -451,7 +448,7 @@ export function confirmProjectSegment(
       updatedAt: now,
     });
 
-    if (writeTranslationMemory) {
+    if (writeTranslationMemory && targetText) {
       upsertTranslationMemoryUnit({
         translationMemoryId: writeTranslationMemory.translationMemoryId,
         projectId,
@@ -483,7 +480,7 @@ export function confirmProjectSegment(
   return {
     project: getProjectDetailById(projectId),
     segment: updatedSegment,
-    insertedIntoWriteTranslationMemory: Boolean(writeTranslationMemory),
+    insertedIntoWriteTranslationMemory: Boolean(writeTranslationMemory && targetText),
     writeTranslationMemoryId:
       writeTranslationMemory?.translationMemoryId ?? null,
   };
