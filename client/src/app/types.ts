@@ -235,6 +235,22 @@ export type TranslationMemoriesResponse = {
   translationMemories: TranslationMemorySummary[]
 }
 
+export type TranslationMemoryTerm = {
+  id: string
+  translationMemoryId: string
+  sourceTerm: string
+  sourceTermNormalized: string
+  targetTerm: string
+  targetTermNormalized: string
+  lastModifiedAt: string
+  lastUsedAt: string | null
+  createdAt: string
+}
+
+export type TranslationMemoryTermsResponse = {
+  terms: TranslationMemoryTerm[]
+}
+
 export type ProjectTerm = {
   id: string
   translationMemoryId: string

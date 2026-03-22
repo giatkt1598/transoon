@@ -3,6 +3,8 @@ import type {
   LanguagesResponse,
   TranslationMemoriesResponse,
   TranslationMemorySummary,
+  TranslationMemoryTerm,
+  TranslationMemoryTermsResponse,
 } from '../app/types'
 import type { TranslationMemoryFormValues } from './types'
 
@@ -119,4 +121,44 @@ export async function deleteTranslationMemory(translationMemoryId: string) {
     const data = await readJsonResponse<{ error?: string }>(response)
     throw new Error(data.error ?? 'Could not delete translation memory.')
   }
+}
+
+export async function fetchTranslationMemoryTerms(translationMemoryId: string, signal?: AbortSignal) {
+  const response = await fetch(`${apiBaseUrl}/api/translation-memories/${translationMemoryId}/terms`, { signal })
+  const data = await readJsonResponse<TranslationMemoryTermsResponse | { error?: string }>(response)
+
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data
+        ? data.error ?? 'Could not load translation memory terms.'
+        : 'Could not load translation memory terms.',
+    )
+  }
+
+  return (data as TranslationMemoryTermsResponse).terms
+}
+
+export async function updateTranslationMemoryTerm(
+  translationMemoryId: string,
+  termId: string,
+  input: Pick<TranslationMemoryTerm, 'sourceTerm' | 'targetTerm'>,
+) {
+  const response = await fetch(`${apiBaseUrl}/api/translation-memories/${translationMemoryId}/terms/${termId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  })
+
+  const data = await readJsonResponse<TranslationMemoryTerm | { error?: string }>(response)
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data
+        ? data.error ?? 'Could not update translation memory term.'
+        : 'Could not update translation memory term.',
+    )
+  }
+
+  return data as TranslationMemoryTerm
 }

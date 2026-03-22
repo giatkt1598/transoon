@@ -1,0 +1,115 @@
+.tm-terms-grid-shell {
+  overflow: hidden;
+  border: 1px solid rgba(58, 44, 30, 0.13);
+  border-radius: 18px;
+  background: #fffdf8;
+}
+
+.tm-terms-grid-head,
+.tm-terms-grid-row {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) minmax(0, 1fr) 180px;
+  gap: 0;
+}
+
+.tm-terms-grid-head {
+  background: #f3f0ea;
+  color: #6f5b4c;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.tm-terms-grid-head span {
+  min-width: 0;
+  padding: 10px 12px;
+  border-right: 1px solid rgba(58, 44, 30, 0.13);
+}
+
+.tm-terms-grid-head span:last-child {
+  border-right: none;
+}
+
+.tm-terms-grid-body {
+  max-height: min(68vh, 780px);
+  min-height: 220px;
+  overflow: auto;
+}
+
+.tm-terms-grid-row {
+  border-top: 1px solid rgba(58, 44, 30, 0.13);
+}
+
+.tm-terms-grid-row > * {
+  min-width: 0;
+}
+
+.tm-terms-grid-row:hover .tm-terms-index-cell,
+.tm-terms-grid-row:hover .tm-terms-editor-cell,
+.tm-terms-grid-row:hover .tm-terms-meta-cell {
+  background: rgba(255, 248, 228, 0.92);
+}
+
+.tm-terms-index-cell,
+.tm-terms-editor-cell,
+.tm-terms-meta-cell {
+  border-right: 1px solid rgba(58, 44, 30, 0.13);
+}
+
+.tm-terms-meta-cell {
+  border-right: none;
+}
+
+.tm-terms-index-cell {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 8px 12px;
+  color: #8a705c;
+  font-weight: 600;
+  background: #fffaf2;
+}
+
+.tm-terms-editor-cell {
+  padding: 6px 8px;
+  background: #ffffff;
+}
+
+.tm-terms-editor-cell .MuiOutlinedInput-root {
+  background: transparent;
+  border-radius: 0;
+}
+
+.tm-terms-editor-cell .MuiOutlinedInput-notchedOutline {
+  border: none;
+}
+
+.tm-terms-editor-cell .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline,
+.tm-terms-editor-cell .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border: none;
+}
+
+.tm-terms-editor-cell .MuiInputBase-inputMultiline {
+  padding: 0;
+}
+
+.tm-terms-meta-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 12px;
+  background: #fffdf8;
+}
+
+.tm-terms-meta-cell p {
+  margin: 0;
+  color: #24170f;
+  font-size: 0.9rem;
+}
+
+.tm-terms-meta-cell span {
+  margin-top: 4px;
+  color: #7b6352;
+  font-size: 0.8rem;
+}

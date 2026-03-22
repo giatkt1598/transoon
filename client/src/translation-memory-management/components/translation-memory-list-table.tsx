@@ -142,7 +142,7 @@ export function TranslationMemoryListTable({
           label: "Edit",
           icon: <EditOutlinedIcon fontSize="small" />,
           onClick: (row) => {
-            window.location.href = `/translation-memories/${row.id}/edit`;
+            window.location.href = `/translation-memories/${row.id}`;
           },
         },
         {
@@ -155,7 +155,7 @@ export function TranslationMemoryListTable({
       ],
     },
     rowClick: (row) => {
-      window.location.href = `/translation-memories/${row.id}/edit`;
+      window.location.href = `/translation-memories/${row.id}`;
     },
   };
 

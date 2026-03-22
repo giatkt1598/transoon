@@ -34,6 +34,12 @@ const TranslationMemoryEditorPage = lazy(() =>
   })),
 )
 
+const TranslationMemoryDetailPage = lazy(() =>
+  import('../pages/translation-memory-detail-page').then((module) => ({
+    default: module.TranslationMemoryDetailPage,
+  })),
+)
+
 const SettingsPage = lazy(() =>
   import('../pages/settings-page').then((module) => ({ default: module.SettingsPage })),
 )
@@ -80,6 +86,10 @@ export const appRouter = createBrowserRouter([
       {
         path: 'translation-memories/new',
         element: <TranslationMemoryEditorPage />,
+      },
+      {
+        path: 'translation-memories/:translationMemoryId',
+        element: <TranslationMemoryDetailPage />,
       },
       {
         path: 'translation-memories/:translationMemoryId/edit',

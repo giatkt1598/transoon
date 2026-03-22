@@ -31,8 +31,10 @@ import {
   deleteTranslationMemory,
   getTranslationMemoryById,
   getProjectTranslationMemory,
+  listTranslationMemoryTerms,
   listProjectTerms,
   listTranslationMemories,
+  updateTranslationMemoryTerm,
   updateProjectTranslationMemory,
   updateTranslationMemory,
 } from "../translation-memory/translation-memory-service";
@@ -648,6 +650,26 @@ export function createApiRouter() {
     }
   });
 
+  router.get("/api/translation-memories/:translationMemoryId/terms", (req, res) => {
+    try {
+      const translationMemoryId = String(req.params.translationMemoryId);
+      const translationMemory = getTranslationMemoryById(translationMemoryId);
+
+      if (!translationMemory) {
+        res.status(404).json({ error: "Translation memory not found." });
+        return;
+      }
+
+      res.json({
+        terms: listTranslationMemoryTerms(translationMemoryId),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
   router.post("/api/translation-memories", (req, res) => {
     try {
       const validationError = validateTranslationMemoryInput(req.body);
@@ -693,6 +715,44 @@ export function createApiRouter() {
       res.status(500).json({ error: message });
     }
   });
+
+  router.put(
+    "/api/translation-memories/:translationMemoryId/terms/:termId",
+    (req, res) => {
+      try {
+        const translationMemoryId = String(req.params.translationMemoryId);
+        const termId = String(req.params.termId);
+        const translationMemory = getTranslationMemoryById(translationMemoryId);
+
+        if (!translationMemory) {
+          res.status(404).json({ error: "Translation memory not found." });
+          return;
+        }
+
+        const validationError = validateTranslationMemoryTermInput(req.body);
+        if (validationError) {
+          res.status(400).json({ error: validationError });
+          return;
+        }
+
+        const term = updateTranslationMemoryTerm(translationMemoryId, termId, {
+          sourceTerm: String(req.body.sourceTerm),
+          targetTerm: String(req.body.targetTerm),
+        });
+
+        if (!term) {
+          res.status(404).json({ error: "Translation memory term not found." });
+          return;
+        }
+
+        res.json(term);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unexpected server error.";
+        res.status(500).json({ error: message });
+      }
+    },
+  );
 
   router.delete(
     "/api/translation-memories/:translationMemoryId",
@@ -995,6 +1055,23 @@ function validateProjectTranslationMemoryInput(body: unknown) {
   const numericPriority = Number(priority);
   if (!Number.isInteger(numericPriority) || numericPriority < 0) {
     return "Priority must be a non-negative integer.";
+  }
+
+  return null;
+}
+
+function validateTranslationMemoryTermInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A translation memory term payload is required.";
+  }
+
+  const { sourceTerm, targetTerm } = body as Record<string, unknown>;
+  if (typeof sourceTerm !== "string" || sourceTerm.trim().length === 0) {
+    return "Source term is required.";
+  }
+
+  if (typeof targetTerm !== "string" || targetTerm.trim().length === 0) {
+    return "Target term is required.";
   }
 
   return null;
