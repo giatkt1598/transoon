@@ -45,6 +45,25 @@ export function searchFuzzyProjectTerms(
     .slice(0, TERM_FUZZY_MATCH_MAX_RESULTS)
 }
 
+export function getAppliedTermMatchScore(
+  sourceText: string,
+  targetText: string,
+  projectTerms: ProjectTerm[],
+) {
+  const normalizedTargetText = normalizeTermSourceText(targetText)
+  if (!normalizedTargetText) {
+    return null
+  }
+
+  const matchedTerm = searchFuzzyProjectTerms(sourceText, projectTerms).find(
+    (match) =>
+      (match.term.targetTermNormalized || normalizeTermSourceText(match.term.targetTerm)) ===
+      normalizedTargetText,
+  )
+
+  return matchedTerm?.score ?? null
+}
+
 export function normalizeTermSourceText(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ")
 }

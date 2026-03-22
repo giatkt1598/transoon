@@ -31,6 +31,7 @@ import {
 import type { ProjectSegment } from "../../app/types";
 import type { ProjectTerm } from "../../app/types";
 import {
+  getAppliedTermMatchScore,
   searchFuzzyProjectTerms,
   type FuzzyMatchedProjectTerm,
 } from "../term-fuzzy-search";
@@ -60,11 +61,13 @@ type AlignmentToolProps = {
   projectTerms: ProjectTerm[];
   isPreviewVisible: boolean;
   restoreScrollKey?: number;
-  onRegisterFlushPendingChanges?: (flushPendingChanges: (() => void) | null) => void;
+  onRegisterFlushPendingChanges?: (
+    flushPendingChanges: (() => void) | null,
+  ) => void;
   onTargetChange: (segmentId: string, targetText: string) => void;
   onActiveSegmentChange: (segmentExternalId: string | null) => void;
   onInlineTranslateSegment: (segmentId: string) => void;
-  onConfirmSegment: (segmentId: string) => void;
+  onConfirmSegment: (segmentId: string, targetText?: string) => void;
   onSaveAll: () => void;
   onExport: () => void;
   onOpenAutoTranslate: () => void;
@@ -127,21 +130,24 @@ export function AlignmentTool({
     [onTargetChange],
   );
 
-  const flushSegmentDraft = useCallback((segmentId: string) => {
-    const draftValue =
-      latestDraftValuesRef.current.get(segmentId) ?? draftTargets[segmentId];
-    if (draftValue === undefined) {
-      return;
-    }
+  const flushSegmentDraft = useCallback(
+    (segmentId: string) => {
+      const draftValue =
+        latestDraftValuesRef.current.get(segmentId) ?? draftTargets[segmentId];
+      if (draftValue === undefined) {
+        return;
+      }
 
-    const existingTimeoutId = emitTimeoutsRef.current.get(segmentId);
-    if (existingTimeoutId) {
-      window.clearTimeout(existingTimeoutId);
-      emitTimeoutsRef.current.delete(segmentId);
-    }
+      const existingTimeoutId = emitTimeoutsRef.current.get(segmentId);
+      if (existingTimeoutId) {
+        window.clearTimeout(existingTimeoutId);
+        emitTimeoutsRef.current.delete(segmentId);
+      }
 
-    emitSegmentDraftChange(segmentId, draftValue);
-  }, [draftTargets, emitSegmentDraftChange]);
+      emitSegmentDraftChange(segmentId, draftValue);
+    },
+    [draftTargets, emitSegmentDraftChange],
+  );
 
   const flushPendingChanges = useCallback(() => {
     const pendingDraftEntries = Object.entries(draftTargets);
@@ -236,13 +242,23 @@ export function AlignmentTool({
       window.requestAnimationFrame(focusNextInput);
     },
   };
+  const activeSegment = segments.find(
+    (segment) => segment.externalSegmentId === activeSegmentExternalId,
+  );
+  const activeSegmentTargetText = activeSegment
+    ? draftTargets[activeSegment.id] ?? activeSegment.targetText
+    : "";
+  const canConfirmCurrent =
+    Boolean(activeSegment) && !isReadOnly && !confirmingSegmentId;
 
   useEffect(() => {
     setDraftTargets((currentDraftTargets) => {
       const nextDraftTargets: Record<string, string> = {};
 
       Object.entries(currentDraftTargets).forEach(([segmentId, draftValue]) => {
-        const matchingSegment = segments.find((segment) => segment.id === segmentId);
+        const matchingSegment = segments.find(
+          (segment) => segment.id === segmentId,
+        );
         if (!matchingSegment) {
           return;
         }
@@ -383,7 +399,16 @@ export function AlignmentTool({
         isExporting={isExporting}
         hasPendingChanges={hasPendingChanges}
         isPreviewVisible={isPreviewVisible}
+        canConfirmCurrent={canConfirmCurrent}
         onSaveAll={onSaveAll}
+        onConfirmCurrent={() => {
+          if (!activeSegment) {
+            return;
+          }
+
+          flushSegmentDraft(activeSegment.id);
+          onConfirmSegment(activeSegment.id, activeSegmentTargetText);
+        }}
         onExport={onExport}
         onOpenAutoTranslate={onOpenAutoTranslate}
         onShowPreview={onShowPreview}
@@ -445,7 +470,7 @@ type RowData = {
   onTargetDraftChange: (segmentId: string, targetText: string) => void;
   onActiveSegmentChange: (segmentExternalId: string | null) => void;
   onInlineTranslateSegment: (segmentId: string) => void;
-  onConfirmSegment: (segmentId: string) => void;
+  onConfirmSegment: (segmentId: string, targetText?: string) => void;
   flushSegmentDraft: (segmentId: string) => void;
   focusSegmentAtIndex: (index: number) => void;
 };
@@ -470,7 +495,9 @@ function AlignmentVirtualRow({
   focusSegmentAtIndex,
 }: RowComponentProps<RowData>) {
   const segment = segments[index];
-  const inputElementRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
+  const inputElementRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(
+    null,
+  );
   const [inlineAssistMenu, setInlineAssistMenu] = useState<{
     top: number;
     left: number;
@@ -493,8 +520,28 @@ function AlignmentVirtualRow({
     }
 
     return searchFuzzyProjectTerms(segment.sourceText, projectTerms);
-  }, [isActive, normalizedTargetValue.length, projectTerms, segment.sourceText]);
-  const exactMatchedTerm = fuzzyMatches[0]?.score === 1 ? fuzzyMatches[0].term : null;
+  }, [
+    isActive,
+    normalizedTargetValue.length,
+    projectTerms,
+    segment.sourceText,
+  ]);
+  const sourceTermMatches = useMemo(
+    () => searchFuzzyProjectTerms(segment.sourceText, projectTerms),
+    [projectTerms, segment.sourceText],
+  );
+  const exactMatchedTerm =
+    fuzzyMatches[0]?.score === 1 ? fuzzyMatches[0].term : null;
+  const appliedTermMatchScore = useMemo(
+    () =>
+      getAppliedTermMatchScore(segment.sourceText, targetValue, projectTerms),
+    [projectTerms, segment.sourceText, targetValue],
+  );
+  const hasSourceTermMatches = sourceTermMatches.length > 0;
+  const hasEmptyTarget = normalizedTargetValue.length === 0;
+  const hasNoTermAvailable = !hasSourceTermMatches;
+  const hasUnmatchedTermSuggestion =
+    !hasEmptyTarget && hasSourceTermMatches && appliedTermMatchScore === null;
   const inlinePlaceholder = isInlineTranslating
     ? `Translating (by ${inlineTranslateProviderName || "translate provider"})...`
     : exactMatchedTerm?.targetTerm || "Type target translation...";
@@ -520,9 +567,16 @@ function AlignmentVirtualRow({
   );
 
   const handleOpenInlineAssistMenu = useCallback(
-    (inputElement: HTMLTextAreaElement | HTMLInputElement, matches: FuzzyMatchedProjectTerm[]) => {
-      const caretPosition = inputElement.selectionStart ?? inputElement.value.length;
-      const caretCoordinates = getTextareaCaretCoordinates(inputElement, caretPosition);
+    (
+      inputElement: HTMLTextAreaElement | HTMLInputElement,
+      matches: FuzzyMatchedProjectTerm[],
+    ) => {
+      const caretPosition =
+        inputElement.selectionStart ?? inputElement.value.length;
+      const caretCoordinates = getTextareaCaretCoordinates(
+        inputElement,
+        caretPosition,
+      );
       const inputBounds = inputElement.getBoundingClientRect();
 
       setInlineAssistMenu({
@@ -594,7 +648,8 @@ function AlignmentVirtualRow({
                 event.preventDefault();
                 event.stopPropagation();
 
-                const selectedMatch = inlineAssistMenu.matches[selectedInlineAssistIndex];
+                const selectedMatch =
+                  inlineAssistMenu.matches[selectedInlineAssistIndex];
                 if (selectedMatch) {
                   handleApplyTerm(selectedMatch.term.targetTerm);
                   return;
@@ -635,12 +690,18 @@ function AlignmentVirtualRow({
                   | HTMLTextAreaElement
                   | HTMLInputElement
                   | null;
-                if (!inputElement || typeof inputElement.setSelectionRange !== "function") {
+                if (
+                  !inputElement ||
+                  typeof inputElement.setSelectionRange !== "function"
+                ) {
                   return;
                 }
 
                 const nextCaretPosition = exactMatchedTerm.targetTerm.length;
-                inputElement.setSelectionRange(nextCaretPosition, nextCaretPosition);
+                inputElement.setSelectionRange(
+                  nextCaretPosition,
+                  nextCaretPosition,
+                );
               });
               return;
             }
@@ -648,7 +709,10 @@ function AlignmentVirtualRow({
             if (event.ctrlKey && event.code === "Space") {
               event.preventDefault();
               event.stopPropagation();
-              if (normalizedTargetValue.length === 0 && fuzzyMatches.length > 0) {
+              if (
+                normalizedTargetValue.length === 0 &&
+                fuzzyMatches.length > 0
+              ) {
                 const inputElement = inputElementRef.current;
                 if (inputElement) {
                   handleOpenInlineAssistMenu(inputElement, fuzzyMatches);
@@ -672,7 +736,7 @@ function AlignmentVirtualRow({
               event.preventDefault();
               event.stopPropagation();
               flushSegmentDraft(segment.id);
-              onConfirmSegment(segment.id);
+              onConfirmSegment(segment.id, targetValue);
             }
           }}
           onFocus={() => onActiveSegmentChange(segment.externalSegmentId)}
@@ -719,16 +783,27 @@ function AlignmentVirtualRow({
               <MenuItem
                 key={match.term.id}
                 selected={matchIndex === selectedInlineAssistIndex}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => handleApplyTerm(match.term.targetTerm)}
                 className="alignment-inline-assist-item"
               >
                 <Box className="alignment-inline-assist-copy">
-                  <Tooltip title={match.term.targetTerm} placement="right" arrow>
-                    <Typography component="span" className="alignment-inline-assist-target">
+                  <Tooltip
+                    title={match.term.targetTerm}
+                    placement="right"
+                    arrow
+                  >
+                    <Typography
+                      component="span"
+                      className="alignment-inline-assist-target"
+                    >
                       {match.term.targetTerm}
                     </Typography>
                   </Tooltip>
-                  <Typography component="span" className="alignment-inline-assist-score">
+                  <Typography
+                    component="span"
+                    className="alignment-inline-assist-score"
+                  >
                     {`${Math.round(match.score * 100)}%`}
                   </Typography>
                 </Box>
@@ -739,6 +814,7 @@ function AlignmentVirtualRow({
                 selectedInlineAssistIndex ===
                 (inlineAssistMenu?.matches.length ?? Number.POSITIVE_INFINITY)
               }
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
                 setInlineAssistMenu(null);
                 setSelectedInlineAssistIndex(0);
@@ -758,6 +834,10 @@ function AlignmentVirtualRow({
             translationStatus={segment.translationStatus}
             isInlineTranslating={isInlineTranslating}
             isConfirming={isConfirming}
+            termMatchScore={appliedTermMatchScore}
+            hasEmptyTarget={hasEmptyTarget}
+            hasNoTermAvailable={hasNoTermAvailable}
+            hasUnmatchedTermSuggestion={hasUnmatchedTermSuggestion}
             hasTermConflict={hasTermConflict}
           />
         </Box>
@@ -778,6 +858,10 @@ type AlignmentStatusBadgeProps = {
   translationStatus: ProjectSegment["translationStatus"];
   isInlineTranslating: boolean;
   isConfirming: boolean;
+  termMatchScore?: number | null;
+  hasEmptyTarget?: boolean;
+  hasNoTermAvailable?: boolean;
+  hasUnmatchedTermSuggestion?: boolean;
   hasTermConflict?: boolean;
 };
 
@@ -785,21 +869,25 @@ function AlignmentScoreCell({
   translationStatus,
   isInlineTranslating,
   isConfirming,
+  termMatchScore = null,
+  hasEmptyTarget = false,
+  hasNoTermAvailable = false,
+  hasUnmatchedTermSuggestion = false,
   hasTermConflict = false,
 }: AlignmentStatusBadgeProps) {
   const statusPresentation = getAlignmentStatusPresentation({
     translationStatus,
     isInlineTranslating,
     isConfirming,
+    termMatchScore,
+    hasEmptyTarget,
+    hasNoTermAvailable,
+    hasUnmatchedTermSuggestion,
   });
 
   return (
     <Stack sx={{ alignSelf: "start", width: "100%" }} direction={"column"}>
-      <Tooltip
-        title={`Match rate with translation memory is ${statusPresentation.score}`}
-        placement="left"
-        arrow
-      >
+      <Tooltip title={statusPresentation.tooltip} placement="left" arrow>
         <Box
           className={`alignment-score-cell-fill ${statusPresentation.className}`}
         >
@@ -858,7 +946,13 @@ function getAlignmentStatusPresentation({
   translationStatus,
   isInlineTranslating,
   isConfirming,
+  termMatchScore,
+  hasEmptyTarget,
+  hasNoTermAvailable,
+  hasUnmatchedTermSuggestion,
 }: AlignmentStatusBadgeProps) {
+  const resolvedTermMatchScore = termMatchScore ?? null;
+
   if (isConfirming) {
     return {
       className: "confirming",
@@ -882,10 +976,30 @@ function getAlignmentStatusPresentation({
 
   if (translationStatus === "reviewed") {
     return {
-      className: "confirmed",
-      score: "101%",
+      className:
+        hasEmptyTarget || hasNoTermAvailable || hasUnmatchedTermSuggestion
+          ? "term-mismatch"
+          : "confirmed",
+      score:
+        resolvedTermMatchScore !== null
+          ? `${Math.round(resolvedTermMatchScore * 100)}%`
+          : hasEmptyTarget
+            ? "-"
+            : hasNoTermAvailable
+              ? "-"
+              : hasUnmatchedTermSuggestion
+                ? "-"
+                : "101%",
       tooltip:
-        "Confirmed segment. This translation is ready and has been stored in the write translation memory when available.",
+        resolvedTermMatchScore !== null
+          ? `Confirmed segment with a ${Math.round(resolvedTermMatchScore * 100)}% term match.`
+          : hasEmptyTarget
+            ? "This segment does not have a target translation yet."
+            : hasNoTermAvailable
+              ? "No translation memory term is available for this source segment."
+              : hasUnmatchedTermSuggestion
+                ? "A term suggestion exists for this source, but the current target does not match any suggested term."
+                : "Confirmed segment. This translation is ready and has been stored in the write translation memory when available.",
       icon: CheckCircleRoundedIcon,
       spinning: false,
     };
@@ -893,10 +1007,30 @@ function getAlignmentStatusPresentation({
 
   if (translationStatus === "translated") {
     return {
-      className: "translated",
-      score: "95%",
+      className:
+        hasEmptyTarget || hasNoTermAvailable || hasUnmatchedTermSuggestion
+          ? "term-mismatch"
+          : "translated",
+      score:
+        resolvedTermMatchScore !== null
+          ? `${Math.round(resolvedTermMatchScore * 100)}%`
+          : hasEmptyTarget
+            ? "-"
+            : hasNoTermAvailable
+              ? "-"
+              : hasUnmatchedTermSuggestion
+                ? "-"
+                : "95%",
       tooltip:
-        "Translated segment. Review and confirm it to store it in the write translation memory.",
+        resolvedTermMatchScore !== null
+          ? `Translated segment with a ${Math.round(resolvedTermMatchScore * 100)}% term match.`
+          : hasEmptyTarget
+            ? "This segment does not have a target translation yet."
+            : hasNoTermAvailable
+              ? "No translation memory term is available for this source segment."
+              : hasUnmatchedTermSuggestion
+                ? "A term suggestion exists for this source, but the current target does not match any suggested term."
+                : "Translated segment. Review and confirm it to store it in the write translation memory (Ctrl + Enter to Confirm)",
       icon: PendingRoundedIcon,
       spinning: false,
     };
@@ -916,11 +1050,13 @@ function getAlignmentStatusPresentation({
   return {
     className: "pending",
     score: "-",
-    tooltip: "Pending segment. No confirmed translation has been saved yet.",
+    tooltip:
+      "Pending segment. No confirmed translation has been saved yet (Ctrl + Enter to Confirm)",
     icon: CloseRoundedIcon,
     spinning: false,
   };
 }
+
 
 function getTextareaCaretCoordinates(
   inputElement: HTMLTextAreaElement | HTMLInputElement,

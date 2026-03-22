@@ -381,7 +381,7 @@ export function useProjectTranslations({
     }
   }
 
-  async function handleConfirmSegment(segmentId: string) {
+  async function handleConfirmSegment(segmentId: string, targetTextOverride?: string) {
     if (!projectId || isReadOnly || confirmingSegmentId) {
       return
     }
@@ -395,7 +395,11 @@ export function useProjectTranslations({
     try {
       setSegmentsError(null)
       setConfirmingSegmentId(segmentId)
-      const result = await confirmProjectSegment(projectId, segmentId, segment.targetText)
+      const result = await confirmProjectSegment(
+        projectId,
+        segmentId,
+        targetTextOverride ?? segment.targetText,
+      )
 
       setSegments((currentSegments) =>
         currentSegments.map((currentSegment) =>

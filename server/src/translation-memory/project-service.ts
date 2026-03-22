@@ -429,6 +429,8 @@ export function confirmProjectSegment(
   }
 
   const targetText = (targetTextInput ?? segment.targetText ?? "").trim();
+  const normalizedTargetText = targetText ? normalizeText(targetText) : "";
+  const targetTextHash = targetText ? hashText(targetText) : null;
 
   const database = getTranslationMemoryDatabase();
   const repositories = createTranslationMemoryRepositories(database);
@@ -441,14 +443,14 @@ export function confirmProjectSegment(
 
   database.exec("BEGIN");
 
-  try {
-    repositories.segments.updateById(segment.id, {
-      targetText,
-      targetTextNormalized: normalizeText(targetText),
-      targetTextHash: hashText(targetText),
-      translationStatus: "reviewed",
-      providerName: null,
-      reviewedByHuman: 1,
+    try {
+      repositories.segments.updateById(segment.id, {
+        targetText,
+        targetTextNormalized: normalizedTargetText,
+        targetTextHash: targetTextHash,
+        translationStatus: "reviewed",
+        providerName: null,
+        reviewedByHuman: 1,
       updatedAt: now,
     });
 

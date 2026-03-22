@@ -32,6 +32,11 @@
   border-color: rgba(88, 65, 45, 0.14);
 }
 
+.alignment-toolbar-button.MuiButton-root.Mui-disabled {
+  color: rgba(106, 86, 71, 0.45);
+  border-color: rgba(88, 65, 45, 0.08);
+}
+
 .alignment-grid-shell {
   overflow: hidden;
   margin-top: 12px;
@@ -255,6 +260,11 @@
 .alignment-score-cell-fill.rejected {
   background: #ececec;
   color: #6f6f6f;
+}
+
+.alignment-score-cell-fill.term-mismatch {
+  background: #ffe2bf;
+  color: #b35d18;
 }
 
 .alignment-status-icon.rejected {
