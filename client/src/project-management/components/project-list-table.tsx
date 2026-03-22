@@ -3,7 +3,13 @@ import {
   type TableDefinition,
 } from "../../components/shared-table";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
-import { Box, InputAdornment, LinearProgress, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  InputAdornment,
+  LinearProgress,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -11,11 +17,7 @@ import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import type { ProjectSummary } from "../../app/types";
 import { formatLanguageRoute } from "../../app/utils";
 import { DocumentIcon } from "../../components/document-icon";
-import {
-  orderBy,
-  orderByDescending,
-  type SortDirection,
-} from "../../app/linq";
+import { orderBy, orderByDescending, type SortDirection } from "../../app/linq";
 
 type ProjectListTableProps = {
   projects: ProjectSummary[];
@@ -52,7 +54,6 @@ export function ProjectListTable({
   projects,
   searchTerm,
   isLoading,
-  isDeleting,
   onSearchChange,
   onDeleteProject,
 }: ProjectListTableProps) {
@@ -83,11 +84,7 @@ export function ProjectListTable({
     pagination: true,
     sortState: sortState ?? undefined,
     onSortChange: (column, sortDirection) => {
-      setSortState(
-        sortDirection
-          ? { column, direction: sortDirection }
-          : null,
-      );
+      setSortState(sortDirection ? { column, direction: sortDirection } : null);
     },
     columns: [
       {
@@ -225,7 +222,6 @@ export function ProjectListTable({
         />
       }
       isLoading={isLoading}
-      isDeleting={isDeleting}
       emptyStateText="No project matches this view."
       emptyStateSubtext="Create a project to manage translations, segments, and review progress."
     />

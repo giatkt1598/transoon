@@ -53,7 +53,6 @@ type SharedTableProps<T> = {
   tableDef: TableDefinition<T>;
   toolbar?: React.ReactNode;
   isLoading: boolean;
-  isDeleting: boolean;
   emptyStateText?: string;
   emptyStateSubtext?: string;
 };

@@ -9,11 +9,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import type { TranslationMemorySummary } from "../../app/types";
 import { formatLanguageRoute } from "../../app/utils";
-import {
-  orderBy,
-  orderByDescending,
-  type SortDirection,
-} from "../../app/linq";
+import { orderBy, orderByDescending, type SortDirection } from "../../app/linq";
 
 type TranslationMemoryListTableProps = {
   translationMemories: TranslationMemorySummary[];
@@ -50,7 +46,6 @@ export function TranslationMemoryListTable({
   translationMemories,
   searchTerm,
   isLoading,
-  isDeleting,
   onSearchChange,
   onDeleteTranslationMemory,
 }: TranslationMemoryListTableProps) {
@@ -81,11 +76,7 @@ export function TranslationMemoryListTable({
     pagination: true,
     sortState: sortState ?? undefined,
     onSortChange: (column, sortDirection) => {
-      setSortState(
-        sortDirection
-          ? { column, direction: sortDirection }
-          : null,
-      );
+      setSortState(sortDirection ? { column, direction: sortDirection } : null);
     },
     columns: [
       {
@@ -189,7 +180,6 @@ export function TranslationMemoryListTable({
         />
       }
       isLoading={isLoading}
-      isDeleting={isDeleting}
       emptyStateText="No translation memory matches this view."
       emptyStateSubtext="Create one to organize reusable translated terms and future lookup priority."
     />
