@@ -10,7 +10,8 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   List,
   useDynamicRowHeight,
@@ -20,6 +21,8 @@ import {
 import type { ProjectSegment } from "../../app/types";
 import { AlignmentToolToolbar } from "./alignment-tool-toolbar";
 import "./alignment-tool.scss";
+
+const TARGET_CHANGE_EMIT_INTERVAL_MS = 300;
 
 type AlignmentToolProps = {
   segments: ProjectSegment[];
@@ -37,8 +40,11 @@ type AlignmentToolProps = {
   inlineTranslateProviderName: string;
   inlineCaretRestoreSegmentId: string | null;
   inlineCaretRestoreToken: number;
+  confirmFocusSegmentId: string | null;
+  confirmFocusToken: number;
   isPreviewVisible: boolean;
   restoreScrollKey?: number;
+  onRegisterFlushPendingChanges?: (flushPendingChanges: (() => void) | null) => void;
   onTargetChange: (segmentId: string, targetText: string) => void;
   onActiveSegmentChange: (segmentExternalId: string | null) => void;
   onInlineTranslateSegment: (segmentId: string) => void;
@@ -65,8 +71,11 @@ export function AlignmentTool({
   inlineTranslateProviderName,
   inlineCaretRestoreSegmentId,
   inlineCaretRestoreToken,
+  confirmFocusSegmentId,
+  confirmFocusToken,
   isPreviewVisible,
   restoreScrollKey = 0,
+  onRegisterFlushPendingChanges,
   onTargetChange,
   onActiveSegmentChange,
   onInlineTranslateSegment,
@@ -78,6 +87,9 @@ export function AlignmentTool({
 }: AlignmentToolProps) {
   const listRef = useListRef(null);
   const scrollTopRef = useRef(0);
+  const emitTimeoutsRef = useRef(new Map<string, number>());
+  const latestDraftValuesRef = useRef(new Map<string, string>());
+  const [draftTargets, setDraftTargets] = useState<Record<string, string>>({});
   const targetInputRefs = useRef(
     new Map<string, HTMLTextAreaElement | HTMLInputElement>(),
   );
@@ -86,8 +98,54 @@ export function AlignmentTool({
     key: `${segments.length}:${segments.map((segment) => segment.id).join("|")}`,
   });
 
+  const emitSegmentDraftChange = useCallback(
+    (segmentId: string, targetText: string) => {
+      latestDraftValuesRef.current.set(segmentId, targetText);
+
+      flushSync(() => {
+        onTargetChange(segmentId, targetText);
+      });
+    },
+    [onTargetChange],
+  );
+
+  const flushSegmentDraft = useCallback((segmentId: string) => {
+    const draftValue =
+      latestDraftValuesRef.current.get(segmentId) ?? draftTargets[segmentId];
+    if (draftValue === undefined) {
+      return;
+    }
+
+    const existingTimeoutId = emitTimeoutsRef.current.get(segmentId);
+    if (existingTimeoutId) {
+      window.clearTimeout(existingTimeoutId);
+      emitTimeoutsRef.current.delete(segmentId);
+    }
+
+    emitSegmentDraftChange(segmentId, draftValue);
+  }, [draftTargets, emitSegmentDraftChange]);
+
+  const flushPendingChanges = useCallback(() => {
+    const pendingDraftEntries = Object.entries(draftTargets);
+    if (pendingDraftEntries.length === 0) {
+      return;
+    }
+
+    emitTimeoutsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    emitTimeoutsRef.current.clear();
+
+    flushSync(() => {
+      pendingDraftEntries.forEach(([segmentId, targetText]) => {
+        emitSegmentDraftChange(segmentId, targetText);
+      });
+    });
+  }, [draftTargets, emitSegmentDraftChange]);
+
   const rowData: RowData = {
     segments,
+    draftTargets,
     isReadOnly,
     activeSegmentExternalId,
     inlineTranslatingSegmentId,
@@ -101,18 +159,83 @@ export function AlignmentTool({
 
       targetInputRefs.current.delete(segmentId);
     },
-    onTargetChange,
+    onTargetDraftChange: (segmentId, targetText) => {
+      setDraftTargets((currentDraftTargets) => ({
+        ...currentDraftTargets,
+        [segmentId]: targetText,
+      }));
+      latestDraftValuesRef.current.set(segmentId, targetText);
+
+      const existingTimeoutId = emitTimeoutsRef.current.get(segmentId);
+      if (existingTimeoutId) {
+        return;
+      }
+
+      const nextTimeoutId = window.setTimeout(() => {
+        emitTimeoutsRef.current.delete(segmentId);
+        const latestTargetText = latestDraftValuesRef.current.get(segmentId);
+        if (latestTargetText === undefined) {
+          return;
+        }
+
+        emitSegmentDraftChange(segmentId, latestTargetText);
+      }, TARGET_CHANGE_EMIT_INTERVAL_MS);
+      emitTimeoutsRef.current.set(segmentId, nextTimeoutId);
+    },
     onActiveSegmentChange,
     onInlineTranslateSegment,
     onConfirmSegment,
+    flushSegmentDraft,
   };
+
+  useEffect(() => {
+    setDraftTargets((currentDraftTargets) => {
+      const nextDraftTargets: Record<string, string> = {};
+
+      Object.entries(currentDraftTargets).forEach(([segmentId, draftValue]) => {
+        const matchingSegment = segments.find((segment) => segment.id === segmentId);
+        if (!matchingSegment) {
+          return;
+        }
+
+        if (matchingSegment.targetText !== draftValue) {
+          nextDraftTargets[segmentId] = draftValue;
+          return;
+        }
+
+        latestDraftValuesRef.current.delete(segmentId);
+        const timeoutId = emitTimeoutsRef.current.get(segmentId);
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+          emitTimeoutsRef.current.delete(segmentId);
+        }
+      });
+
+      return nextDraftTargets;
+    });
+  }, [segments]);
+
+  useEffect(() => {
+    onRegisterFlushPendingChanges?.(flushPendingChanges);
+
+    return () => {
+      onRegisterFlushPendingChanges?.(null);
+    };
+  }, [flushPendingChanges, onRegisterFlushPendingChanges]);
 
   useLayoutEffect(() => {
     if (restoreScrollKey === 0 || segments.length === 0) {
       return;
     }
 
+    emitTimeoutsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    emitTimeoutsRef.current.clear();
+    latestDraftValuesRef.current.clear();
+
     const animationFrameId = window.requestAnimationFrame(() => {
+      setDraftTargets({});
       const element = listRef.current?.element;
       if (element) {
         element.scrollTop = scrollTopRef.current;
@@ -141,6 +264,60 @@ export function AlignmentTool({
 
     return () => window.cancelAnimationFrame(animationFrameId);
   }, [inlineCaretRestoreSegmentId, inlineCaretRestoreToken]);
+
+  useLayoutEffect(() => {
+    if (!confirmFocusSegmentId || confirmFocusToken === 0) {
+      return;
+    }
+
+    const nextIndex = segments.findIndex(
+      (segment) => segment.id === confirmFocusSegmentId,
+    );
+    if (nextIndex < 0) {
+      return;
+    }
+
+    listRef.current?.scrollToRow({
+      index: nextIndex,
+      align: "smart",
+      behavior: "auto",
+    });
+
+    let animationFrameId = 0;
+    let attempts = 0;
+
+    const focusNextInput = () => {
+      const inputElement = targetInputRefs.current.get(confirmFocusSegmentId);
+      if (!inputElement) {
+        if (attempts < 10) {
+          attempts += 1;
+          animationFrameId = window.requestAnimationFrame(focusNextInput);
+        }
+        return;
+      }
+
+      inputElement.focus();
+      const nextCaretPosition = inputElement.value.length;
+      inputElement.setSelectionRange(nextCaretPosition, nextCaretPosition);
+    };
+
+    animationFrameId = window.requestAnimationFrame(focusNextInput);
+
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [confirmFocusSegmentId, confirmFocusToken, listRef, segments]);
+
+  useEffect(() => {
+    const emitTimeouts = emitTimeoutsRef.current;
+    const latestDraftValues = latestDraftValuesRef.current;
+
+    return () => {
+      emitTimeouts.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+      emitTimeouts.clear();
+      latestDraftValues.clear();
+    };
+  }, []);
 
   return (
     <Paper className="detail-section-card alignment-tool-shell" elevation={0}>
@@ -199,6 +376,7 @@ export function AlignmentTool({
 
 type RowData = {
   segments: ProjectSegment[];
+  draftTargets: Record<string, string>;
   isReadOnly: boolean;
   activeSegmentExternalId: string | null;
   inlineTranslatingSegmentId: string | null;
@@ -208,28 +386,32 @@ type RowData = {
     segmentId: string,
     element: HTMLTextAreaElement | HTMLInputElement | null,
   ) => void;
-  onTargetChange: (segmentId: string, targetText: string) => void;
+  onTargetDraftChange: (segmentId: string, targetText: string) => void;
   onActiveSegmentChange: (segmentExternalId: string | null) => void;
   onInlineTranslateSegment: (segmentId: string) => void;
   onConfirmSegment: (segmentId: string) => void;
+  flushSegmentDraft: (segmentId: string) => void;
 };
 
 function AlignmentVirtualRow({
   index,
   style,
   segments,
+  draftTargets,
   isReadOnly,
   activeSegmentExternalId,
   inlineTranslatingSegmentId,
   confirmingSegmentId,
   inlineTranslateProviderName,
   registerTargetInput,
-  onTargetChange,
+  onTargetDraftChange,
   onActiveSegmentChange,
   onInlineTranslateSegment,
   onConfirmSegment,
+  flushSegmentDraft,
 }: RowComponentProps<RowData>) {
   const segment = segments[index];
+  const targetValue = draftTargets[segment.id] ?? segment.targetText;
   const isActive = activeSegmentExternalId === segment.externalSegmentId;
   const isInlineTranslating = inlineTranslatingSegmentId === segment.id;
   const isConfirming = confirmingSegmentId === segment.id;
@@ -251,8 +433,8 @@ function AlignmentVirtualRow({
           multiline
           minRows={2}
           fullWidth
-          value={segment.targetText}
-          onChange={(event) => onTargetChange(segment.id, event.target.value)}
+          value={targetValue}
+          onChange={(event) => onTargetDraftChange(segment.id, event.target.value)}
           inputRef={(element) => registerTargetInput(segment.id, element)}
           onKeyDown={(event) => {
             if (event.ctrlKey && event.code === "Space") {
@@ -265,6 +447,7 @@ function AlignmentVirtualRow({
             if (event.ctrlKey && event.key === "Enter") {
               event.preventDefault();
               event.stopPropagation();
+              flushSegmentDraft(segment.id);
               onConfirmSegment(segment.id);
             }
           }}

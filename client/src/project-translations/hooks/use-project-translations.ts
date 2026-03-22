@@ -52,6 +52,8 @@ export function useProjectTranslations({
   const [inlineTranslateProviderName, setInlineTranslateProviderName] = useState<string>('')
   const [inlineCaretRestoreSegmentId, setInlineCaretRestoreSegmentId] = useState<string | null>(null)
   const [inlineCaretRestoreToken, setInlineCaretRestoreToken] = useState(0)
+  const [confirmFocusSegmentId, setConfirmFocusSegmentId] = useState<string | null>(null)
+  const [confirmFocusToken, setConfirmFocusToken] = useState(0)
   const inlineTranslationRef = useRef<{
     segmentId: string
     requestId: number
@@ -267,7 +269,7 @@ export function useProjectTranslations({
   }
 
   async function saveDirtySegments() {
-    if (!projectId || isReadOnly || !hasPendingSegmentChanges) {
+    if (!projectId || isReadOnly) {
       return null
     }
 
@@ -384,7 +386,8 @@ export function useProjectTranslations({
       return
     }
 
-    const segment = segments.find((item) => item.id === segmentId)
+    const segmentIndex = segments.findIndex((item) => item.id === segmentId)
+    const segment = segmentIndex >= 0 ? segments[segmentIndex] : null
     if (!segment) {
       return
     }
@@ -403,6 +406,11 @@ export function useProjectTranslations({
         ...currentTargets,
         [segmentId]: result.segment.targetText,
       }))
+      const nextSegment = segments[segmentIndex + 1]
+      if (nextSegment) {
+        setConfirmFocusSegmentId(nextSegment.id)
+        setConfirmFocusToken((currentValue) => currentValue + 1)
+      }
 
       if (result.project) {
         onProjectDetailChange(result.project)
@@ -546,6 +554,8 @@ export function useProjectTranslations({
     inlineTranslateProviderName,
     inlineCaretRestoreSegmentId,
     inlineCaretRestoreToken,
+    confirmFocusSegmentId,
+    confirmFocusToken,
     setSelectedProviderName,
     handleTargetChange,
     handleActiveSegmentChange,

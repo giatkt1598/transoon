@@ -126,7 +126,6 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
         name: item.name,
         accessMode: item.accessMode,
         priority: item.priority,
-        isDraftNew: item.isDraftNew ?? false,
       }))
 
     return JSON.stringify(original) !== JSON.stringify(draft)

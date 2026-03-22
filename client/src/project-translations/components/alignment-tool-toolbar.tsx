@@ -50,11 +50,11 @@ export function AlignmentToolToolbar({
           variant="outlined"
           size="small"
           startIcon={<SaveOutlinedIcon fontSize="small" />}
-          disabled={isReadOnly || isSaving || !hasPendingChanges}
+          disabled={isReadOnly || isSaving}
           onClick={onSaveAll}
           className="alignment-toolbar-button"
         >
-          {isSaving ? 'Saving...' : 'Save all'}
+          {isSaving ? 'Saving...' : hasPendingChanges ? 'Save*' : 'Save'}
         </Button>
         <Button
           variant="outlined"
