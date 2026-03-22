@@ -11,6 +11,7 @@ import { fetchSettings } from '../../settings-management/api'
 import {
   autoTranslateProject,
   cancelAutoTranslateProject,
+  confirmProjectSegment,
   exportProjectDocument,
   fetchProjectDetail,
   fetchProjectSegments,
@@ -47,6 +48,7 @@ export function useProjectTranslations({
   const [segmentsError, setSegmentsError] = useState<string | null>(null)
   const [savedSegmentTargets, setSavedSegmentTargets] = useState<Record<string, string>>({})
   const [inlineTranslatingSegmentId, setInlineTranslatingSegmentId] = useState<string | null>(null)
+  const [confirmingSegmentId, setConfirmingSegmentId] = useState<string | null>(null)
   const [inlineTranslateProviderName, setInlineTranslateProviderName] = useState<string>('')
   const [inlineCaretRestoreSegmentId, setInlineCaretRestoreSegmentId] = useState<string | null>(null)
   const [inlineCaretRestoreToken, setInlineCaretRestoreToken] = useState(0)
@@ -377,6 +379,44 @@ export function useProjectTranslations({
     }
   }
 
+  async function handleConfirmSegment(segmentId: string) {
+    if (!projectId || isReadOnly || confirmingSegmentId) {
+      return
+    }
+
+    const segment = segments.find((item) => item.id === segmentId)
+    if (!segment) {
+      return
+    }
+
+    try {
+      setSegmentsError(null)
+      setConfirmingSegmentId(segmentId)
+      const result = await confirmProjectSegment(projectId, segmentId, segment.targetText)
+
+      setSegments((currentSegments) =>
+        currentSegments.map((currentSegment) =>
+          currentSegment.id === result.segment.id ? result.segment : currentSegment,
+        ),
+      )
+      setSavedSegmentTargets((currentTargets) => ({
+        ...currentTargets,
+        [segmentId]: result.segment.targetText,
+      }))
+
+      if (result.project) {
+        onProjectDetailChange(result.project)
+      }
+    } catch (confirmError) {
+      const message =
+        confirmError instanceof Error ? confirmError.message : 'Could not confirm the segment.'
+      setSegmentsError(message)
+      toast.error(message)
+    } finally {
+      setConfirmingSegmentId(null)
+    }
+  }
+
   useEffect(() => {
     return () => {
       inlineTranslationRef.current?.controller.abort()
@@ -502,6 +542,7 @@ export function useProjectTranslations({
     segmentsError,
     hasPendingSegmentChanges,
     inlineTranslatingSegmentId,
+    confirmingSegmentId,
     inlineTranslateProviderName,
     inlineCaretRestoreSegmentId,
     inlineCaretRestoreToken,
@@ -509,6 +550,7 @@ export function useProjectTranslations({
     handleTargetChange,
     handleActiveSegmentChange,
     handleInlineTranslateSegment,
+    handleConfirmSegment,
     handleSaveSegments,
     handleExportDocument,
     handleGenerateSegments,

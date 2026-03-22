@@ -108,6 +108,7 @@ export type SegmentTokenEntity = {
 export type TranslationUnitEntity = {
   id: string;
   projectId: string | null;
+  translationMemoryId: string | null;
   sourceLanguage: string;
   targetLanguage: string;
   sourceText: string;

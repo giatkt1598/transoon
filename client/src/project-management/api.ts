@@ -1,9 +1,10 @@
 import { apiBaseUrl } from '../app/config'
 import type {
+  ConfirmedProjectSegmentResponse,
   LanguagesResponse,
+  InlineTranslatedProjectSegmentResponse,
   ProjectDetail,
   ProjectDocumentPreview,
-  InlineTranslatedProjectSegmentResponse,
   ProjectSegment,
   ProjectSegmentsResponse,
   ProjectSummary,
@@ -271,6 +272,25 @@ export async function inlineTranslateProjectSegment(projectId: string, segmentId
   }
 
   return data as InlineTranslatedProjectSegmentResponse
+}
+
+export async function confirmProjectSegment(projectId: string, segmentId: string, targetText: string) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/segments/${segmentId}/confirm`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ targetText }),
+  })
+  const data = await readJsonResponse<ConfirmedProjectSegmentResponse | { error?: string }>(response)
+
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data ? data.error ?? 'Could not confirm the segment.' : 'Could not confirm the segment.',
+    )
+  }
+
+  return data as ConfirmedProjectSegmentResponse
 }
 
 export async function exportProjectDocument(projectId: string) {

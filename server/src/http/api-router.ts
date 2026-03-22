@@ -6,6 +6,7 @@ import { languageCatalog } from "../config/language-catalog";
 import { extractDocument } from "../document-service";
 import {
   cancelProjectAutoTranslate,
+  confirmProjectSegment,
   createProject,
   deleteProject,
   generateProjectSegments,
@@ -223,6 +224,31 @@ export function createApiRouter() {
           projectId,
           segmentId,
         );
+        res.json(result);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unexpected server error.";
+        res.status(500).json({ error: message });
+      }
+    },
+  );
+
+  router.post(
+    "/api/projects/:projectId/segments/:segmentId/confirm",
+    (req, res) => {
+      try {
+        const projectId = String(req.params.projectId);
+        const segmentId = String(req.params.segmentId);
+        const existingProject = getProjectById(projectId);
+
+        if (!existingProject) {
+          res.status(404).json({ error: "Project not found." });
+          return;
+        }
+
+        const targetText =
+          typeof req.body?.targetText === "string" ? req.body.targetText : undefined;
+        const result = confirmProjectSegment(projectId, segmentId, targetText);
         res.json(result);
       } catch (error) {
         const message =

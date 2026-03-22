@@ -69,6 +69,7 @@ export function ProjectDetailPage() {
     segmentsError,
     hasPendingSegmentChanges,
     inlineTranslatingSegmentId,
+    confirmingSegmentId,
     inlineTranslateProviderName,
     inlineCaretRestoreSegmentId,
     inlineCaretRestoreToken,
@@ -76,6 +77,7 @@ export function ProjectDetailPage() {
     handleTargetChange,
     handleActiveSegmentChange,
     handleInlineTranslateSegment,
+    handleConfirmSegment,
     handleSaveSegments,
     handleExportDocument,
     handleGenerateSegments,
@@ -239,6 +241,7 @@ export function ProjectDetailPage() {
                         hasPendingChanges={hasPendingSegmentChanges}
                         activeSegmentExternalId={activeSegmentExternalId}
                         inlineTranslatingSegmentId={inlineTranslatingSegmentId}
+                        confirmingSegmentId={confirmingSegmentId}
                         inlineTranslateProviderName={inlineTranslateProviderName}
                         inlineCaretRestoreSegmentId={inlineCaretRestoreSegmentId}
                         inlineCaretRestoreToken={inlineCaretRestoreToken}
@@ -247,6 +250,7 @@ export function ProjectDetailPage() {
                         onTargetChange={handleTargetChange}
                         onActiveSegmentChange={handleActiveSegmentChange}
                         onInlineTranslateSegment={handleInlineTranslateSegment}
+                        onConfirmSegment={handleConfirmSegment}
                         onSaveAll={() => void handleSaveSegments()}
                         onExport={() => void handleExportDocument()}
                         onOpenAutoTranslate={handleOpenAutoTranslateDialog}
@@ -277,6 +281,7 @@ export function ProjectDetailPage() {
                     hasPendingChanges={hasPendingSegmentChanges}
                     activeSegmentExternalId={activeSegmentExternalId}
                     inlineTranslatingSegmentId={inlineTranslatingSegmentId}
+                    confirmingSegmentId={confirmingSegmentId}
                     inlineTranslateProviderName={inlineTranslateProviderName}
                     inlineCaretRestoreSegmentId={inlineCaretRestoreSegmentId}
                     inlineCaretRestoreToken={inlineCaretRestoreToken}
@@ -285,6 +290,7 @@ export function ProjectDetailPage() {
                     onTargetChange={handleTargetChange}
                     onActiveSegmentChange={handleActiveSegmentChange}
                     onInlineTranslateSegment={handleInlineTranslateSegment}
+                    onConfirmSegment={handleConfirmSegment}
                     onSaveAll={() => void handleSaveSegments()}
                     onExport={() => void handleExportDocument()}
                     onOpenAutoTranslate={handleOpenAutoTranslateDialog}

@@ -121,6 +121,13 @@ export type InlineTranslatedProjectSegmentResponse = {
   providerName: string
 }
 
+export type ConfirmedProjectSegmentResponse = {
+  project: ProjectDetail | null
+  segment: ProjectSegment
+  insertedIntoWriteTranslationMemory: boolean
+  writeTranslationMemoryId: string | null
+}
+
 export type DocxPreviewBlock = {
   blockId: string
   segmentIds: string[]

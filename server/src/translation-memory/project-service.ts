@@ -17,7 +17,10 @@ import type {
   SegmentEntity,
 } from "./entities";
 import { getAppSettings } from "./settings-service";
-import { listProjectTranslationMemories } from "./translation-memory-service";
+import {
+  listProjectTranslationMemories,
+  upsertTranslationMemoryUnit,
+} from "./translation-memory-service";
 import { createTranslationMemoryRepositories } from "./repositories/repository-service";
 
 export type ProjectSummary = ProjectEntity & {
@@ -55,6 +58,13 @@ export type InlineTranslatedProjectSegment = {
   segmentId: string;
   targetText: string;
   providerName: string;
+};
+
+export type ConfirmProjectSegmentResult = {
+  project: ProjectDetail | null;
+  segment: ProjectSegment;
+  insertedIntoWriteTranslationMemory: boolean;
+  writeTranslationMemoryId: string | null;
 };
 
 export type ExportProjectDocumentResult = {
@@ -394,6 +404,88 @@ export function saveProjectSegments(
   return {
     project: getProjectDetailById(projectId),
     segments: listProjectSegments(projectId),
+  };
+}
+
+export function confirmProjectSegment(
+  projectId: string,
+  segmentId: string,
+  targetTextInput?: string,
+): ConfirmProjectSegmentResult {
+  assertProjectIsEditable(projectId);
+
+  const project = getProjectById(projectId);
+  if (!project) {
+    throw new Error("Project not found.");
+  }
+
+  const segment = listProjectSegments(projectId).find(
+    (projectSegment) => projectSegment.id === segmentId,
+  );
+  if (!segment) {
+    throw new Error("Segment not found in this project.");
+  }
+
+  const targetText = (targetTextInput ?? segment.targetText ?? "").trim();
+  if (!targetText) {
+    throw new Error("Enter a target translation before confirming the segment.");
+  }
+
+  const database = getTranslationMemoryDatabase();
+  const repositories = createTranslationMemoryRepositories(database);
+  const now = new Date().toISOString();
+  const writeTranslationMemory = listProjectTranslationMemories(projectId).find(
+    (item) => item.accessMode === "write",
+  );
+
+  database.exec("BEGIN");
+
+  try {
+    repositories.segments.updateById(segment.id, {
+      targetText,
+      targetTextNormalized: normalizeText(targetText),
+      targetTextHash: hashText(targetText),
+      translationStatus: "reviewed",
+      providerName: null,
+      reviewedByHuman: 1,
+      updatedAt: now,
+    });
+
+    if (writeTranslationMemory) {
+      upsertTranslationMemoryUnit({
+        translationMemoryId: writeTranslationMemory.translationMemoryId,
+        projectId,
+        sourceLanguage: project.sourceLang,
+        targetLanguage: project.targetLang,
+        sourceText: segment.sourceText,
+        targetText,
+        originDocumentId: segment.documentId,
+        originSegmentId: segment.id,
+        providerName: null,
+      });
+    }
+
+    touchProject(projectId, now);
+
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  const updatedSegment = listProjectSegments(projectId).find(
+    (projectSegment) => projectSegment.id === segmentId,
+  );
+  if (!updatedSegment) {
+    throw new Error("Confirmed segment could not be reloaded.");
+  }
+
+  return {
+    project: getProjectDetailById(projectId),
+    segment: updatedSegment,
+    insertedIntoWriteTranslationMemory: Boolean(writeTranslationMemory),
+    writeTranslationMemoryId:
+      writeTranslationMemory?.translationMemoryId ?? null,
   };
 }
 

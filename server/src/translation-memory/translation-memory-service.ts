@@ -1,7 +1,8 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import type {
   ProjectTranslationMemoryEntity,
   TermEntity,
+  TranslationUnitEntity,
   TranslationMemoryAccessMode,
   TranslationMemoryEntity,
 } from "./entities";
@@ -22,6 +23,18 @@ export type CreateTermInput = {
   translationMemoryId: string;
   sourceTerm: string;
   targetTerm: string;
+};
+
+export type UpsertTranslationUnitInput = {
+  translationMemoryId: string;
+  projectId: string | null;
+  sourceLanguage: string;
+  targetLanguage: string;
+  sourceText: string;
+  targetText: string;
+  originDocumentId: string | null;
+  originSegmentId: string | null;
+  providerName: string | null;
 };
 
 export type AttachTranslationMemoryToProjectInput = {
@@ -138,6 +151,81 @@ export function createTerm(input: CreateTermInput) {
   repositories.terms.insert(entity);
   touchTranslationMemory(input.translationMemoryId, now);
   return entity;
+}
+
+export function upsertTranslationMemoryUnit(input: UpsertTranslationUnitInput) {
+  const repositories = createTranslationMemoryRepositories();
+  const now = new Date().toISOString();
+  const sourceText = input.sourceText.trim();
+  const targetText = input.targetText.trim();
+
+  if (!sourceText || !targetText) {
+    throw new Error(
+      "Translation memory entries require both source and target text.",
+    );
+  }
+
+  const sourceTextNormalized = normalizeTerm(sourceText);
+  const targetTextNormalized = normalizeTerm(targetText);
+  const sourceTextHash = hashValue(sourceText);
+  const targetTextHash = hashValue(targetText);
+
+  const existingUnit = repositories.translationUnits
+    .query()
+    .where("translationMemoryId", input.translationMemoryId)
+    .where("sourceLanguage", input.sourceLanguage)
+    .where("targetLanguage", input.targetLanguage)
+    .where("sourceTextHash", sourceTextHash)
+    .firstOrDefault();
+
+  if (existingUnit) {
+    repositories.translationUnits.updateById(existingUnit.id, {
+      projectId: input.projectId,
+      translationMemoryId: input.translationMemoryId,
+      sourceText,
+      sourceTextNormalized,
+      sourceTextHash,
+      targetText,
+      targetTextNormalized,
+      targetTextHash,
+      tokensJson: JSON.stringify([{ type: "text", value: sourceText }]),
+      originDocumentId: input.originDocumentId,
+      originSegmentId: input.originSegmentId,
+      providerName: input.providerName,
+      matchQuality: "human_approved",
+      lastUsedAt: now,
+      updatedAt: now,
+    });
+    touchTranslationMemory(input.translationMemoryId, now);
+    return repositories.translationUnits.getById(existingUnit.id);
+  }
+
+  const entity: TranslationUnitEntity = {
+    id: randomUUID(),
+    projectId: input.projectId,
+    translationMemoryId: input.translationMemoryId,
+    sourceLanguage: input.sourceLanguage,
+    targetLanguage: input.targetLanguage,
+    sourceText,
+    sourceTextNormalized,
+    sourceTextHash,
+    targetText,
+    targetTextNormalized,
+    targetTextHash,
+    tokensJson: JSON.stringify([{ type: "text", value: sourceText }]),
+    originDocumentId: input.originDocumentId,
+    originSegmentId: input.originSegmentId,
+    providerName: input.providerName,
+    matchQuality: "human_approved",
+    useCount: 0,
+    lastUsedAt: now,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  repositories.translationUnits.insert(entity);
+  touchTranslationMemory(input.translationMemoryId, now);
+  return repositories.translationUnits.getById(entity.id);
 }
 
 export function attachTranslationMemoryToProject(
@@ -276,6 +364,10 @@ function touchTranslationMemory(translationMemoryId: string, timestamp: string) 
 
 function normalizeTerm(value: string) {
   return value.trim().toLowerCase();
+}
+
+function hashValue(value: string) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function mapTranslationMemorySummary(
