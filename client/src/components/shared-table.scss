@@ -1,0 +1,233 @@
+.shared-table-shell {
+  border: 1px solid rgba(58, 44, 30, 0.12);
+  border-radius: 28px;
+  overflow: hidden;
+  background: rgba(255, 250, 242, 0.92);
+  box-shadow: 0 18px 45px rgba(73, 52, 34, 0.1);
+}
+
+.shared-table-toolbar {
+  display: flex;
+  gap: 16px;
+  padding: 18px;
+  border-bottom: 1px solid rgba(58, 44, 30, 0.08);
+
+  .shared-toolbar-search {
+    flex: 1;
+
+    .MuiOutlinedInput-root {
+      border-radius: 16px;
+      background: #ffffff;
+    }
+  }
+}
+
+.shared-table-head,
+.shared-table-row {
+  display: grid;
+  gap: 16px;
+}
+
+.shared-table-head {
+  background: #f1f5f9;
+  color: #51657a;
+  font-size: 0.95rem;
+  font-weight: 600;
+  align-items: stretch;
+}
+
+.shared-table-head-cell {
+  width: 100%;
+  height: 100%;
+  padding: 8px 0 8px 12px;
+  box-sizing: border-box;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 160ms ease;
+
+  .MuiTableSortLabel-root {
+    min-width: 0;
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    pointer-events: none;
+  }
+
+  .MuiTableSortLabel-icon {
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  &:last-child {
+    padding-right: 12px;
+  }
+}
+
+.shared-table-head-cell-sortable {
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(231, 231, 231, 0.52);
+
+    .MuiTableSortLabel-icon {
+      opacity: 0.72;
+    }
+  }
+
+  .MuiTableSortLabel-root.Mui-active {
+    .MuiTableSortLabel-icon {
+      opacity: 0.72;
+    }
+  }
+}
+
+.shared-table-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.shared-table-row {
+  border-top: 1px solid rgba(58, 44, 30, 0.08);
+  background: rgba(255, 255, 255, 0.65);
+  align-items: center;
+  transition:
+    background 180ms ease,
+    transform 180ms ease;
+
+  > * {
+    min-width: 0;
+  }
+
+  span,
+  p,
+  div {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &:hover {
+    background: rgba(243, 243, 243, 0.52);
+    transform: translateY(-1px);
+  }
+}
+
+.shared-table-body-cell {
+  min-width: 0;
+  padding: 8px 0 8px 12px;
+  box-sizing: border-box;
+
+  &:last-child {
+    padding-right: 12px;
+  }
+}
+
+.shared-table-row-clickable {
+  cursor: pointer;
+}
+
+.shared-primary-cell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+
+  > div {
+    min-width: 0;
+  }
+}
+
+.shared-avatar-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e3f2fd;
+  color: #1976d2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.shared-row-title,
+.shared-created-cell p,
+.shared-segment-cell p {
+  margin: 0;
+  color: #24170f;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.shared-row-subtitle,
+.shared-created-cell span,
+.shared-progress-cell span,
+.shared-segment-cell span {
+  display: block;
+  margin-top: 2px;
+  color: #728397;
+  font-size: 0.84rem;
+}
+
+.shared-created-cell,
+.shared-progress-cell,
+.shared-segment-cell {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.shared-created-cell,
+.shared-segment-cell,
+.shared-progress-cell {
+  p,
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.shared-progress-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shared-action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+
+  .MuiIconButton-root {
+    border-radius: 50%;
+  }
+}
+
+.shared-table-pagination {
+  border-top: 1px solid rgba(58, 44, 30, 0.08);
+  background: rgba(255, 255, 255, 0.7);
+
+  .MuiTablePagination-toolbar {
+    min-height: 60px;
+    padding-inline: 18px;
+  }
+}
+
+@media (max-width: 920px) {
+  .shared-table-head {
+    display: none !important;
+  }
+
+  .shared-table-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .shared-action-cell {
+    justify-content: flex-start;
+  }
+}

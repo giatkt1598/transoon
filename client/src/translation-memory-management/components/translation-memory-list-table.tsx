@@ -2,11 +2,18 @@ import {
   SharedTable,
   type TableDefinition,
 } from "../../components/shared-table";
-import { Box, Typography } from "@mui/material";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import { Box, InputAdornment, TextField, Typography } from "@mui/material";
+import { useMemo, useState } from "react";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import type { TranslationMemorySummary } from "../../app/types";
 import { formatLanguageRoute } from "../../app/utils";
+import {
+  orderBy,
+  orderByDescending,
+  type SortDirection,
+} from "../../app/linq";
 
 type TranslationMemoryListTableProps = {
   translationMemories: TranslationMemorySummary[];
@@ -47,13 +54,38 @@ export function TranslationMemoryListTable({
   onSearchChange,
   onDeleteTranslationMemory,
 }: TranslationMemoryListTableProps) {
+  const [sortState, setSortState] = useState<{
+    column: keyof TranslationMemorySummary;
+    direction: SortDirection;
+  } | null>({
+    column: "lastModifiedAt",
+    direction: "desc",
+  });
+
+  const sortedTranslationMemories = useMemo(() => {
+    if (!sortState) {
+      return translationMemories;
+    }
+
+    const selector = (translationMemory: TranslationMemorySummary) =>
+      translationMemory[sortState.column];
+    return sortState.direction === "asc"
+      ? orderBy(translationMemories, selector)
+      : orderByDescending(translationMemories, selector);
+  }, [sortState, translationMemories]);
+
   const tableDef: TableDefinition<TranslationMemorySummary> = {
     sortable: true,
     resizable: true,
     stickyHeader: true,
     pagination: true,
+    sortState: sortState ?? undefined,
     onSortChange: (column, sortDirection) => {
-      console.log(`Sorting by ${String(column)} in ${sortDirection} order`);
+      setSortState(
+        sortDirection
+          ? { column, direction: sortDirection }
+          : null,
+      );
     },
     columns: [
       {
@@ -138,12 +170,26 @@ export function TranslationMemoryListTable({
 
   return (
     <SharedTable
-      data={translationMemories}
+      data={sortedTranslationMemories}
       tableDef={tableDef}
-      searchTerm={searchTerm}
+      toolbar={
+        <TextField
+          value={searchTerm}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Search..."
+          size="small"
+          className="shared-toolbar-search"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchRoundedIcon fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+        />
+      }
       isLoading={isLoading}
       isDeleting={isDeleting}
-      onSearchChange={onSearchChange}
       emptyStateText="No translation memory matches this view."
       emptyStateSubtext="Create one to organize reusable translated terms and future lookup priority."
     />

@@ -1,24 +1,26 @@
-import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
 import {
   Box,
   IconButton,
-  InputAdornment,
   Menu,
   MenuItem,
   Paper,
-  TextField,
+  TablePagination,
+  TableSortLabel,
   Typography,
 } from "@mui/material";
 import { useMemo, useState } from "react";
-import "./shared-table.css";
+import "./shared-table.scss";
+import type { SortDirection } from "../app/linq";
 
 export type ColumnDefinition<T> = {
   key: keyof T;
   label: string;
   customRender?: (row: T, index: number) => React.ReactNode;
+  sortValue?: (row: T) => string | number | boolean | Date | null | undefined;
   className?: string;
   gridTemplateColumn?: string;
+  sortable?: boolean;
 };
 
 export type TableDefinition<T> = {
@@ -26,6 +28,12 @@ export type TableDefinition<T> = {
   resizable?: boolean;
   stickyHeader?: boolean;
   pagination?: boolean;
+  sortState?: {
+    column: keyof T;
+    direction: SortDirection;
+  };
+  defaultRowsPerPage?: number;
+  rowsPerPageOptions?: number[];
   columns: ColumnDefinition<T>[];
   action: {
     useMoreActions?: boolean;
@@ -37,20 +45,15 @@ export type TableDefinition<T> = {
     }>;
   };
   rowClick?: (row: T, index: number) => void;
-  onSortChange?: (column: keyof T, sortDirection: "asc" | "desc") => void;
+  onSortChange?: (column: keyof T, sortDirection: SortDirection | null) => void;
 };
 
 type SharedTableProps<T> = {
   data: T[];
   tableDef: TableDefinition<T>;
-  searchTerm: string;
+  toolbar?: React.ReactNode;
   isLoading: boolean;
   isDeleting: boolean;
-  onSearchChange: (value: string) => void;
-  onSortChange?: (column: keyof T, sortDirection: "asc" | "desc") => void;
-  onDeleteItem?: (itemId: string) => Promise<void>;
-  onEditItem?: (itemId: string) => void;
-  onItemClick?: (item: T) => void;
   emptyStateText?: string;
   emptyStateSubtext?: string;
 };
@@ -58,32 +61,37 @@ type SharedTableProps<T> = {
 export function SharedTable<T extends { id: string }>({
   data,
   tableDef,
-  searchTerm,
+  toolbar,
   isLoading,
-  isDeleting,
-  onSearchChange,
-  onSortChange,
   emptyStateText = "No items match this view.",
   emptyStateSubtext = "Create an item to get started.",
 }: SharedTableProps<T>) {
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [menuItem, setMenuItem] = useState<T | null>(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(
+    tableDef.defaultRowsPerPage ?? 10,
+  );
+  const hasActions = Boolean(tableDef.action.actions?.length);
+  const rowsPerPageOptions = tableDef.rowsPerPageOptions ?? [10, 25, 50];
 
   const gridTemplateColumns = useMemo(() => {
-    const gridTemplate =
-      tableDef.columns
-        .map((column) => column.gridTemplateColumn || "1fr")
-        .join(" ") +
-      (tableDef.action.actions?.length
-        ? (tableDef.action.gridTemplateColumn ?? "80px")
-        : "");
+    return [
+      ...tableDef.columns.map((column) => column.gridTemplateColumn || "1fr"),
+      ...(hasActions ? [tableDef.action.gridTemplateColumn ?? "80px"] : []),
+    ].join(" ");
+  }, [hasActions, tableDef.action.gridTemplateColumn, tableDef.columns]);
 
-    return gridTemplate;
-  }, [
-    tableDef.action.actions?.length,
-    tableDef.action.gridTemplateColumn,
-    tableDef.columns,
-  ]);
+  const pageCount = tableDef.pagination
+    ? Math.max(1, Math.ceil(data.length / rowsPerPage))
+    : 1;
+  const currentPage = Math.min(page, pageCount - 1);
+  const pagedRows = tableDef.pagination
+    ? data.slice(
+        currentPage * rowsPerPage,
+        currentPage * rowsPerPage + rowsPerPage,
+      )
+    : data;
 
   function handleOpenMenu(event: React.MouseEvent<HTMLElement>, item: T) {
     event.stopPropagation();
@@ -110,42 +118,26 @@ export function SharedTable<T extends { id: string }>({
     return String(value);
   }
 
+  function handleSort(column: ColumnDefinition<T>) {
+    if (!tableDef.sortable || column.sortable === false) {
+      return;
+    }
+
+    const isSameColumn = tableDef.sortState?.column === column.key;
+    const nextSortDirection = !isSameColumn
+      ? "asc"
+      : tableDef.sortState?.direction === "asc"
+        ? "desc"
+        : tableDef.sortState?.direction === "desc"
+          ? null
+          : "asc";
+
+    tableDef.onSortChange?.(column.key, nextSortDirection);
+  }
+
   return (
     <Paper className="shared-table-shell" elevation={0}>
-      <Box className="shared-table-toolbar">
-        <TextField
-          select
-          defaultValue="all"
-          size="small"
-          className="shared-toolbar-select"
-        >
-          <MenuItem value="all">All source</MenuItem>
-        </TextField>
-
-        <TextField
-          select
-          defaultValue="all"
-          size="small"
-          className="shared-toolbar-select"
-        >
-          <MenuItem value="all">All target</MenuItem>
-        </TextField>
-
-        <TextField
-          value={searchTerm}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search..."
-          size="small"
-          className="shared-toolbar-search"
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchRoundedIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
-        />
-      </Box>
+      {toolbar ? <Box className="shared-table-toolbar">{toolbar}</Box> : null}
       <Box
         className="shared-table-head"
         style={{
@@ -160,22 +152,36 @@ export function SharedTable<T extends { id: string }>({
         {tableDef.columns.map((column) => (
           <Box
             key={String(column.key)}
+            className={
+              tableDef.sortable && column.sortable !== false
+                ? "shared-table-head-cell shared-table-head-cell-sortable"
+                : "shared-table-head-cell"
+            }
             onClick={() => {
-              if (tableDef.sortable && onSortChange) {
-                onSortChange(column.key, "asc");
+              if (tableDef.sortable && column.sortable !== false) {
+                handleSort(column);
               }
             }}
-            sx={{
-              cursor: tableDef.sortable ? "pointer" : "default",
-              "&:hover": tableDef.sortable
-                ? { backgroundColor: "rgba(0, 0, 0, 0.04)" }
-                : {},
-            }}
           >
-            {column.label}
+            {tableDef.sortable && column.sortable !== false ? (
+              <TableSortLabel
+                active={tableDef.sortState?.column === column.key}
+                direction={
+                  tableDef.sortState?.column === column.key &&
+                  tableDef.sortState.direction
+                    ? tableDef.sortState.direction
+                    : "asc"
+                }
+                hideSortIcon={false}
+              >
+                {column.label}
+              </TableSortLabel>
+            ) : (
+              column.label
+            )}
           </Box>
         ))}
-        {!!tableDef.action.actions?.length && <Box>Actions</Box>}
+        {hasActions && <Box className="shared-table-head-cell">Actions</Box>}
       </Box>
 
       {isLoading ? (
@@ -189,7 +195,7 @@ export function SharedTable<T extends { id: string }>({
         </Box>
       ) : (
         <Box className="shared-table-body">
-          {data.map((item, index) => (
+          {pagedRows.map((item, index) => (
             <Box
               key={item.id}
               className={`shared-table-row ${tableDef.rowClick ? "shared-table-row-clickable" : ""}`}
@@ -200,19 +206,22 @@ export function SharedTable<T extends { id: string }>({
               }}
               style={{
                 display: "grid",
-                gridTemplateColumns: gridTemplateColumns,
+                gridTemplateColumns,
               }}
             >
               {tableDef.columns.map((column) => (
-                <Box key={String(column.key)} className={column.className}>
+                <Box
+                  key={String(column.key)}
+                  className={`shared-table-body-cell ${column.className ?? ""}`.trim()}
+                >
                   {renderCellValue(column, item, index)}
                 </Box>
               ))}
 
               {!tableDef.action.useMoreActions ? (
                 <>
-                  {!!tableDef.action.actions?.length && (
-                    <Box className="shared-action-cell">
+                  {hasActions && (
+                    <Box className="shared-table-body-cell shared-action-cell">
                       {tableDef.action.actions?.map((action, actionIndex) => (
                         <IconButton
                           key={actionIndex}
@@ -230,7 +239,7 @@ export function SharedTable<T extends { id: string }>({
                   )}
                 </>
               ) : (
-                <Box className="shared-action-cell">
+                <Box className="shared-table-body-cell shared-action-cell">
                   <IconButton
                     size="small"
                     aria-label={`More actions for ${item.id}`}
@@ -244,6 +253,22 @@ export function SharedTable<T extends { id: string }>({
           ))}
         </Box>
       )}
+
+      {tableDef.pagination && data.length > 0 ? (
+        <TablePagination
+          component="div"
+          className="shared-table-pagination"
+          count={data.length}
+          page={currentPage}
+          onPageChange={(_event, nextPage) => setPage(nextPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(event) => {
+            setRowsPerPage(Number(event.target.value));
+            setPage(0);
+          }}
+          rowsPerPageOptions={rowsPerPageOptions}
+        />
+      ) : null}
 
       <Menu
         anchorEl={menuAnchorEl}
@@ -260,7 +285,7 @@ export function SharedTable<T extends { id: string }>({
       >
         {tableDef.action.actions?.map((action) => (
           <MenuItem
-            disabled={isDeleting}
+            key={action.label}
             onClick={() => {
               if (!menuItem) return;
               action.onClick?.(menuItem);

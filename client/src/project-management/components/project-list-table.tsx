@@ -2,13 +2,20 @@ import {
   SharedTable,
   type TableDefinition,
 } from "../../components/shared-table";
-import { Box, LinearProgress, Typography } from "@mui/material";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import { Box, InputAdornment, LinearProgress, TextField, Typography } from "@mui/material";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import type { ProjectSummary } from "../../app/types";
 import { formatLanguageRoute } from "../../app/utils";
 import { DocumentIcon } from "../../components/document-icon";
+import {
+  orderBy,
+  orderByDescending,
+  type SortDirection,
+} from "../../app/linq";
 
 type ProjectListTableProps = {
   projects: ProjectSummary[];
@@ -50,14 +57,37 @@ export function ProjectListTable({
   onDeleteProject,
 }: ProjectListTableProps) {
   const navigate = useNavigate();
+  const [sortState, setSortState] = useState<{
+    column: keyof ProjectSummary;
+    direction: SortDirection;
+  } | null>({
+    column: "createdAt",
+    direction: "desc",
+  });
+
+  const sortedProjects = useMemo(() => {
+    if (!sortState) {
+      return projects;
+    }
+
+    const selector = (project: ProjectSummary) => project[sortState.column];
+    return sortState.direction === "asc"
+      ? orderBy(projects, selector)
+      : orderByDescending(projects, selector);
+  }, [projects, sortState]);
 
   const tableDef: TableDefinition<ProjectSummary> = {
     sortable: true,
     resizable: true,
     stickyHeader: true,
     pagination: true,
+    sortState: sortState ?? undefined,
     onSortChange: (column, sortDirection) => {
-      console.log(`Sorting by ${String(column)} in ${sortDirection} order`);
+      setSortState(
+        sortDirection
+          ? { column, direction: sortDirection }
+          : null,
+      );
     },
     columns: [
       {
@@ -176,12 +206,26 @@ export function ProjectListTable({
 
   return (
     <SharedTable
-      data={projects}
+      data={sortedProjects}
       tableDef={tableDef}
-      searchTerm={searchTerm}
+      toolbar={
+        <TextField
+          value={searchTerm}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Search..."
+          size="small"
+          className="shared-toolbar-search"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchRoundedIcon fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+        />
+      }
       isLoading={isLoading}
       isDeleting={isDeleting}
-      onSearchChange={onSearchChange}
       emptyStateText="No project matches this view."
       emptyStateSubtext="Create a project to manage translations, segments, and review progress."
     />

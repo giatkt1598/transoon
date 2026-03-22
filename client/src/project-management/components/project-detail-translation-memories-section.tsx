@@ -88,8 +88,8 @@ export function ProjectDetailTranslationMemoriesSection({
         </Alert>
       ) : null}
 
-      <Box className="project-table-shell detail-memory-table-shell">
-        <Box className="project-table-head detail-memory-table-head">
+      <Box className="detail-memory-table-shell">
+        <Box className="detail-memory-table-head">
           <span></span>
           <span>Translation memory</span>
           <span>Access mode</span>
@@ -102,11 +102,11 @@ export function ProjectDetailTranslationMemoriesSection({
             <Typography component="p">No translation memory is attached to this project yet.</Typography>
           </Box>
         ) : (
-          <Box className="project-table-body">
+          <Box className="detail-memory-table-body">
             {translationMemories.map((config) => (
               <Box
                 key={config.translationMemoryId}
-                className={`project-table-row detail-memory-table-row${
+                className={`detail-memory-table-row${
                   draggedTranslationMemoryId === config.translationMemoryId ? ' dragging' : ''
                 }`}
                 draggable={!isSaving && !isReadOnly}
@@ -119,13 +119,13 @@ export function ProjectDetailTranslationMemoriesSection({
                   <DragIndicatorRoundedIcon fontSize="small" />
                 </Box>
 
-                <Box className="project-primary-cell">
-                  <Box className="project-avatar-badge">{config.name.slice(0, 1).toUpperCase()}</Box>
+                <Box className="shared-primary-cell">
+                  <Box className="shared-avatar-badge">{config.name.slice(0, 1).toUpperCase()}</Box>
                   <Box>
-                    <Typography component="p" className="project-row-title">
+                    <Typography component="p" className="shared-row-title">
                       {config.name}
                     </Typography>
-                    <Typography component="p" className="project-row-subtitle">
+                    <Typography component="p" className="shared-row-subtitle">
                       {config.termCount} terms
                     </Typography>
                   </Box>
@@ -145,12 +145,12 @@ export function ProjectDetailTranslationMemoriesSection({
                   <MenuItem value="write">Write</MenuItem>
                 </TextField>
 
-                <Box className="project-segment-cell">
+                <Box className="shared-segment-cell">
                   <Typography component="p">{config.priority}</Typography>
                   <Typography component="span">drag to reorder</Typography>
                 </Box>
 
-                <Box className="project-action-cell">
+                <Box className="shared-action-cell">
                   <IconButton size="small" disabled={isSaving || isReadOnly} onClick={() => onOpenEditDialog(config.translationMemoryId)}>
                     <EditOutlinedIcon fontSize="small" />
                   </IconButton>

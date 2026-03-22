@@ -43,26 +43,13 @@
   .hero-stat-row,
   .project-upload-field,
   .project-editor-grid,
-  .detail-info-grid,
-  .project-table-toolbar {
+  .detail-info-grid {
     grid-template-columns: 1fr;
   }
 
   .page-header {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .project-table-head {
-    display: none;
-  }
-
-  .project-table-row {
-    grid-template-columns: 1fr;
-  }
-
-  .project-action-cell {
-    justify-content: flex-start;
   }
 
   .project-editor-actions {
@@ -84,7 +71,7 @@
     width: 100%;
   }
 
-  .detail-memory-row .project-action-cell {
+  .detail-memory-table-row .shared-action-cell {
     justify-content: flex-start;
   }
 
