@@ -1,0 +1,1 @@
+export const TERM_FUZZY_MATCH_THRESHOLD = 0.9

@@ -10,7 +10,14 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { flushSync } from "react-dom";
 import {
   List,
@@ -20,6 +27,7 @@ import {
 } from "react-window";
 import type { ProjectSegment } from "../../app/types";
 import type { ProjectTerm } from "../../app/types";
+import { searchFuzzyProjectTerms } from "../term-fuzzy-search";
 import { AlignmentToolToolbar } from "./alignment-tool-toolbar";
 import "./alignment-tool.scss";
 
@@ -425,17 +433,26 @@ function AlignmentVirtualRow({
 }: RowComponentProps<RowData>) {
   const segment = segments[index];
   const targetValue = draftTargets[segment.id] ?? segment.targetText;
+  const normalizedTargetValue = targetValue.trim();
   const hasTermConflict = projectTerms.some(
     (term) =>
       term.sourceTermNormalized === segment.sourceText.trim().toLowerCase() &&
-      term.targetTermNormalized !== targetValue.trim().toLowerCase(),
+      term.targetTermNormalized !== normalizedTargetValue.toLowerCase(),
   );
   const isActive = activeSegmentExternalId === segment.externalSegmentId;
   const isInlineTranslating = inlineTranslatingSegmentId === segment.id;
   const isConfirming = confirmingSegmentId === segment.id;
+  const fuzzyMatches = useMemo(() => {
+    if (!isActive || normalizedTargetValue.length > 0) {
+      return [];
+    }
+
+    return searchFuzzyProjectTerms(segment.sourceText, projectTerms);
+  }, [isActive, normalizedTargetValue.length, projectTerms, segment.sourceText]);
+  const exactMatchedTerm = fuzzyMatches[0]?.score === 1 ? fuzzyMatches[0].term : null;
   const inlinePlaceholder = isInlineTranslating
     ? `Translating (by ${inlineTranslateProviderName || "translate provider"})...`
-    : "Type target translation...";
+    : exactMatchedTerm?.targetTerm || "Type target translation...";
   return (
     <div style={style}>
       <Box className={`alignment-grid-row${isActive ? " active" : ""}`}>
@@ -455,6 +472,30 @@ function AlignmentVirtualRow({
           onChange={(event) => onTargetDraftChange(segment.id, event.target.value)}
           inputRef={(element) => registerTargetInput(segment.id, element)}
           onKeyDown={(event) => {
+            if (
+              event.key === "Tab" &&
+              !event.shiftKey &&
+              exactMatchedTerm &&
+              normalizedTargetValue.length === 0
+            ) {
+              event.preventDefault();
+              event.stopPropagation();
+              onTargetDraftChange(segment.id, exactMatchedTerm.targetTerm);
+              window.requestAnimationFrame(() => {
+                const inputElement = document.activeElement as
+                  | HTMLTextAreaElement
+                  | HTMLInputElement
+                  | null;
+                if (!inputElement || typeof inputElement.setSelectionRange !== "function") {
+                  return;
+                }
+
+                const nextCaretPosition = exactMatchedTerm.targetTerm.length;
+                inputElement.setSelectionRange(nextCaretPosition, nextCaretPosition);
+              });
+              return;
+            }
+
             if (event.ctrlKey && event.code === "Space") {
               event.preventDefault();
               event.stopPropagation();
