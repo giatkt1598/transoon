@@ -8,6 +8,8 @@ import type {
   ProjectSegment,
   ProjectSegmentsResponse,
   ProjectSummary,
+  ProjectTerm,
+  ProjectTermsResponse,
   ProjectsResponse,
   ProjectTranslationMemoryConfig,
   TranslateProvidersResponse,
@@ -106,6 +108,17 @@ export async function fetchProjectSegments(projectId: string, signal?: AbortSign
   }
 
   return (data as ProjectSegmentsResponse).segments
+}
+
+export async function fetchProjectTerms(projectId: string, signal?: AbortSignal) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/terms`, { signal })
+  const data = await readJsonResponse<ProjectTermsResponse | { error?: string }>(response)
+
+  if (!response.ok || 'error' in data) {
+    throw new Error('error' in data ? data.error ?? 'Could not load project terms.' : 'Could not load project terms.')
+  }
+
+  return (data as ProjectTermsResponse).terms as ProjectTerm[]
 }
 
 export async function fetchProjectDocumentPreview(projectId: string, signal?: AbortSignal) {

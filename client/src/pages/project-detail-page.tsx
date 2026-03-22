@@ -14,6 +14,7 @@ import { ProjectDetailInformationSection } from "../project-management/component
 import { ProjectDetailTranslationMemoriesSection } from "../project-management/components/project-detail-translation-memories-section";
 import { useProjectDetail } from "../project-management/hooks/use-project-detail";
 import { useProjectDocumentPreview } from "../project-translations/hooks/use-project-document-preview";
+import { useProjectTermsPreload } from "../project-translations/hooks/use-project-terms-preload";
 import { useProjectTranslations } from "../project-translations/hooks/use-project-translations";
 import { getLanguageLabel } from "../app/utils";
 
@@ -106,6 +107,7 @@ export function ProjectDetailPage() {
       documentFileName: projectDetail?.documentFileName,
     },
   );
+  const { projectTerms } = useProjectTermsPreload({ projectId });
 
   useEffect(() => {
     try {
@@ -304,6 +306,7 @@ export function ProjectDetailPage() {
                         inlineCaretRestoreToken={inlineCaretRestoreToken}
                         confirmFocusSegmentId={confirmFocusSegmentId}
                         confirmFocusToken={confirmFocusToken}
+                        projectTerms={projectTerms}
                         isPreviewVisible={isPreviewVisible}
                         restoreScrollKey={segmentSaveRevision}
                         onRegisterFlushPendingChanges={(
@@ -356,6 +359,7 @@ export function ProjectDetailPage() {
                     inlineCaretRestoreToken={inlineCaretRestoreToken}
                     confirmFocusSegmentId={confirmFocusSegmentId}
                     confirmFocusToken={confirmFocusToken}
+                    projectTerms={projectTerms}
                     isPreviewVisible={isPreviewVisible}
                     restoreScrollKey={segmentSaveRevision}
                     onRegisterFlushPendingChanges={(flushPendingChanges) => {

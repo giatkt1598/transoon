@@ -19,6 +19,7 @@ import {
   type RowComponentProps,
 } from "react-window";
 import type { ProjectSegment } from "../../app/types";
+import type { ProjectTerm } from "../../app/types";
 import { AlignmentToolToolbar } from "./alignment-tool-toolbar";
 import "./alignment-tool.scss";
 
@@ -42,6 +43,7 @@ type AlignmentToolProps = {
   inlineCaretRestoreToken: number;
   confirmFocusSegmentId: string | null;
   confirmFocusToken: number;
+  projectTerms: ProjectTerm[];
   isPreviewVisible: boolean;
   restoreScrollKey?: number;
   onRegisterFlushPendingChanges?: (flushPendingChanges: (() => void) | null) => void;
@@ -73,6 +75,7 @@ export function AlignmentTool({
   inlineCaretRestoreToken,
   confirmFocusSegmentId,
   confirmFocusToken,
+  projectTerms,
   isPreviewVisible,
   restoreScrollKey = 0,
   onRegisterFlushPendingChanges,
@@ -89,6 +92,7 @@ export function AlignmentTool({
   const scrollTopRef = useRef(0);
   const emitTimeoutsRef = useRef(new Map<string, number>());
   const latestDraftValuesRef = useRef(new Map<string, string>());
+  const lastHandledConfirmFocusTokenRef = useRef(0);
   const [draftTargets, setDraftTargets] = useState<Record<string, string>>({});
   const targetInputRefs = useRef(
     new Map<string, HTMLTextAreaElement | HTMLInputElement>(),
@@ -146,6 +150,7 @@ export function AlignmentTool({
   const rowData: RowData = {
     segments,
     draftTargets,
+    projectTerms,
     isReadOnly,
     activeSegmentExternalId,
     inlineTranslatingSegmentId,
@@ -270,6 +275,12 @@ export function AlignmentTool({
       return;
     }
 
+    if (lastHandledConfirmFocusTokenRef.current === confirmFocusToken) {
+      return;
+    }
+
+    lastHandledConfirmFocusTokenRef.current = confirmFocusToken;
+
     const nextIndex = segments.findIndex(
       (segment) => segment.id === confirmFocusSegmentId,
     );
@@ -377,6 +388,7 @@ export function AlignmentTool({
 type RowData = {
   segments: ProjectSegment[];
   draftTargets: Record<string, string>;
+  projectTerms: ProjectTerm[];
   isReadOnly: boolean;
   activeSegmentExternalId: string | null;
   inlineTranslatingSegmentId: string | null;
@@ -398,6 +410,7 @@ function AlignmentVirtualRow({
   style,
   segments,
   draftTargets,
+  projectTerms,
   isReadOnly,
   activeSegmentExternalId,
   inlineTranslatingSegmentId,
@@ -412,6 +425,11 @@ function AlignmentVirtualRow({
 }: RowComponentProps<RowData>) {
   const segment = segments[index];
   const targetValue = draftTargets[segment.id] ?? segment.targetText;
+  const hasTermConflict = projectTerms.some(
+    (term) =>
+      term.sourceTermNormalized === segment.sourceText.trim().toLowerCase() &&
+      term.targetTermNormalized !== targetValue.trim().toLowerCase(),
+  );
   const isActive = activeSegmentExternalId === segment.externalSegmentId;
   const isInlineTranslating = inlineTranslatingSegmentId === segment.id;
   const isConfirming = confirmingSegmentId === segment.id;
@@ -463,6 +481,7 @@ function AlignmentVirtualRow({
             translationStatus={segment.translationStatus}
             isInlineTranslating={isInlineTranslating}
             isConfirming={isConfirming}
+            hasTermConflict={hasTermConflict}
           />
         </Box>
 
@@ -482,12 +501,14 @@ type AlignmentStatusBadgeProps = {
   translationStatus: ProjectSegment["translationStatus"];
   isInlineTranslating: boolean;
   isConfirming: boolean;
+  hasTermConflict?: boolean;
 };
 
 function AlignmentScoreCell({
   translationStatus,
   isInlineTranslating,
   isConfirming,
+  hasTermConflict = false,
 }: AlignmentStatusBadgeProps) {
   const statusPresentation = getAlignmentStatusPresentation({
     translationStatus,
@@ -508,6 +529,15 @@ function AlignmentScoreCell({
           <span>{statusPresentation.score}</span>
         </Box>
       </Tooltip>
+      {hasTermConflict ? (
+        <Tooltip
+          title="A term with the same source already exists in translation memory with a different target."
+          placement="left"
+          arrow
+        >
+          <Box className="alignment-score-conflict-indicator">!</Box>
+        </Tooltip>
+      ) : null}
     </Stack>
   );
 }

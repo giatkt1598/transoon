@@ -19,6 +19,7 @@ import type {
 import { getAppSettings } from "./settings-service";
 import {
   listProjectTranslationMemories,
+  upsertTranslationMemoryTerm,
   upsertTranslationMemoryUnit,
 } from "./translation-memory-service";
 import { createTranslationMemoryRepositories } from "./repositories/repository-service";
@@ -65,6 +66,7 @@ export type ConfirmProjectSegmentResult = {
   segment: ProjectSegment;
   insertedIntoWriteTranslationMemory: boolean;
   writeTranslationMemoryId: string | null;
+  termConflict: boolean;
 };
 
 export type ExportProjectDocumentResult = {
@@ -434,6 +436,8 @@ export function confirmProjectSegment(
   const writeTranslationMemory = listProjectTranslationMemories(projectId).find(
     (item) => item.accessMode === "write",
   );
+  let termConflict = false;
+  let insertedIntoWriteTranslationMemory = false;
 
   database.exec("BEGIN");
 
@@ -460,6 +464,14 @@ export function confirmProjectSegment(
         originSegmentId: segment.id,
         providerName: null,
       });
+      insertedIntoWriteTranslationMemory = true;
+
+      const termResult = upsertTranslationMemoryTerm({
+        translationMemoryId: writeTranslationMemory.translationMemoryId,
+        sourceTerm: segment.sourceText,
+        targetTerm: targetText,
+      });
+      termConflict = termResult.conflict;
     }
 
     touchProject(projectId, now);
@@ -480,9 +492,10 @@ export function confirmProjectSegment(
   return {
     project: getProjectDetailById(projectId),
     segment: updatedSegment,
-    insertedIntoWriteTranslationMemory: Boolean(writeTranslationMemory && targetText),
+    insertedIntoWriteTranslationMemory,
     writeTranslationMemoryId:
       writeTranslationMemory?.translationMemoryId ?? null,
+    termConflict,
   };
 }
 

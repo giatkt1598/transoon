@@ -25,6 +25,18 @@ export type CreateTermInput = {
   targetTerm: string;
 };
 
+export type UpsertTranslationMemoryTermInput = {
+  translationMemoryId: string;
+  sourceTerm: string;
+  targetTerm: string;
+};
+
+export type UpsertTranslationMemoryTermResult = {
+  term: TermEntity;
+  inserted: boolean;
+  conflict: boolean;
+};
+
 export type UpsertTranslationUnitInput = {
   translationMemoryId: string;
   projectId: string | null;
@@ -48,6 +60,14 @@ export type ProjectTranslationMemorySummary = ProjectTranslationMemoryEntity &
   TranslationMemorySummary & {
     linkedAt: string;
   };
+
+export type ProjectTermSummary = TermEntity & {
+  name: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  accessMode: TranslationMemoryAccessMode;
+  priority: number;
+};
 
 export function listTranslationMemories() {
   const database = getTranslationMemoryDatabase();
@@ -151,6 +171,57 @@ export function createTerm(input: CreateTermInput) {
   repositories.terms.insert(entity);
   touchTranslationMemory(input.translationMemoryId, now);
   return entity;
+}
+
+export function upsertTranslationMemoryTerm(
+  input: UpsertTranslationMemoryTermInput,
+): UpsertTranslationMemoryTermResult {
+  const repositories = createTranslationMemoryRepositories();
+  const now = new Date().toISOString();
+  const sourceTerm = input.sourceTerm.trim();
+  const targetTerm = input.targetTerm.trim();
+
+  if (!sourceTerm || !targetTerm) {
+    throw new Error("Translation memory terms require both source and target text.");
+  }
+
+  const sourceTermNormalized = normalizeTerm(sourceTerm);
+  const targetTermNormalized = normalizeTerm(targetTerm);
+  const existingTerm = repositories.terms
+    .query()
+    .where("translationMemoryId", input.translationMemoryId)
+    .where("sourceTermNormalized", sourceTermNormalized)
+    .firstOrDefault();
+
+  if (existingTerm) {
+    touchTranslationMemory(input.translationMemoryId, now);
+    return {
+      term: existingTerm,
+      inserted: false,
+      conflict:
+        existingTerm.targetTermNormalized !== targetTermNormalized,
+    };
+  }
+
+  const entity: TermEntity = {
+    id: randomUUID(),
+    translationMemoryId: input.translationMemoryId,
+    sourceTerm,
+    sourceTermNormalized,
+    targetTerm,
+    targetTermNormalized,
+    lastModifiedAt: now,
+    lastUsedAt: now,
+    createdAt: now,
+  };
+
+  repositories.terms.insert(entity);
+  touchTranslationMemory(input.translationMemoryId, now);
+  return {
+    term: repositories.terms.getById(entity.id) ?? entity,
+    inserted: true,
+    conflict: false,
+  };
 }
 
 export function upsertTranslationMemoryUnit(input: UpsertTranslationUnitInput) {
@@ -340,6 +411,34 @@ export function listProjectTranslationMemories(projectId: string) {
     createdAt: row.createdAt,
     termCount: Number(row.termCount ?? 0),
   }));
+}
+
+export function listProjectTerms(projectId: string): ProjectTermSummary[] {
+  const database = getTranslationMemoryDatabase();
+  const sql = `
+    SELECT
+      t.id,
+      t.translationMemoryId,
+      t.sourceTerm,
+      t.sourceTermNormalized,
+      t.targetTerm,
+      t.targetTermNormalized,
+      t.lastModifiedAt,
+      t.lastUsedAt,
+      t.createdAt,
+      tm.name,
+      tm.sourceLanguage,
+      tm.targetLanguage,
+      ptm.accessMode,
+      ptm.priority
+    FROM projectTranslationMemories ptm
+    INNER JOIN translationMemories tm ON tm.id = ptm.translationMemoryId
+    INNER JOIN terms t ON t.translationMemoryId = ptm.translationMemoryId
+    WHERE ptm.projectId = ?
+    ORDER BY ptm.priority ASC, CASE WHEN ptm.accessMode = 'write' THEN 0 ELSE 1 END ASC, t.lastModifiedAt DESC
+  `;
+
+  return database.prepare(sql).all(projectId) as ProjectTermSummary[];
 }
 
 export function getProjectTranslationMemory(

@@ -126,6 +126,7 @@ export type ConfirmedProjectSegmentResponse = {
   segment: ProjectSegment
   insertedIntoWriteTranslationMemory: boolean
   writeTranslationMemoryId: string | null
+  termConflict: boolean
 }
 
 export type DocxPreviewBlock = {
@@ -218,4 +219,25 @@ export type TranslationMemorySummary = {
 
 export type TranslationMemoriesResponse = {
   translationMemories: TranslationMemorySummary[]
+}
+
+export type ProjectTerm = {
+  id: string
+  translationMemoryId: string
+  sourceTerm: string
+  sourceTermNormalized: string
+  targetTerm: string
+  targetTermNormalized: string
+  lastModifiedAt: string
+  lastUsedAt: string | null
+  createdAt: string
+  name: string
+  sourceLanguage: string
+  targetLanguage: string
+  accessMode: 'read' | 'write'
+  priority: number
+}
+
+export type ProjectTermsResponse = {
+  terms: ProjectTerm[]
 }

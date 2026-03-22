@@ -195,6 +195,18 @@
   white-space: nowrap;
 }
 
+.alignment-score-conflict-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #d48a16;
+}
+
 .alignment-status-icon {
   display: inline-flex;
   align-items: center;
