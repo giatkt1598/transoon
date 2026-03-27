@@ -89,12 +89,10 @@ export function ProjectDetailGlossariesSection({
         </Alert>
       ) : null}
 
-      <Box className="detail-memory-table-shell">
-        <Box className="detail-memory-table-head">
+      <Box className="detail-memory-table-shell detail-glossary-table-shell">
+        <Box className="detail-memory-table-head detail-glossary-table-head">
           <span></span>
           <span>Glossary</span>
-          <span>Language route</span>
-          <span>Priority</span>
           <span>Actions</span>
         </Box>
 
@@ -111,7 +109,7 @@ export function ProjectDetailGlossariesSection({
                 key={config.glossaryId}
                 className={`detail-memory-table-row${
                   draggedGlossaryId === config.glossaryId ? " dragging" : ""
-                }`}
+                } detail-glossary-table-row`}
                 draggable={!isSaving && !isReadOnly}
                 onDragStart={() => onDragStart(config.glossaryId)}
                 onDragEnd={onDragEnd}
@@ -131,21 +129,6 @@ export function ProjectDetailGlossariesSection({
                       {config.itemCount} glossary items
                     </Typography>
                   </Box>
-                </Box>
-
-                <Box className="shared-created-cell">
-                  <Typography component="p">
-                    {formatLanguageRoute(
-                      config.sourceLanguage,
-                      config.targetLanguage,
-                    )}
-                  </Typography>
-                  <Typography component="span">existing glossary</Typography>
-                </Box>
-
-                <Box className="shared-segment-cell">
-                  <Typography component="p">{config.priority}</Typography>
-                  <Typography component="span">drag to reorder</Typography>
                 </Box>
 
                 <Box className="shared-action-cell">

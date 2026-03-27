@@ -270,6 +270,13 @@
   gap: 18px;
 }
 
+.detail-home-linked-resources-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
 .detail-section-card {
   border: 1px solid rgba(58, 44, 30, 0.12);
   border-radius: 24px;
@@ -382,10 +389,14 @@
 .detail-memory-table-row {
   display: grid;
   grid-template-columns:
-    46px minmax(220px, 1.45fr) minmax(140px, 0.8fr) minmax(80px, 0.45fr)
-    72px;
+    46px minmax(220px, 1fr) minmax(140px, 0.8fr) 72px;
   gap: 16px;
   align-items: center;
+}
+
+.detail-glossary-table-head,
+.detail-glossary-table-row {
+  grid-template-columns: 46px minmax(0, 1fr) 72px;
 }
 
 .detail-memory-table-head {

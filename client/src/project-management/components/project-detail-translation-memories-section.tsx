@@ -113,7 +113,6 @@ export function ProjectDetailTranslationMemoriesSection({
           <span></span>
           <span>Translation memory</span>
           <span>Access mode</span>
-          <span>Priority</span>
           <span>Actions</span>
         </Box>
 
@@ -170,11 +169,6 @@ export function ProjectDetailTranslationMemoriesSection({
                   <MenuItem value="read">Read</MenuItem>
                   <MenuItem value="write">Write</MenuItem>
                 </TextField>
-
-                <Box className="shared-segment-cell">
-                  <Typography component="p">{config.priority}</Typography>
-                  <Typography component="span">drag to reorder</Typography>
-                </Box>
 
                 <Box className="shared-action-cell">
                   <IconButton

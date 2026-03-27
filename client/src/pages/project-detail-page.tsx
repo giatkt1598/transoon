@@ -258,48 +258,50 @@ export function ProjectDetailPage() {
           >
             <Box className="detail-home-grid">
               <ProjectDetailInformationSection projectDetail={projectDetail} />
-              <ProjectDetailTranslationMemoriesSection
-                projectDetail={projectDetail}
-                translationMemories={draftTranslationMemories}
-                availableTranslationMemories={availableTranslationMemories}
-                configForm={configForm}
-                isConfigDialogOpen={isConfigDialogOpen}
-                editingConfigId={editingConfigId}
-                draggedTranslationMemoryId={draggedTranslationMemoryId}
-                isSaving={isSaving}
-                isReadOnly={
-                  projectDetail.status === "auto-translate-processing"
-                }
-                onFieldChange={handleConfigFieldChange}
-                onOpenAddDialog={handleOpenAddDialog}
-                onOpenEditDialog={handleOpenEditDialog}
-                onCloseConfigDialog={handleCloseConfigDialog}
-                onAdd={handleAddTranslationMemory}
-                onDelete={handleDeleteConfig}
-                onAccessModeChange={handleAccessModeChange}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDropOnRow={handleDropOnRow}
-              />
-              <ProjectDetailGlossariesSection
-                projectGlossaries={draftGlossaries}
-                availableGlossaries={availableGlossaries}
-                glossaryConfigForm={glossaryConfigForm}
-                isGlossaryDialogOpen={isGlossaryDialogOpen}
-                draggedGlossaryId={draggedGlossaryId}
-                isSaving={isSaving}
-                isReadOnly={
-                  projectDetail.status === "auto-translate-processing"
-                }
-                onFieldChange={handleGlossaryConfigFieldChange}
-                onOpenAddDialog={handleOpenAddGlossaryDialog}
-                onCloseConfigDialog={handleCloseGlossaryDialog}
-                onAdd={handleAddGlossary}
-                onDelete={handleDeleteGlossaryConfig}
-                onDragStart={handleGlossaryDragStart}
-                onDragEnd={handleGlossaryDragEnd}
-                onDropOnRow={handleDropGlossaryOnRow}
-              />
+              <Box className="detail-home-linked-resources-grid">
+                <ProjectDetailTranslationMemoriesSection
+                  projectDetail={projectDetail}
+                  translationMemories={draftTranslationMemories}
+                  availableTranslationMemories={availableTranslationMemories}
+                  configForm={configForm}
+                  isConfigDialogOpen={isConfigDialogOpen}
+                  editingConfigId={editingConfigId}
+                  draggedTranslationMemoryId={draggedTranslationMemoryId}
+                  isSaving={isSaving}
+                  isReadOnly={
+                    projectDetail.status === "auto-translate-processing"
+                  }
+                  onFieldChange={handleConfigFieldChange}
+                  onOpenAddDialog={handleOpenAddDialog}
+                  onOpenEditDialog={handleOpenEditDialog}
+                  onCloseConfigDialog={handleCloseConfigDialog}
+                  onAdd={handleAddTranslationMemory}
+                  onDelete={handleDeleteConfig}
+                  onAccessModeChange={handleAccessModeChange}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDropOnRow={handleDropOnRow}
+                />
+                <ProjectDetailGlossariesSection
+                  projectGlossaries={draftGlossaries}
+                  availableGlossaries={availableGlossaries}
+                  glossaryConfigForm={glossaryConfigForm}
+                  isGlossaryDialogOpen={isGlossaryDialogOpen}
+                  draggedGlossaryId={draggedGlossaryId}
+                  isSaving={isSaving}
+                  isReadOnly={
+                    projectDetail.status === "auto-translate-processing"
+                  }
+                  onFieldChange={handleGlossaryConfigFieldChange}
+                  onOpenAddDialog={handleOpenAddGlossaryDialog}
+                  onCloseConfigDialog={handleCloseGlossaryDialog}
+                  onAdd={handleAddGlossary}
+                  onDelete={handleDeleteGlossaryConfig}
+                  onDragStart={handleGlossaryDragStart}
+                  onDragEnd={handleGlossaryDragEnd}
+                  onDropOnRow={handleDropGlossaryOnRow}
+                />
+              </Box>
             </Box>
           </Box>
 
