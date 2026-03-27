@@ -25,6 +25,17 @@ import {
   updateProject,
 } from "../translation-memory/project-service";
 import {
+  createGlossary,
+  createGlossaryItem,
+  deleteGlossary,
+  deleteGlossaryItem,
+  getGlossaryById,
+  listGlossaries,
+  listGlossaryItems,
+  updateGlossary,
+  updateGlossaryItem,
+} from "../translation-memory/glossary-service";
+import {
   attachTranslationMemoryToProject,
   createTranslationMemory,
   deleteProjectTranslationMemory,
@@ -754,6 +765,182 @@ export function createApiRouter() {
     },
   );
 
+  router.get("/api/glossaries", (_req, res) => {
+    try {
+      res.json({
+        glossaries: listGlossaries(),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.get("/api/glossaries/:glossaryId", (req, res) => {
+    try {
+      const glossary = getGlossaryById(String(req.params.glossaryId));
+      if (!glossary) {
+        res.status(404).json({ error: "Glossary not found." });
+        return;
+      }
+
+      res.json(glossary);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.get("/api/glossaries/:glossaryId/items", (req, res) => {
+    try {
+      const glossaryId = String(req.params.glossaryId);
+      const glossary = getGlossaryById(glossaryId);
+      if (!glossary) {
+        res.status(404).json({ error: "Glossary not found." });
+        return;
+      }
+
+      res.json({
+        items: listGlossaryItems(glossaryId),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.post("/api/glossaries", (req, res) => {
+    try {
+      const validationError = validateGlossaryInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const glossary = createGlossary(req.body);
+      res.status(201).json(glossary);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.put("/api/glossaries/:glossaryId", (req, res) => {
+    try {
+      const glossaryId = String(req.params.glossaryId);
+      const glossary = getGlossaryById(glossaryId);
+      if (!glossary) {
+        res.status(404).json({ error: "Glossary not found." });
+        return;
+      }
+
+      const validationError = validateGlossaryInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      res.json(updateGlossary(glossaryId, req.body));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.post("/api/glossaries/:glossaryId/items", (req, res) => {
+    try {
+      const glossaryId = String(req.params.glossaryId);
+      const glossary = getGlossaryById(glossaryId);
+      if (!glossary) {
+        res.status(404).json({ error: "Glossary not found." });
+        return;
+      }
+
+      const validationError = validateGlossaryItemInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      res.status(201).json(createGlossaryItem(glossaryId, req.body));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.put("/api/glossaries/:glossaryId/items/:glossaryItemId", (req, res) => {
+    try {
+      const glossaryId = String(req.params.glossaryId);
+      const glossaryItemId = String(req.params.glossaryItemId);
+      const glossary = getGlossaryById(glossaryId);
+      if (!glossary) {
+        res.status(404).json({ error: "Glossary not found." });
+        return;
+      }
+
+      const validationError = validateGlossaryItemInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const item = updateGlossaryItem(glossaryId, glossaryItemId, req.body);
+      if (!item) {
+        res.status(404).json({ error: "Glossary item not found." });
+        return;
+      }
+
+      res.json(item);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.delete("/api/glossaries/:glossaryId/items/:glossaryItemId", (req, res) => {
+    try {
+      const glossaryId = String(req.params.glossaryId);
+      const glossary = getGlossaryById(glossaryId);
+      if (!glossary) {
+        res.status(404).json({ error: "Glossary not found." });
+        return;
+      }
+
+      deleteGlossaryItem(glossaryId, String(req.params.glossaryItemId));
+      res.status(204).send();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.delete("/api/glossaries/:glossaryId", (req, res) => {
+    try {
+      const glossaryId = String(req.params.glossaryId);
+      const glossary = getGlossaryById(glossaryId);
+      if (!glossary) {
+        res.status(404).json({ error: "Glossary not found." });
+        return;
+      }
+
+      deleteGlossary(glossaryId);
+      res.status(204).send();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
   router.delete(
     "/api/translation-memories/:translationMemoryId",
     (req, res) => {
@@ -1072,6 +1259,66 @@ function validateTranslationMemoryTermInput(body: unknown) {
 
   if (typeof targetTerm !== "string" || targetTerm.trim().length === 0) {
     return "Target term is required.";
+  }
+
+  return null;
+}
+
+function validateGlossaryInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A glossary payload is required.";
+  }
+
+  const { name, sourceLanguage, targetLanguage } = body as Record<string, unknown>;
+  if (typeof name !== "string" || name.trim().length === 0) {
+    return "Glossary name is required.";
+  }
+
+  if (typeof sourceLanguage !== "string" || sourceLanguage.trim().length === 0) {
+    return "Source language is required.";
+  }
+
+  if (typeof targetLanguage !== "string" || targetLanguage.trim().length === 0) {
+    return "Target language is required.";
+  }
+
+  return null;
+}
+
+function validateGlossaryItemInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A glossary item payload is required.";
+  }
+
+  const {
+    source,
+    target,
+    caseSensitive,
+    wholeWord,
+    priority,
+  } = body as Record<string, unknown>;
+
+  if (typeof source !== "string" || source.trim().length === 0) {
+    return "Glossary source is required.";
+  }
+
+  if (typeof target !== "string" || target.trim().length === 0) {
+    return "Glossary target is required.";
+  }
+
+  if (caseSensitive !== undefined && typeof caseSensitive !== "boolean") {
+    return "caseSensitive must be a boolean.";
+  }
+
+  if (wholeWord !== undefined && typeof wholeWord !== "boolean") {
+    return "wholeWord must be a boolean.";
+  }
+
+  if (
+    priority !== undefined &&
+    (typeof priority !== "number" || !Number.isFinite(priority))
+  ) {
+    return "priority must be a valid number.";
   }
 
   return null;

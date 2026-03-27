@@ -1,0 +1,66 @@
+.glossary-items-grid-shell {
+  border: 1px solid rgba(128, 94, 58, 0.14);
+  border-radius: 22px;
+  overflow: hidden;
+  background: rgba(255, 252, 246, 0.96);
+}
+
+.glossary-items-grid-head,
+.glossary-items-grid-row {
+  display: grid;
+  grid-template-columns: 68px minmax(180px, 1fr) minmax(180px, 1fr) 110px 110px 100px 150px 56px;
+  column-gap: 0;
+}
+
+.glossary-items-grid-head {
+  align-items: center;
+  border-bottom: 1px solid rgba(128, 94, 58, 0.14);
+  background: rgba(255, 248, 238, 0.96);
+  color: #8c5e36;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.glossary-items-grid-head > span,
+.glossary-items-grid-row > * {
+  padding: 8px 12px;
+}
+
+.glossary-items-grid-row {
+  align-items: stretch;
+  border-bottom: 1px solid rgba(128, 94, 58, 0.12);
+}
+
+.glossary-items-grid-row:last-child {
+  border-bottom: none;
+}
+
+.glossary-items-grid-row:hover {
+  background: rgba(255, 246, 223, 0.42);
+}
+
+.glossary-items-index-cell,
+.glossary-items-flag-cell,
+.glossary-items-action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.glossary-items-editor-cell .MuiOutlinedInput-root,
+.glossary-items-priority-cell .MuiOutlinedInput-root {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.glossary-items-meta-cell p,
+.glossary-items-meta-cell span {
+  margin: 0;
+}
+
+.glossary-items-meta-cell span {
+  color: rgba(93, 70, 50, 0.72);
+  font-size: 0.78rem;
+}

@@ -787,6 +787,10 @@ function AlignmentVirtualRow({
   const inlinePlaceholder = isInlineTranslating
     ? `Translating (by ${inlineTranslateProviderName || "translate provider"})...`
     : exactMatchedTerm?.targetTerm || "Type target translation...";
+  const highlightedSourceFragments = useMemo(
+    () => buildHighlightedSourceFragments(segment),
+    [segment],
+  );
 
   const handleApplyTerm = useCallback(
     (nextTargetText: string) => {
@@ -862,7 +866,26 @@ function AlignmentVirtualRow({
         </Box>
 
         <Box className="alignment-source-cell">
-          <Typography component="p">{segment.sourceText}</Typography>
+          <Typography component="p">
+            {highlightedSourceFragments.map((fragment, fragmentIndex) =>
+              fragment.isHighlighted ? (
+                <Tooltip
+                  key={`${segment.id}-glossary-${fragmentIndex}`}
+                  title={`Glossary: ${fragment.glossaryItem.source} -> ${fragment.glossaryItem.target}`}
+                  arrow
+                  placement="top"
+                >
+                  <span className="alignment-glossary-highlight">
+                    {fragment.text}
+                  </span>
+                </Tooltip>
+              ) : (
+                <span key={`${segment.id}-text-${fragmentIndex}`}>
+                  {fragment.text}
+                </span>
+              ),
+            )}
+          </Typography>
         </Box>
 
         <TextField
@@ -1360,6 +1383,135 @@ function getAlignmentStatusPresentation({
     icon: CloseRoundedIcon,
     spinning: false,
   };
+}
+
+type HighlightedSourceFragment =
+  | { text: string; isHighlighted: false }
+  | {
+      text: string;
+      isHighlighted: true;
+      glossaryItem: ProjectSegment["appliedGlossary"][number];
+    };
+
+function buildHighlightedSourceFragments(
+  segment: ProjectSegment,
+): HighlightedSourceFragment[] {
+  if (!segment.appliedGlossary.length) {
+    return [{ text: segment.sourceText, isHighlighted: false }];
+  }
+
+  const sortedItems = [...segment.appliedGlossary].sort((left, right) => {
+    if (right.priority !== left.priority) {
+      return right.priority - left.priority;
+    }
+
+    if (right.source.length !== left.source.length) {
+      return right.source.length - left.source.length;
+    }
+
+    return left.source.localeCompare(right.source);
+  });
+
+  const fragments: HighlightedSourceFragment[] = [];
+  let currentIndex = 0;
+
+  while (currentIndex < segment.sourceText.length) {
+    const matchedItem = sortedItems.find((item) =>
+      isGlossaryMatchAt(segment.sourceText, currentIndex, item),
+    );
+
+    if (!matchedItem) {
+      fragments.push({
+        text: segment.sourceText[currentIndex] ?? "",
+        isHighlighted: false,
+      });
+      currentIndex += 1;
+      continue;
+    }
+
+    fragments.push({
+      text: segment.sourceText.slice(
+        currentIndex,
+        currentIndex + matchedItem.source.length,
+      ),
+      isHighlighted: true,
+      glossaryItem: matchedItem,
+    });
+    currentIndex += matchedItem.source.length;
+  }
+
+  return compactHighlightedFragments(fragments);
+}
+
+function compactHighlightedFragments(
+  fragments: HighlightedSourceFragment[],
+) {
+  return fragments.reduce<HighlightedSourceFragment[]>((result, fragment) => {
+    const previousFragment = result[result.length - 1];
+    if (!previousFragment) {
+      result.push(fragment);
+      return result;
+    }
+
+    if (!fragment.isHighlighted && !previousFragment.isHighlighted) {
+      previousFragment.text += fragment.text;
+      return result;
+    }
+
+    if (
+      fragment.isHighlighted &&
+      previousFragment.isHighlighted &&
+      previousFragment.glossaryItem.id === fragment.glossaryItem.id
+    ) {
+      previousFragment.text += fragment.text;
+      return result;
+    }
+
+    result.push(fragment);
+    return result;
+  }, []);
+}
+
+function isGlossaryMatchAt(
+  sourceText: string,
+  startIndex: number,
+  glossaryItem: ProjectSegment["appliedGlossary"][number],
+) {
+  const candidateText = sourceText.slice(
+    startIndex,
+    startIndex + glossaryItem.source.length,
+  );
+  if (!candidateText) {
+    return false;
+  }
+
+  const leftValue = glossaryItem.caseSensitive
+    ? candidateText
+    : candidateText.toLowerCase();
+  const rightValue = glossaryItem.caseSensitive
+    ? glossaryItem.source
+    : glossaryItem.source.toLowerCase();
+
+  if (leftValue !== rightValue) {
+    return false;
+  }
+
+  if (!glossaryItem.wholeWord) {
+    return true;
+  }
+
+  const previousCharacter = sourceText[startIndex - 1] ?? "";
+  const nextCharacter =
+    sourceText[startIndex + glossaryItem.source.length] ?? "";
+
+  return (
+    !isWordCharacter(previousCharacter) &&
+    !isWordCharacter(nextCharacter)
+  );
+}
+
+function isWordCharacter(value: string) {
+  return value.length > 0 && /[\p{L}\p{N}_]/u.test(value);
 }
 
 

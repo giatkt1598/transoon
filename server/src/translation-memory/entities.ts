@@ -17,6 +17,16 @@ export type MatchQuality =
 
 export type TranslationMemoryAccessMode = "read" | "write";
 
+export type GlossaryAppliedItem = {
+  id: string;
+  glossaryId: string;
+  source: string;
+  target: string;
+  caseSensitive: 0 | 1;
+  wholeWord: 0 | 1;
+  priority: number;
+};
+
 export type AppSettingEntity = {
   key: string;
   value: string;
@@ -75,6 +85,31 @@ export type TranslationMemoryEntity = {
   name: string;
   sourceLanguage: string;
   targetLanguage: string;
+  lastModifiedAt: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+};
+
+export type GlossaryEntity = {
+  id: string;
+  name: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  lastModifiedAt: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+};
+
+export type GlossaryItemEntity = {
+  id: string;
+  glossaryId: string;
+  source: string;
+  sourceNormalized: string;
+  target: string;
+  targetNormalized: string;
+  caseSensitive: 0 | 1;
+  wholeWord: 0 | 1;
+  priority: number;
   lastModifiedAt: string;
   lastUsedAt: string | null;
   createdAt: string;

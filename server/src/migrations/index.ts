@@ -9,6 +9,7 @@ import { translationUnitMemoryLinkMigration } from "./202603210007_translation-u
 import { segmentMergeSupportMigration } from "./202603210008_segment-merge-support";
 import { segmentSplitSupportMigration } from "./202603210009_segment-split-support";
 import { segmentOriginExternalIdsMigration } from "./202603210010_segment-origin-external-ids";
+import { glossaryManagementMigration } from "./202603210011_glossary-management";
 
 export const migrations: MigrationDefinition[] = [
   initialTranslationMemoryMigration,
@@ -21,4 +22,5 @@ export const migrations: MigrationDefinition[] = [
   segmentMergeSupportMigration,
   segmentSplitSupportMigration,
   segmentOriginExternalIdsMigration,
+  glossaryManagementMigration,
 ];

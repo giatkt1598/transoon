@@ -40,6 +40,24 @@ const TranslationMemoryDetailPage = lazy(() =>
   })),
 )
 
+const GlossariesListPage = lazy(() =>
+  import('../pages/glossaries-list-page').then((module) => ({
+    default: module.GlossariesListPage,
+  })),
+)
+
+const GlossaryEditorPage = lazy(() =>
+  import('../pages/glossary-editor-page').then((module) => ({
+    default: module.GlossaryEditorPage,
+  })),
+)
+
+const GlossaryDetailPage = lazy(() =>
+  import('../pages/glossary-detail-page').then((module) => ({
+    default: module.GlossaryDetailPage,
+  })),
+)
+
 const SettingsPage = lazy(() =>
   import('../pages/settings-page').then((module) => ({ default: module.SettingsPage })),
 )
@@ -94,6 +112,22 @@ export const appRouter = createBrowserRouter([
       {
         path: 'translation-memories/:translationMemoryId/edit',
         element: <TranslationMemoryEditorPage />,
+      },
+      {
+        path: 'glossaries',
+        element: <GlossariesListPage />,
+      },
+      {
+        path: 'glossaries/new',
+        element: <GlossaryEditorPage />,
+      },
+      {
+        path: 'glossaries/:glossaryId',
+        element: <GlossaryDetailPage />,
+      },
+      {
+        path: 'glossaries/:glossaryId/edit',
+        element: <GlossaryEditorPage />,
       },
       {
         path: 'settings',

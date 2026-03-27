@@ -13,10 +13,17 @@ import { TranslateProvider } from "../translate-provider";
 import { getTranslationMemoryDatabase } from "./database";
 import type {
   DocumentEntity,
+  GlossaryAppliedItem,
   ProjectEntity,
   ProjectStatus,
   SegmentEntity,
 } from "./entities";
+import {
+  applyGlossaryPostprocess,
+  applyGlossaryPreprocess,
+  getAppliedGlossaryItems,
+  listGlossaryItemsByLanguagePair,
+} from "./glossary-service";
 import { getAppSettings } from "./settings-service";
 import {
   listProjectTerms,
@@ -52,6 +59,7 @@ export type ProjectSegment = Pick<
   | "translationStatus"
 > & {
   previewExternalSegmentIds: string[];
+  appliedGlossary: GlossaryAppliedItem[];
 };
 
 type StoredProjectSegment = Pick<
@@ -80,6 +88,7 @@ export type InlineTranslatedProjectSegment = {
   segmentId: string;
   targetText: string;
   providerName: string;
+  appliedGlossary: GlossaryAppliedItem[];
 };
 
 export type ConfirmProjectSegmentResult = {
@@ -202,7 +211,11 @@ export function getProjectDetailById(projectId: string) {
 }
 
 export function listProjectSegments(projectId: string) {
+  const project = getProjectById(projectId);
   const storedSegments = listStoredProjectSegments(projectId);
+  const glossaryItems = project
+    ? listGlossaryItemsByLanguagePair(project.sourceLang, project.targetLang)
+    : [];
 
   return storedSegments
     .filter((segment) => segment.mergedIntoSegmentId === null)
@@ -210,6 +223,10 @@ export function listProjectSegments(projectId: string) {
       ...segment,
       position: index + 1,
       previewExternalSegmentIds: resolvePreviewExternalSegmentIds(segment),
+      appliedGlossary: getAppliedGlossaryItems(
+        segment.sourceText,
+        glossaryItems,
+      ),
     })) as ProjectSegment[];
 }
 
@@ -848,16 +865,28 @@ export async function inlineTranslateProjectSegment(
   }
 
   const { inlineTranslateProvider } = getAppSettings();
+  const glossaryItems = listGlossaryItemsByLanguagePair(
+    project.sourceLang,
+    project.targetLang,
+  );
+  const glossaryPreprocess = applyGlossaryPreprocess(
+    segment.sourceText,
+    glossaryItems,
+  );
   const provider = TranslateProvider.resolve(inlineTranslateProvider);
   const result = await provider.translate({
-    segments: [segment.sourceText],
+    segments: [glossaryPreprocess.preparedText],
     sourceLanguage: project.sourceLang,
     targetLanguage: project.targetLang,
     promptMode: "inline",
   });
 
-  const targetText = result.translatedSegments[0]?.trim()
-    ? result.translatedSegments[0]
+  const translatedText = applyGlossaryPostprocess(
+    result.translatedSegments[0] ?? "",
+    glossaryPreprocess.placeholderTargets,
+  );
+  const targetText = translatedText.trim()
+    ? translatedText
     : "";
 
   if (!targetText) {
@@ -868,6 +897,7 @@ export async function inlineTranslateProjectSegment(
     segmentId,
     targetText,
     providerName: result.provider,
+    appliedGlossary: glossaryPreprocess.appliedGlossary,
   } satisfies InlineTranslatedProjectSegment;
 }
 
@@ -1072,6 +1102,10 @@ async function runProjectAutoTranslate(
       (segment) => !isSegmentAlreadyTranslated(segment),
     );
     const projectTerms = listProjectTerms(projectId);
+    const glossaryItems = listGlossaryItemsByLanguagePair(
+      project.sourceLang,
+      project.targetLang,
+    );
 
     if (segments.length === 0) {
       await logger.information("Skipped background auto translate because all segments were already translated.", {
@@ -1136,6 +1170,10 @@ async function runProjectAutoTranslate(
     const providerSegments = segments
       .map((segment, originalIndex) => ({ segment, originalIndex }))
       .filter((item) => !termMatchedIndexes.has(item.originalIndex));
+    const glossaryPreparedProviderSegments = providerSegments.map((item) => ({
+      ...item,
+      glossary: applyGlossaryPreprocess(item.segment.sourceText, glossaryItems),
+    }));
 
     if (providerSegments.length === 0) {
       await logger.information("Completed background auto translate for {projectId}", {
@@ -1167,7 +1205,9 @@ async function runProjectAutoTranslate(
     });
 
     const result = await TranslateProvider.resolve(providerName).translate({
-      segments: providerSegments.map((item) => item.segment.sourceText),
+      segments: glossaryPreparedProviderSegments.map(
+        (item) => item.glossary.preparedText,
+      ),
       sourceLanguage: project.sourceLang,
       targetLanguage: project.targetLang,
       signal: controller.signal,
@@ -1197,8 +1237,14 @@ async function runProjectAutoTranslate(
       onTranslatedSegments: async (batch) => {
         ensureJobIsActive();
         const mappedBatch = batch.map((item) => ({
-          index: providerSegments[item.index]?.originalIndex ?? item.index,
-          text: item.text,
+          index:
+            glossaryPreparedProviderSegments[item.index]?.originalIndex ??
+            item.index,
+          text: applyGlossaryPostprocess(
+            item.text,
+            glossaryPreparedProviderSegments[item.index]?.glossary
+              .placeholderTargets ?? {},
+          ),
         }));
         translatedSegmentCount = persistAutoTranslatedSegments(
           segments,

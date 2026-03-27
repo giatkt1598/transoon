@@ -24,6 +24,16 @@ export type AppSettings = {
   termFuzzyMatchThreshold: number
 }
 
+export type AppliedGlossaryItem = {
+  id: string
+  glossaryId: string
+  source: string
+  target: string
+  caseSensitive: 0 | 1
+  wholeWord: 0 | 1
+  priority: number
+}
+
 export type TranslationResponse = {
   requestId: string
   sourceLanguage: string
@@ -107,6 +117,7 @@ export type ProjectSegment = {
   documentId: string
   externalSegmentId: string
   previewExternalSegmentIds: string[]
+  appliedGlossary: AppliedGlossaryItem[]
   sourceText: string
   targetText: string
   position: number
@@ -121,6 +132,7 @@ export type InlineTranslatedProjectSegmentResponse = {
   segmentId: string
   targetText: string
   providerName: string
+  appliedGlossary: AppliedGlossaryItem[]
 }
 
 export type ConfirmedProjectSegmentResponse = {
@@ -229,6 +241,40 @@ export type TranslationMemorySummary = {
   lastUsedAt: string | null
   createdAt: string
   termCount: number
+}
+
+export type GlossarySummary = {
+  id: string
+  name: string
+  sourceLanguage: string
+  targetLanguage: string
+  lastModifiedAt: string
+  lastUsedAt: string | null
+  createdAt: string
+  itemCount: number
+}
+
+export type GlossariesResponse = {
+  glossaries: GlossarySummary[]
+}
+
+export type GlossaryItem = {
+  id: string
+  glossaryId: string
+  source: string
+  sourceNormalized: string
+  target: string
+  targetNormalized: string
+  caseSensitive: 0 | 1
+  wholeWord: 0 | 1
+  priority: number
+  lastModifiedAt: string
+  lastUsedAt: string | null
+  createdAt: string
+}
+
+export type GlossaryItemsResponse = {
+  items: GlossaryItem[]
 }
 
 export type TranslationMemoriesResponse = {
