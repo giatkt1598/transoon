@@ -135,6 +135,13 @@ export type ProjectTranslationMemoryEntity = {
   createdAt: string;
 };
 
+export type ProjectGlossaryEntity = {
+  projectId: string;
+  glossaryId: string;
+  priority: number;
+  createdAt: string;
+};
+
 export type SegmentTokenEntity = {
   id: number;
   segmentId: string;

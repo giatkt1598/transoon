@@ -22,7 +22,8 @@ import {
   applyGlossaryPostprocess,
   applyGlossaryPreprocess,
   getAppliedGlossaryItems,
-  listGlossaryItemsByLanguagePair,
+  listProjectGlossaries,
+  listProjectGlossaryItems,
 } from "./glossary-service";
 import { getAppSettings } from "./settings-service";
 import {
@@ -46,6 +47,7 @@ export type ProjectSummary = ProjectEntity & {
 
 export type ProjectDetail = ProjectSummary & {
   translationMemories: ReturnType<typeof listProjectTranslationMemories>;
+  glossaries: ReturnType<typeof listProjectGlossaries>;
 };
 
 export type ProjectSegment = Pick<
@@ -207,15 +209,13 @@ export function getProjectDetailById(projectId: string) {
   return {
     ...project,
     translationMemories: listProjectTranslationMemories(projectId),
+    glossaries: listProjectGlossaries(projectId),
   } satisfies ProjectDetail;
 }
 
 export function listProjectSegments(projectId: string) {
-  const project = getProjectById(projectId);
   const storedSegments = listStoredProjectSegments(projectId);
-  const glossaryItems = project
-    ? listGlossaryItemsByLanguagePair(project.sourceLang, project.targetLang)
-    : [];
+  const glossaryItems = listProjectGlossaryItems(projectId);
 
   return storedSegments
     .filter((segment) => segment.mergedIntoSegmentId === null)
@@ -865,10 +865,7 @@ export async function inlineTranslateProjectSegment(
   }
 
   const { inlineTranslateProvider } = getAppSettings();
-  const glossaryItems = listGlossaryItemsByLanguagePair(
-    project.sourceLang,
-    project.targetLang,
-  );
+  const glossaryItems = listProjectGlossaryItems(projectId);
   const glossaryPreprocess = applyGlossaryPreprocess(
     segment.sourceText,
     glossaryItems,
@@ -1102,10 +1099,7 @@ async function runProjectAutoTranslate(
       (segment) => !isSegmentAlreadyTranslated(segment),
     );
     const projectTerms = listProjectTerms(projectId);
-    const glossaryItems = listGlossaryItemsByLanguagePair(
-      project.sourceLang,
-      project.targetLang,
-    );
+    const glossaryItems = listProjectGlossaryItems(projectId);
 
     if (segments.length === 0) {
       await logger.information("Skipped background auto translate because all segments were already translated.", {

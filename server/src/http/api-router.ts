@@ -25,14 +25,19 @@ import {
   updateProject,
 } from "../translation-memory/project-service";
 import {
+  attachGlossaryToProject,
   createGlossary,
   createGlossaryItem,
   deleteGlossary,
   deleteGlossaryItem,
+  deleteProjectGlossary,
   getGlossaryById,
+  getProjectGlossary,
   listGlossaries,
   listGlossaryItems,
+  listProjectGlossaries,
   updateGlossary,
+  updateProjectGlossary,
   updateGlossaryItem,
 } from "../translation-memory/glossary-service";
 import {
@@ -563,6 +568,111 @@ export function createApiRouter() {
     },
   );
 
+  router.post("/api/projects/:projectId/glossaries", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      assertProjectIsEditable(projectId);
+      const validationError = validateProjectGlossaryInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const glossary = getGlossaryById(String(req.body.glossaryId));
+      if (!glossary) {
+        res.status(404).json({ error: "Glossary not found." });
+        return;
+      }
+
+      const created = attachGlossaryToProject({
+        projectId,
+        glossaryId: String(req.body.glossaryId),
+        priority: Number(req.body.priority),
+      });
+      res.status(201).json(created);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.put("/api/projects/:projectId/glossaries/:glossaryId", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const glossaryId = String(req.params.glossaryId);
+      const existingProject = getProjectById(projectId);
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      assertProjectIsEditable(projectId);
+      const existingLink = getProjectGlossary(projectId, glossaryId);
+      if (!existingLink) {
+        res.status(404).json({
+          error: "Project glossary configuration not found.",
+        });
+        return;
+      }
+
+      const validationError = validateProjectGlossaryInput({
+        ...req.body,
+        glossaryId,
+      });
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const updated = updateProjectGlossary({
+        projectId,
+        glossaryId,
+        priority: Number(req.body.priority),
+      });
+      res.json(updated);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.delete("/api/projects/:projectId/glossaries/:glossaryId", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const glossaryId = String(req.params.glossaryId);
+      const existingProject = getProjectById(projectId);
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      assertProjectIsEditable(projectId);
+      const existingLink = getProjectGlossary(projectId, glossaryId);
+      if (!existingLink) {
+        res.status(404).json({
+          error: "Project glossary configuration not found.",
+        });
+        return;
+      }
+
+      deleteProjectGlossary(projectId, glossaryId);
+      res.status(204).send();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
   router.post("/api/projects/:projectId/auto-translate", async (req, res) => {
     try {
       const projectId = String(req.params.projectId);
@@ -769,6 +879,26 @@ export function createApiRouter() {
     try {
       res.json({
         glossaries: listGlossaries(),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.get("/api/projects/:projectId/glossaries", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      res.json({
+        glossaries: listProjectGlossaries(projectId),
       });
     } catch (error) {
       const message =
@@ -1230,6 +1360,32 @@ function validateProjectTranslationMemoryInput(body: unknown) {
 
   if (accessMode !== "read" && accessMode !== "write") {
     return "Access mode must be read or write.";
+  }
+
+  if (
+    typeof priority !== "number" &&
+    !(typeof priority === "string" && priority.trim().length > 0)
+  ) {
+    return "Priority is required.";
+  }
+
+  const numericPriority = Number(priority);
+  if (!Number.isInteger(numericPriority) || numericPriority < 0) {
+    return "Priority must be a non-negative integer.";
+  }
+
+  return null;
+}
+
+function validateProjectGlossaryInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A project glossary payload is required.";
+  }
+
+  const { glossaryId, priority } = body as Record<string, unknown>;
+
+  if (typeof glossaryId !== "string" || glossaryId.trim().length === 0) {
+    return "Glossary is required.";
   }
 
   if (

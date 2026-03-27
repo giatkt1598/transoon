@@ -13,6 +13,7 @@ import type {
   ProjectTerm,
   ProjectTermsResponse,
   ProjectsResponse,
+  ProjectGlossaryConfig,
   ProjectTranslationMemoryConfig,
   TranslateProvidersResponse,
   TranslationMemoriesResponse,
@@ -436,6 +437,72 @@ export async function deleteProjectTranslationMemory(projectId: string, translat
   if (!response.ok) {
     const data = await readJsonResponse<{ error?: string }>(response)
     throw new Error(data.error ?? 'Could not delete translation memory configuration.')
+  }
+}
+
+export async function attachProjectGlossary(
+  projectId: string,
+  payload: {
+    glossaryId: string
+    priority: number
+  },
+) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/glossaries`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const data = await readJsonResponse<ProjectGlossaryConfig | { error?: string }>(response)
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data ? data.error ?? 'Could not attach glossary.' : 'Could not attach glossary.',
+    )
+  }
+
+  return data as ProjectGlossaryConfig
+}
+
+export async function updateProjectGlossary(
+  projectId: string,
+  glossaryId: string,
+  payload: {
+    priority: number
+  },
+) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/glossaries/${glossaryId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      glossaryId,
+      ...payload,
+    }),
+  })
+
+  const data = await readJsonResponse<ProjectGlossaryConfig | { error?: string }>(response)
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data
+        ? data.error ?? 'Could not update glossary configuration.'
+        : 'Could not update glossary configuration.',
+    )
+  }
+
+  return data as ProjectGlossaryConfig
+}
+
+export async function deleteProjectGlossary(projectId: string, glossaryId: string) {
+  const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}/glossaries/${glossaryId}`, {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    const data = await readJsonResponse<{ error?: string }>(response)
+    throw new Error(data.error ?? 'Could not delete glossary configuration.')
   }
 }
 

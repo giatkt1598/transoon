@@ -1,14 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
-import type { ProjectDetail, ProjectTranslationMemoryConfig, TranslationMemorySummary } from '../../app/types'
+import type {
+  GlossarySummary,
+  ProjectDetail,
+  ProjectGlossaryConfig,
+  ProjectTranslationMemoryConfig,
+  TranslationMemorySummary,
+} from '../../app/types'
 import {
+  attachProjectGlossary,
   attachProjectTranslationMemory,
+  deleteProjectGlossary,
   deleteProjectTranslationMemory,
   fetchProjectDetail,
   fetchTranslateProviders,
   fetchTranslationMemories,
+  updateProjectGlossary,
   updateProjectTranslationMemory,
 } from '../api'
+import { fetchGlossaries } from '../../glossary-management/api'
 import { saveTranslationMemory } from '../../translation-memory-management/api'
 import type { TranslateProviderOption } from '../../app/types'
 
@@ -30,6 +40,10 @@ type DraftProjectTranslationMemoryConfig = ProjectTranslationMemoryConfig & {
   isDraftNew?: boolean
 }
 
+type GlossaryConfigForm = {
+  glossaryId: string
+}
+
 type UseProjectDetailOptions = {
   projectId?: string
 }
@@ -37,12 +51,17 @@ type UseProjectDetailOptions = {
 export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
   const [projectDetail, setProjectDetail] = useState<ProjectDetail | null>(null)
   const [translationMemories, setTranslationMemories] = useState<TranslationMemorySummary[]>([])
+  const [glossaries, setGlossaries] = useState<GlossarySummary[]>([])
   const [translateProviders, setTranslateProviders] = useState<TranslateProviderOption[]>([])
   const [draftTranslationMemories, setDraftTranslationMemories] = useState<DraftProjectTranslationMemoryConfig[]>([])
+  const [draftGlossaries, setDraftGlossaries] = useState<ProjectGlossaryConfig[]>([])
   const [configForm, setConfigForm] = useState<TranslationMemoryConfigForm>(initialConfigForm)
+  const [glossaryConfigForm, setGlossaryConfigForm] = useState<GlossaryConfigForm>({ glossaryId: '' })
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false)
+  const [isGlossaryDialogOpen, setIsGlossaryDialogOpen] = useState(false)
   const [editingConfigId, setEditingConfigId] = useState<string | null>(null)
   const [draggedTranslationMemoryId, setDraggedTranslationMemoryId] = useState<string | null>(null)
+  const [draggedGlossaryId, setDraggedGlossaryId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -61,15 +80,18 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     async function loadData() {
       try {
         setIsLoading(true)
-        const [project, memories, providersResponse] = await Promise.all([
+        const [project, memories, glossaryList, providersResponse] = await Promise.all([
           fetchProjectDetail(resolvedProjectId, controller.signal),
           fetchTranslationMemories(controller.signal),
+          fetchGlossaries(controller.signal),
           fetchTranslateProviders(controller.signal),
         ])
 
         setProjectDetail(project)
         setDraftTranslationMemories(project.translationMemories)
+        setDraftGlossaries(project.glossaries)
         setTranslationMemories(memories)
+        setGlossaries(glossaryList)
         setTranslateProviders(providersResponse.translateProviders)
       } catch (loadError) {
         if (controller.signal.aborted) {
@@ -106,6 +128,20 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     )
   }, [draftTranslationMemories, editingConfigId, projectDetail, translationMemories])
 
+  const availableGlossaries = useMemo(() => {
+    if (!projectDetail) {
+      return []
+    }
+
+    const selectedIds = new Set(draftGlossaries.map((item) => item.glossaryId))
+    return glossaries.filter(
+      (item) =>
+        item.sourceLanguage === projectDetail.sourceLang &&
+        item.targetLanguage === projectDetail.targetLang &&
+        !selectedIds.has(item.id),
+    )
+  }, [draftGlossaries, glossaries, projectDetail])
+
   const hasPendingTranslationMemoryChanges = useMemo(() => {
     if (!projectDetail) {
       return false
@@ -130,6 +166,27 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
 
     return JSON.stringify(original) !== JSON.stringify(draft)
   }, [draftTranslationMemories, projectDetail])
+
+  const hasPendingGlossaryChanges = useMemo(() => {
+    if (!projectDetail) {
+      return false
+    }
+
+    const original = [...projectDetail.glossaries]
+      .sort((left, right) => left.priority - right.priority)
+      .map((item) => ({
+        glossaryId: item.glossaryId,
+        priority: item.priority,
+      }))
+    const draft = [...draftGlossaries]
+      .sort((left, right) => left.priority - right.priority)
+      .map((item) => ({
+        glossaryId: item.glossaryId,
+        priority: item.priority,
+      }))
+
+    return JSON.stringify(original) !== JSON.stringify(draft)
+  }, [draftGlossaries, projectDetail])
 
   function handleTabChange(_event: React.SyntheticEvent, value: number) {
     setActiveTab(value)
@@ -177,6 +234,50 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     setIsConfigDialogOpen(false)
     setEditingConfigId(null)
     setConfigForm(initialConfigForm)
+  }
+
+  function handleGlossaryConfigFieldChange<K extends keyof GlossaryConfigForm>(
+    field: K,
+    value: GlossaryConfigForm[K],
+  ) {
+    setGlossaryConfigForm((current) => ({
+      ...current,
+      [field]: value,
+    }))
+  }
+
+  function handleOpenAddGlossaryDialog() {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      return
+    }
+    setGlossaryConfigForm({ glossaryId: '' })
+    setIsGlossaryDialogOpen(true)
+  }
+
+  function handleCloseGlossaryDialog() {
+    setIsGlossaryDialogOpen(false)
+    setGlossaryConfigForm({ glossaryId: '' })
+  }
+
+  function handleAddGlossary() {
+    const selectedGlossary = availableGlossaries.find(
+      (item) => item.id === glossaryConfigForm.glossaryId,
+    )
+    if (!selectedGlossary) {
+      return
+    }
+
+    setDraftGlossaries((current) => [
+      ...current,
+      {
+        ...selectedGlossary,
+        projectId: projectId ?? '',
+        glossaryId: selectedGlossary.id,
+        linkedAt: new Date().toISOString(),
+        priority: current.length,
+      },
+    ])
+    handleCloseGlossaryDialog()
   }
 
   function handleAddTranslationMemory() {
@@ -246,6 +347,29 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     )
   }
 
+  async function handleDeleteGlossaryConfig(glossaryId: string) {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      return
+    }
+
+    const config = draftGlossaries.find((item) => item.glossaryId === glossaryId)
+    const shouldDelete = window.confirm(
+      `Remove "${config?.name ?? 'this glossary'}" from the project?`,
+    )
+    if (!shouldDelete) {
+      return
+    }
+
+    setDraftGlossaries((current) =>
+      current
+        .filter((item) => item.glossaryId !== glossaryId)
+        .map((item, index) => ({
+          ...item,
+          priority: index,
+        })),
+    )
+  }
+
   function handleAccessModeChange(translationMemoryId: string, accessMode: 'read' | 'write') {
     if (projectDetail?.status === 'auto-translate-processing') {
       return
@@ -270,6 +394,17 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
 
   function handleDragEnd() {
     setDraggedTranslationMemoryId(null)
+  }
+
+  function handleGlossaryDragStart(glossaryId: string) {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      return
+    }
+    setDraggedGlossaryId(glossaryId)
+  }
+
+  function handleGlossaryDragEnd() {
+    setDraggedGlossaryId(null)
   }
 
   function handleDropOnRow(targetTranslationMemoryId: string) {
@@ -301,6 +436,36 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
       }))
     })
     setDraggedTranslationMemoryId(null)
+  }
+
+  function handleDropGlossaryOnRow(targetGlossaryId: string) {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      setDraggedGlossaryId(null)
+      return
+    }
+
+    if (!draggedGlossaryId || draggedGlossaryId === targetGlossaryId) {
+      setDraggedGlossaryId(null)
+      return
+    }
+
+    setDraftGlossaries((current) => {
+      const draggedIndex = current.findIndex((item) => item.glossaryId === draggedGlossaryId)
+      const targetIndex = current.findIndex((item) => item.glossaryId === targetGlossaryId)
+      if (draggedIndex < 0 || targetIndex < 0) {
+        return current
+      }
+
+      const nextItems = [...current]
+      const [draggedItem] = nextItems.splice(draggedIndex, 1)
+      nextItems.splice(targetIndex, 0, draggedItem)
+
+      return nextItems.map((item, index) => ({
+        ...item,
+        priority: index,
+      }))
+    })
+    setDraggedGlossaryId(null)
   }
 
   async function handleSaveTranslationMemories() {
@@ -440,34 +605,115 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     }
   }
 
+  async function handleSaveGlossaries() {
+    if (!projectId || !projectDetail) {
+      return
+    }
+
+    if (projectDetail.status === 'auto-translate-processing') {
+      setError('This project is currently running auto translate. Manual changes are temporarily disabled.')
+      return
+    }
+
+    setIsSaving(true)
+    setError(null)
+
+    try {
+      const originalItems = projectDetail.glossaries
+      const draftItems = draftGlossaries
+
+      const originalMap = new Map(originalItems.map((item) => [item.glossaryId, item]))
+      const draftMap = new Map(draftItems.map((item) => [item.glossaryId, item]))
+
+      const removedIds = originalItems
+        .filter((item) => !draftMap.has(item.glossaryId))
+        .map((item) => item.glossaryId)
+
+      for (const glossaryId of removedIds) {
+        await deleteProjectGlossary(projectId, glossaryId)
+      }
+
+      const newItems = draftItems.filter((item) => !originalMap.has(item.glossaryId))
+      for (const item of newItems) {
+        await attachProjectGlossary(projectId, {
+          glossaryId: item.glossaryId,
+          priority: item.priority,
+        })
+      }
+
+      const updatedItems = draftItems.filter((item) => {
+        const originalItem = originalMap.get(item.glossaryId)
+        return originalItem && item.priority !== originalItem.priority
+      })
+
+      for (const item of updatedItems) {
+        await updateProjectGlossary(projectId, item.glossaryId, {
+          priority: item.priority,
+        })
+      }
+
+      const [nextProjectDetail, nextGlossaries] = await Promise.all([
+        fetchProjectDetail(projectId),
+        fetchGlossaries(),
+      ])
+
+      setProjectDetail(nextProjectDetail)
+      setDraftGlossaries(nextProjectDetail.glossaries)
+      setGlossaries(nextGlossaries)
+      toast.success('Project glossaries saved successfully.')
+    } catch (saveError) {
+      const message = saveError instanceof Error ? saveError.message : 'Could not save project glossaries.'
+      setError(message)
+      toast.error(message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   return {
     projectDetail,
     setProjectDetail,
     translationMemories,
+    glossaries,
     translateProviders,
     availableTranslationMemories,
+    availableGlossaries,
     draftTranslationMemories,
+    draftGlossaries,
     hasPendingTranslationMemoryChanges,
+    hasPendingGlossaryChanges,
     configForm,
+    glossaryConfigForm,
     isConfigDialogOpen,
+    isGlossaryDialogOpen,
     editingConfigId,
     draggedTranslationMemoryId,
+    draggedGlossaryId,
     activeTab,
     isLoading,
     isSaving,
     error,
     handleTabChange,
     handleConfigFieldChange,
+    handleGlossaryConfigFieldChange,
     handleOpenAddDialog,
+    handleOpenAddGlossaryDialog,
     handleOpenEditDialog,
     handleCloseConfigDialog,
+    handleCloseGlossaryDialog,
     handleAddTranslationMemory,
+    handleAddGlossary,
     handleDeleteConfig,
+    handleDeleteGlossaryConfig,
     handleAccessModeChange,
     handleDragStart,
     handleDragEnd,
     handleDropOnRow,
+    handleGlossaryDragStart,
+    handleGlossaryDragEnd,
+    handleDropGlossaryOnRow,
     handleSaveTranslationMemories,
+    handleSaveGlossaries,
   }
 }
 

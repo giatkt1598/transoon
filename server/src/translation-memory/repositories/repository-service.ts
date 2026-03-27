@@ -4,6 +4,7 @@ import { AppSettingRepository } from "./app-setting-repository";
 import { DocumentRepository } from "./document-repository";
 import { GlossaryItemRepository } from "./glossary-item-repository";
 import { GlossaryRepository } from "./glossary-repository";
+import { ProjectGlossaryRepository } from "./project-glossary-repository";
 import { ProjectRepository } from "./project-repository";
 import { ProjectTranslationMemoryRepository } from "./project-translation-memory-repository";
 import { SegmentRepository } from "./segment-repository";
@@ -16,6 +17,7 @@ export type TranslationMemoryRepositories = {
   appSettings: AppSettingRepository;
   glossaries: GlossaryRepository;
   glossaryItems: GlossaryItemRepository;
+  projectGlossaries: ProjectGlossaryRepository;
   projects: ProjectRepository;
   documents: DocumentRepository;
   translationMemories: TranslationMemoryRepository;
@@ -33,6 +35,7 @@ export function createTranslationMemoryRepositories(
     appSettings: new AppSettingRepository(database),
     glossaries: new GlossaryRepository(database),
     glossaryItems: new GlossaryItemRepository(database),
+    projectGlossaries: new ProjectGlossaryRepository(database),
     projects: new ProjectRepository(database),
     documents: new DocumentRepository(database),
     translationMemories: new TranslationMemoryRepository(database),

@@ -11,6 +11,7 @@ import {
 } from "../project-translations/components/translations-split-pane";
 import { ProjectPageHeader } from "../project-management/components/project-page-header";
 import { ProjectDetailInformationSection } from "../project-management/components/project-detail-information-section";
+import { ProjectDetailGlossariesSection } from "../project-management/components/project-detail-glossaries-section";
 import { ProjectDetailTranslationMemoriesSection } from "../project-management/components/project-detail-translation-memories-section";
 import { useProjectDetail } from "../project-management/hooks/use-project-detail";
 import { useProjectDocumentPreview } from "../project-translations/hooks/use-project-document-preview";
@@ -33,29 +34,44 @@ export function ProjectDetailPage() {
     projectDetail,
     setProjectDetail,
     availableTranslationMemories,
+    availableGlossaries,
     translateProviders,
     draftTranslationMemories,
+    draftGlossaries,
     hasPendingTranslationMemoryChanges,
+    hasPendingGlossaryChanges,
     configForm,
+    glossaryConfigForm,
     isConfigDialogOpen,
+    isGlossaryDialogOpen,
     editingConfigId,
     draggedTranslationMemoryId,
+    draggedGlossaryId,
     activeTab,
     isLoading,
     isSaving,
     error,
     handleTabChange,
     handleConfigFieldChange,
+    handleGlossaryConfigFieldChange,
     handleOpenAddDialog,
+    handleOpenAddGlossaryDialog,
     handleOpenEditDialog,
     handleCloseConfigDialog,
+    handleCloseGlossaryDialog,
     handleAddTranslationMemory,
+    handleAddGlossary,
     handleDeleteConfig,
+    handleDeleteGlossaryConfig,
     handleAccessModeChange,
     handleDragStart,
     handleDragEnd,
     handleDropOnRow,
+    handleGlossaryDragStart,
+    handleGlossaryDragEnd,
+    handleDropGlossaryOnRow,
     handleSaveTranslationMemories,
+    handleSaveGlossaries,
   } = useProjectDetail({ projectId });
   const {
     segments,
@@ -103,7 +119,9 @@ export function ProjectDetailPage() {
     onProjectDetailChange: setProjectDetail,
   });
   const hasUnsavedChanges =
-    hasPendingTranslationMemoryChanges || hasPendingSegmentChanges;
+    hasPendingTranslationMemoryChanges ||
+    hasPendingGlossaryChanges ||
+    hasPendingSegmentChanges;
   const navigationBlocker = useBlocker(hasUnsavedChanges);
   const { preview, isLoadingPreview, previewError } = useProjectDocumentPreview(
     {
@@ -266,6 +284,27 @@ export function ProjectDetailPage() {
                 onDragEnd={handleDragEnd}
                 onDropOnRow={handleDropOnRow}
                 onSaveAll={handleSaveTranslationMemories}
+              />
+              <ProjectDetailGlossariesSection
+                projectGlossaries={draftGlossaries}
+                availableGlossaries={availableGlossaries}
+                glossaryConfigForm={glossaryConfigForm}
+                isGlossaryDialogOpen={isGlossaryDialogOpen}
+                hasPendingChanges={hasPendingGlossaryChanges}
+                draggedGlossaryId={draggedGlossaryId}
+                isSaving={isSaving}
+                isReadOnly={
+                  projectDetail.status === "auto-translate-processing"
+                }
+                onFieldChange={handleGlossaryConfigFieldChange}
+                onOpenAddDialog={handleOpenAddGlossaryDialog}
+                onCloseConfigDialog={handleCloseGlossaryDialog}
+                onAdd={handleAddGlossary}
+                onDelete={handleDeleteGlossaryConfig}
+                onDragStart={handleGlossaryDragStart}
+                onDragEnd={handleGlossaryDragEnd}
+                onDropOnRow={handleDropGlossaryOnRow}
+                onSaveAll={handleSaveGlossaries}
               />
             </Box>
           </Box>

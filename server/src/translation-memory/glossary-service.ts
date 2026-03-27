@@ -3,6 +3,7 @@ import type {
   GlossaryAppliedItem,
   GlossaryEntity,
   GlossaryItemEntity,
+  ProjectGlossaryEntity,
 } from "./entities";
 import { getTranslationMemoryDatabase } from "./database";
 import { createTranslationMemoryRepositories } from "./repositories/repository-service";
@@ -10,6 +11,17 @@ import { createTranslationMemoryRepositories } from "./repositories/repository-s
 export type GlossarySummary = GlossaryEntity & {
   itemCount: number;
 };
+
+export type AttachGlossaryToProjectInput = {
+  projectId: string;
+  glossaryId: string;
+  priority: number;
+};
+
+export type ProjectGlossarySummary = ProjectGlossaryEntity &
+  GlossarySummary & {
+    linkedAt: string;
+  };
 
 export type CreateGlossaryInput = {
   name: string;
@@ -98,6 +110,113 @@ export function listGlossaryItemsByLanguagePair(
   `;
 
   return database.prepare(sql).all(sourceLanguage, targetLanguage) as GlossaryItemEntity[];
+}
+
+export function attachGlossaryToProject(input: AttachGlossaryToProjectInput) {
+  const repositories = createTranslationMemoryRepositories();
+  const entity: ProjectGlossaryEntity = {
+    projectId: input.projectId,
+    glossaryId: input.glossaryId,
+    priority: input.priority,
+    createdAt: new Date().toISOString(),
+  };
+
+  repositories.projectGlossaries.insert(entity);
+  return getProjectGlossary(input.projectId, input.glossaryId);
+}
+
+export function updateProjectGlossary(input: AttachGlossaryToProjectInput) {
+  getTranslationMemoryDatabase()
+    .prepare(
+      `
+        UPDATE "projectGlossaries"
+        SET "priority" = ?
+        WHERE "projectId" = ? AND "glossaryId" = ?
+      `,
+    )
+    .run(input.priority, input.projectId, input.glossaryId);
+
+  return getProjectGlossary(input.projectId, input.glossaryId);
+}
+
+export function deleteProjectGlossary(projectId: string, glossaryId: string) {
+  getTranslationMemoryDatabase()
+    .prepare(
+      `
+        DELETE FROM "projectGlossaries"
+        WHERE "projectId" = ? AND "glossaryId" = ?
+      `,
+    )
+    .run(projectId, glossaryId);
+}
+
+export function listProjectGlossaries(projectId: string) {
+  const database = getTranslationMemoryDatabase();
+  const sql = `
+    SELECT
+      pg.projectId,
+      pg.glossaryId,
+      pg.priority,
+      pg.createdAt AS linkedAt,
+      g.name,
+      g.sourceLanguage,
+      g.targetLanguage,
+      g.lastModifiedAt,
+      g.lastUsedAt,
+      g.createdAt,
+      COUNT(gi.id) AS itemCount
+    FROM projectGlossaries pg
+    INNER JOIN glossaries g ON g.id = pg.glossaryId
+    LEFT JOIN glossaryItems gi ON gi.glossaryId = g.id
+    WHERE pg.projectId = ?
+    GROUP BY
+      pg.projectId,
+      pg.glossaryId,
+      pg.priority,
+      pg.createdAt,
+      g.name,
+      g.sourceLanguage,
+      g.targetLanguage,
+      g.lastModifiedAt,
+      g.lastUsedAt,
+      g.createdAt
+    ORDER BY pg.priority ASC, g.lastModifiedAt DESC
+  `;
+
+  return database.prepare(sql).all(projectId) as ProjectGlossarySummary[];
+}
+
+export function getProjectGlossary(projectId: string, glossaryId: string) {
+  return (
+    listProjectGlossaries(projectId).find((item) => item.glossaryId === glossaryId) ??
+    null
+  );
+}
+
+export function listProjectGlossaryItems(projectId: string) {
+  const database = getTranslationMemoryDatabase();
+  const sql = `
+    SELECT
+      gi.id,
+      gi.glossaryId,
+      gi.source,
+      gi.sourceNormalized,
+      gi.target,
+      gi.targetNormalized,
+      gi.caseSensitive,
+      gi.wholeWord,
+      gi.priority,
+      gi.lastModifiedAt,
+      gi.lastUsedAt,
+      gi.createdAt
+    FROM projectGlossaries pg
+    INNER JOIN glossaries g ON g.id = pg.glossaryId
+    INNER JOIN glossaryItems gi ON gi.glossaryId = g.id
+    WHERE pg.projectId = ?
+    ORDER BY pg.priority ASC, gi.priority DESC, LENGTH(gi.source) DESC, gi.source ASC
+  `;
+
+  return database.prepare(sql).all(projectId) as GlossaryItemEntity[];
 }
 
 export function createGlossary(input: CreateGlossaryInput) {

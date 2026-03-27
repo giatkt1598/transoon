@@ -108,8 +108,16 @@ export type ProjectTranslationMemoryConfig = TranslationMemorySummary & {
   linkedAt: string
 }
 
+export type ProjectGlossaryConfig = GlossarySummary & {
+  projectId: string
+  glossaryId: string
+  priority: number
+  linkedAt: string
+}
+
 export type ProjectDetail = ProjectSummary & {
   translationMemories: ProjectTranslationMemoryConfig[]
+  glossaries: ProjectGlossaryConfig[]
 }
 
 export type ProjectSegment = {
