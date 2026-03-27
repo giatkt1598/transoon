@@ -945,6 +945,7 @@ function AlignmentVirtualRow({
 
                 setInlineAssistMenu(null);
                 setSelectedInlineAssistIndex(0);
+                flushSegmentDraft(segment.id);
                 onInlineTranslateSegment(segment.id);
                 return;
               }
@@ -1016,6 +1017,7 @@ function AlignmentVirtualRow({
                 return;
               }
 
+              flushSegmentDraft(segment.id);
               onInlineTranslateSegment(segment.id);
               return;
             }
@@ -1115,6 +1117,7 @@ function AlignmentVirtualRow({
               onClick={() => {
                 setInlineAssistMenu(null);
                 setSelectedInlineAssistIndex(0);
+                flushSegmentDraft(segment.id);
                 onInlineTranslateSegment(segment.id);
               }}
               className="alignment-inline-assist-item alignment-inline-assist-translate"
