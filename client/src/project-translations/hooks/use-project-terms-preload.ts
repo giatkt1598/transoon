@@ -8,10 +8,12 @@ import {
 
 type UseProjectTermsPreloadOptions = {
   projectId?: string;
+  refreshKey?: number;
 };
 
 export function useProjectTermsPreload({
   projectId,
+  refreshKey = 0,
 }: UseProjectTermsPreloadOptions) {
   const [projectTerms, setProjectTerms] = useState<ProjectTerm[]>([]);
 
@@ -51,7 +53,7 @@ export function useProjectTermsPreload({
       isMounted = false;
       controller.abort();
     };
-  }, [projectId]);
+  }, [projectId, refreshKey]);
 
   return {
     projectTerms,

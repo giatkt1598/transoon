@@ -38,8 +38,6 @@ export function ProjectDetailPage() {
     translateProviders,
     draftTranslationMemories,
     draftGlossaries,
-    hasPendingTranslationMemoryChanges,
-    hasPendingGlossaryChanges,
     configForm,
     glossaryConfigForm,
     isConfigDialogOpen,
@@ -51,6 +49,7 @@ export function ProjectDetailPage() {
     isLoading,
     isSaving,
     error,
+    translationResourcesRevision,
     handleTabChange,
     handleConfigFieldChange,
     handleGlossaryConfigFieldChange,
@@ -70,8 +69,6 @@ export function ProjectDetailPage() {
     handleGlossaryDragStart,
     handleGlossaryDragEnd,
     handleDropGlossaryOnRow,
-    handleSaveTranslationMemories,
-    handleSaveGlossaries,
   } = useProjectDetail({ projectId });
   const {
     segments,
@@ -117,11 +114,9 @@ export function ProjectDetailPage() {
     projectDetail,
     translateProviders,
     onProjectDetailChange: setProjectDetail,
+    refreshKey: translationResourcesRevision,
   });
-  const hasUnsavedChanges =
-    hasPendingTranslationMemoryChanges ||
-    hasPendingGlossaryChanges ||
-    hasPendingSegmentChanges;
+  const hasUnsavedChanges = hasPendingSegmentChanges;
   const navigationBlocker = useBlocker(hasUnsavedChanges);
   const { preview, isLoadingPreview, previewError } = useProjectDocumentPreview(
     {
@@ -129,7 +124,10 @@ export function ProjectDetailPage() {
       documentFileName: projectDetail?.documentFileName,
     },
   );
-  const { projectTerms } = useProjectTermsPreload({ projectId });
+  const { projectTerms } = useProjectTermsPreload({
+    projectId,
+    refreshKey: translationResourcesRevision,
+  });
 
   useEffect(() => {
     try {
@@ -267,7 +265,6 @@ export function ProjectDetailPage() {
                 configForm={configForm}
                 isConfigDialogOpen={isConfigDialogOpen}
                 editingConfigId={editingConfigId}
-                hasPendingChanges={hasPendingTranslationMemoryChanges}
                 draggedTranslationMemoryId={draggedTranslationMemoryId}
                 isSaving={isSaving}
                 isReadOnly={
@@ -283,14 +280,12 @@ export function ProjectDetailPage() {
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
                 onDropOnRow={handleDropOnRow}
-                onSaveAll={handleSaveTranslationMemories}
               />
               <ProjectDetailGlossariesSection
                 projectGlossaries={draftGlossaries}
                 availableGlossaries={availableGlossaries}
                 glossaryConfigForm={glossaryConfigForm}
                 isGlossaryDialogOpen={isGlossaryDialogOpen}
-                hasPendingChanges={hasPendingGlossaryChanges}
                 draggedGlossaryId={draggedGlossaryId}
                 isSaving={isSaving}
                 isReadOnly={
@@ -304,7 +299,6 @@ export function ProjectDetailPage() {
                 onDragStart={handleGlossaryDragStart}
                 onDragEnd={handleGlossaryDragEnd}
                 onDropOnRow={handleDropGlossaryOnRow}
-                onSaveAll={handleSaveGlossaries}
               />
             </Box>
           </Box>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-toastify'
 import type {
   GlossarySummary,
@@ -36,6 +36,8 @@ const initialConfigForm: TranslationMemoryConfigForm = {
   accessMode: 'read',
 }
 
+const PROJECT_HOME_AUTO_SAVE_DEBOUNCE_MS = 100
+
 type DraftProjectTranslationMemoryConfig = ProjectTranslationMemoryConfig & {
   isDraftNew?: boolean
 }
@@ -66,6 +68,11 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [translationResourcesRevision, setTranslationResourcesRevision] = useState(0)
+  const translationMemorySaveTimeoutRef = useRef<number | null>(null)
+  const glossarySaveTimeoutRef = useRef<number | null>(null)
+  const latestDraftTranslationMemoriesRef = useRef<DraftProjectTranslationMemoryConfig[]>([])
+  const latestDraftGlossariesRef = useRef<ProjectGlossaryConfig[]>([])
 
   useEffect(() => {
     if (!projectId) {
@@ -110,6 +117,40 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
 
     return () => controller.abort()
   }, [projectId])
+
+  useEffect(() => {
+    latestDraftTranslationMemoriesRef.current = draftTranslationMemories
+  }, [draftTranslationMemories])
+
+  useEffect(() => {
+    latestDraftGlossariesRef.current = draftGlossaries
+  }, [draftGlossaries])
+
+  useEffect(() => {
+    return () => {
+      if (translationMemorySaveTimeoutRef.current !== null) {
+        window.clearTimeout(translationMemorySaveTimeoutRef.current)
+      }
+
+      if (glossarySaveTimeoutRef.current !== null) {
+        window.clearTimeout(glossarySaveTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  async function refreshProjectHomeData(resolvedProjectId: string) {
+    const [nextProjectDetail, nextTranslationMemories, nextGlossaries] = await Promise.all([
+      fetchProjectDetail(resolvedProjectId),
+      fetchTranslationMemories(),
+      fetchGlossaries(),
+    ])
+
+    setProjectDetail(nextProjectDetail)
+    setDraftTranslationMemories(nextProjectDetail.translationMemories)
+    setDraftGlossaries(nextProjectDetail.glossaries)
+    setTranslationMemories(nextTranslationMemories)
+    setGlossaries(nextGlossaries)
+  }
 
   const availableTranslationMemories = useMemo(() => {
     if (!projectDetail) {
@@ -259,6 +300,92 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     setGlossaryConfigForm({ glossaryId: '' })
   }
 
+  async function persistGlossaries(nextDraftItems: ProjectGlossaryConfig[]) {
+    if (!projectId || !projectDetail) {
+      return
+    }
+
+    if (projectDetail.status === 'auto-translate-processing') {
+      setError('This project is currently running auto translate. Manual changes are temporarily disabled.')
+      return
+    }
+
+    setIsSaving(true)
+    setError(null)
+
+    try {
+      const originalItems = projectDetail.glossaries
+      const originalMap = new Map(originalItems.map((item) => [item.glossaryId, item]))
+      const draftMap = new Map(nextDraftItems.map((item) => [item.glossaryId, item]))
+
+      const removedIds = originalItems
+        .filter((item) => !draftMap.has(item.glossaryId))
+        .map((item) => item.glossaryId)
+
+      for (const glossaryId of removedIds) {
+        await deleteProjectGlossary(projectId, glossaryId)
+      }
+
+      const newItems = nextDraftItems.filter((item) => !originalMap.has(item.glossaryId))
+      for (const item of newItems) {
+        await attachProjectGlossary(projectId, {
+          glossaryId: item.glossaryId,
+          priority: item.priority,
+        })
+      }
+
+      const updatedItems = nextDraftItems.filter((item) => {
+        const originalItem = originalMap.get(item.glossaryId)
+        return originalItem && item.priority !== originalItem.priority
+      })
+
+      for (const item of updatedItems) {
+        await updateProjectGlossary(projectId, item.glossaryId, {
+          priority: item.priority,
+        })
+      }
+
+      await refreshProjectHomeData(projectId)
+      setTranslationResourcesRevision((current) => current + 1)
+    } catch (saveError) {
+      const message = saveError instanceof Error ? saveError.message : 'Could not save project glossaries.'
+      setError(message)
+      toast.error(message)
+
+      try {
+        await refreshProjectHomeData(projectId)
+      } catch {
+        // Preserve the current optimistic state if refresh fails.
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  function schedulePersistTranslationMemories(nextDraftItems: DraftProjectTranslationMemoryConfig[]) {
+    latestDraftTranslationMemoriesRef.current = nextDraftItems
+    if (translationMemorySaveTimeoutRef.current !== null) {
+      window.clearTimeout(translationMemorySaveTimeoutRef.current)
+    }
+
+    translationMemorySaveTimeoutRef.current = window.setTimeout(() => {
+      translationMemorySaveTimeoutRef.current = null
+      void persistTranslationMemories(latestDraftTranslationMemoriesRef.current)
+    }, PROJECT_HOME_AUTO_SAVE_DEBOUNCE_MS)
+  }
+
+  function schedulePersistGlossaries(nextDraftItems: ProjectGlossaryConfig[]) {
+    latestDraftGlossariesRef.current = nextDraftItems
+    if (glossarySaveTimeoutRef.current !== null) {
+      window.clearTimeout(glossarySaveTimeoutRef.current)
+    }
+
+    glossarySaveTimeoutRef.current = window.setTimeout(() => {
+      glossarySaveTimeoutRef.current = null
+      void persistGlossaries(latestDraftGlossariesRef.current)
+    }, PROJECT_HOME_AUTO_SAVE_DEBOUNCE_MS)
+  }
+
   function handleAddGlossary() {
     const selectedGlossary = availableGlossaries.find(
       (item) => item.id === glossaryConfigForm.glossaryId,
@@ -267,208 +394,24 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
       return
     }
 
-    setDraftGlossaries((current) => [
-      ...current,
+    const nextDraftGlossaries = [
+      ...draftGlossaries,
       {
         ...selectedGlossary,
         projectId: projectId ?? '',
         glossaryId: selectedGlossary.id,
         linkedAt: new Date().toISOString(),
-        priority: current.length,
+        priority: draftGlossaries.length,
       },
-    ])
+    ]
+    setDraftGlossaries(nextDraftGlossaries)
     handleCloseGlossaryDialog()
+    schedulePersistGlossaries(nextDraftGlossaries)
   }
 
-  function handleAddTranslationMemory() {
-    if (projectDetail?.status === 'auto-translate-processing') {
-      return
-    }
-
-    if (editingConfigId) {
-      setDraftTranslationMemories((current) =>
-        applySingleWriteRule(
-          current.map((item) =>
-            item.translationMemoryId === editingConfigId
-              ? {
-                  ...item,
-                  accessMode: configForm.accessMode,
-                }
-              : item,
-          ),
-          configForm.accessMode === 'write' ? editingConfigId : null,
-        ),
-      )
-    } else {
-      setDraftTranslationMemories((current) => {
-        const nextItem = createDraftTranslationMemoryConfig({
-          projectId: projectId ?? '',
-          configForm,
-          nextPriority: current.length,
-          availableTranslationMemories,
-          projectDetail,
-        })
-
-        if (!nextItem) {
-          return current
-        }
-
-        return applySingleWriteRule(
-          [...current, nextItem],
-          nextItem.accessMode === 'write' ? nextItem.translationMemoryId : null,
-        )
-      })
-    }
-
-    handleCloseConfigDialog()
-  }
-
-  async function handleDeleteConfig(translationMemoryId: string) {
-    if (!projectDetail || projectDetail.status === 'auto-translate-processing') {
-      return
-    }
-
-    const config = draftTranslationMemories.find((item) => item.translationMemoryId === translationMemoryId)
-    const shouldDelete = window.confirm(
-      `Remove "${config?.name ?? 'this translation memory'}" from the project?`,
-    )
-
-    if (!shouldDelete) {
-      return
-    }
-
-    setDraftTranslationMemories((current) =>
-      current
-        .filter((item) => item.translationMemoryId !== translationMemoryId)
-        .map((item, index) => ({
-          ...item,
-          priority: index,
-        })),
-    )
-  }
-
-  async function handleDeleteGlossaryConfig(glossaryId: string) {
-    if (projectDetail?.status === 'auto-translate-processing') {
-      return
-    }
-
-    const config = draftGlossaries.find((item) => item.glossaryId === glossaryId)
-    const shouldDelete = window.confirm(
-      `Remove "${config?.name ?? 'this glossary'}" from the project?`,
-    )
-    if (!shouldDelete) {
-      return
-    }
-
-    setDraftGlossaries((current) =>
-      current
-        .filter((item) => item.glossaryId !== glossaryId)
-        .map((item, index) => ({
-          ...item,
-          priority: index,
-        })),
-    )
-  }
-
-  function handleAccessModeChange(translationMemoryId: string, accessMode: 'read' | 'write') {
-    if (projectDetail?.status === 'auto-translate-processing') {
-      return
-    }
-
-    setDraftTranslationMemories((current) =>
-      applySingleWriteRule(
-        current.map((item) =>
-          item.translationMemoryId === translationMemoryId ? { ...item, accessMode } : item,
-        ),
-        accessMode === 'write' ? translationMemoryId : null,
-      ),
-    )
-  }
-
-  function handleDragStart(translationMemoryId: string) {
-    if (projectDetail?.status === 'auto-translate-processing') {
-      return
-    }
-    setDraggedTranslationMemoryId(translationMemoryId)
-  }
-
-  function handleDragEnd() {
-    setDraggedTranslationMemoryId(null)
-  }
-
-  function handleGlossaryDragStart(glossaryId: string) {
-    if (projectDetail?.status === 'auto-translate-processing') {
-      return
-    }
-    setDraggedGlossaryId(glossaryId)
-  }
-
-  function handleGlossaryDragEnd() {
-    setDraggedGlossaryId(null)
-  }
-
-  function handleDropOnRow(targetTranslationMemoryId: string) {
-    if (projectDetail?.status === 'auto-translate-processing') {
-      setDraggedTranslationMemoryId(null)
-      return
-    }
-
-    if (!draggedTranslationMemoryId || draggedTranslationMemoryId === targetTranslationMemoryId) {
-      setDraggedTranslationMemoryId(null)
-      return
-    }
-
-    setDraftTranslationMemories((current) => {
-      const draggedIndex = current.findIndex((item) => item.translationMemoryId === draggedTranslationMemoryId)
-      const targetIndex = current.findIndex((item) => item.translationMemoryId === targetTranslationMemoryId)
-
-      if (draggedIndex < 0 || targetIndex < 0) {
-        return current
-      }
-
-      const nextItems = [...current]
-      const [draggedItem] = nextItems.splice(draggedIndex, 1)
-      nextItems.splice(targetIndex, 0, draggedItem)
-
-      return nextItems.map((item, index) => ({
-        ...item,
-        priority: index,
-      }))
-    })
-    setDraggedTranslationMemoryId(null)
-  }
-
-  function handleDropGlossaryOnRow(targetGlossaryId: string) {
-    if (projectDetail?.status === 'auto-translate-processing') {
-      setDraggedGlossaryId(null)
-      return
-    }
-
-    if (!draggedGlossaryId || draggedGlossaryId === targetGlossaryId) {
-      setDraggedGlossaryId(null)
-      return
-    }
-
-    setDraftGlossaries((current) => {
-      const draggedIndex = current.findIndex((item) => item.glossaryId === draggedGlossaryId)
-      const targetIndex = current.findIndex((item) => item.glossaryId === targetGlossaryId)
-      if (draggedIndex < 0 || targetIndex < 0) {
-        return current
-      }
-
-      const nextItems = [...current]
-      const [draggedItem] = nextItems.splice(draggedIndex, 1)
-      nextItems.splice(targetIndex, 0, draggedItem)
-
-      return nextItems.map((item, index) => ({
-        ...item,
-        priority: index,
-      }))
-    })
-    setDraggedGlossaryId(null)
-  }
-
-  async function handleSaveTranslationMemories() {
+  async function persistTranslationMemories(
+    nextDraftItems: DraftProjectTranslationMemoryConfig[],
+  ) {
     if (!projectId || !projectDetail) {
       return
     }
@@ -483,10 +426,8 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
 
     try {
       const originalItems = projectDetail.translationMemories
-      const draftItems = draftTranslationMemories
-
       const originalMap = new Map(originalItems.map((item) => [item.translationMemoryId, item]))
-      const draftMap = new Map(draftItems.map((item) => [item.translationMemoryId, item]))
+      const draftMap = new Map(nextDraftItems.map((item) => [item.translationMemoryId, item]))
 
       const removedIds = originalItems
         .filter((item) => !draftMap.has(item.translationMemoryId))
@@ -497,7 +438,7 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
       }
 
       const originalWrite = originalItems.find((item) => item.accessMode === 'write')
-      const draftWrite = draftItems.find((item) => item.accessMode === 'write')
+      const draftWrite = nextDraftItems.find((item) => item.accessMode === 'write')
 
       if (
         originalWrite &&
@@ -510,19 +451,19 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
         })
       }
 
-      const newReadItems = draftItems.filter(
+      const newReadItems = nextDraftItems.filter(
         (item) =>
           !originalMap.has(item.translationMemoryId) &&
           item.accessMode === 'read' &&
           !item.isDraftNew,
       )
-      const newWriteItem = draftItems.find(
+      const newWriteItem = nextDraftItems.find(
         (item) =>
           !originalMap.has(item.translationMemoryId) &&
           item.accessMode === 'write' &&
           !item.isDraftNew,
       )
-      const newDraftItems = draftItems.filter(
+      const newDraftItems = nextDraftItems.filter(
         (item) => !originalMap.has(item.translationMemoryId) && item.isDraftNew,
       )
 
@@ -534,7 +475,7 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
         })
       }
 
-      const existingReadUpdates = draftItems.filter((item) => {
+      const existingReadUpdates = nextDraftItems.filter((item) => {
         const originalItem = originalMap.get(item.translationMemoryId)
         return (
           originalItem &&
@@ -572,12 +513,14 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
         })
       }
 
-      const existingWriteItem = draftWrite && originalMap.has(draftWrite.translationMemoryId) ? draftWrite : null
+      const existingWriteItem =
+        draftWrite && originalMap.has(draftWrite.translationMemoryId) ? draftWrite : null
       if (existingWriteItem) {
         const originalItem = originalMap.get(existingWriteItem.translationMemoryId)
         if (
           originalItem &&
-          (existingWriteItem.accessMode !== originalItem.accessMode || existingWriteItem.priority !== originalItem.priority)
+          (existingWriteItem.accessMode !== originalItem.accessMode ||
+            existingWriteItem.priority !== originalItem.priority)
         ) {
           await updateProjectTranslationMemory(projectId, existingWriteItem.translationMemoryId, {
             accessMode: existingWriteItem.accessMode,
@@ -586,88 +529,224 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
         }
       }
 
-      const [nextProjectDetail, nextTranslationMemories] = await Promise.all([
-        fetchProjectDetail(projectId),
-        fetchTranslationMemories(),
-      ])
-
-      setProjectDetail(nextProjectDetail)
-      setDraftTranslationMemories(nextProjectDetail.translationMemories)
-      setTranslationMemories(nextTranslationMemories)
-      toast.success('Project translation memories saved successfully.')
+      await refreshProjectHomeData(projectId)
+      setTranslationResourcesRevision((current) => current + 1)
     } catch (saveError) {
       const message =
         saveError instanceof Error ? saveError.message : 'Could not save project translation memories.'
       setError(message)
       toast.error(message)
+
+      try {
+        await refreshProjectHomeData(projectId)
+      } catch {
+        // Preserve the current optimistic state if refresh fails.
+      }
     } finally {
       setIsSaving(false)
     }
   }
 
-  async function handleSaveGlossaries() {
-    if (!projectId || !projectDetail) {
+  function handleAddTranslationMemory() {
+    if (projectDetail?.status === 'auto-translate-processing') {
       return
     }
 
-    if (projectDetail.status === 'auto-translate-processing') {
-      setError('This project is currently running auto translate. Manual changes are temporarily disabled.')
-      return
-    }
-
-    setIsSaving(true)
-    setError(null)
-
-    try {
-      const originalItems = projectDetail.glossaries
-      const draftItems = draftGlossaries
-
-      const originalMap = new Map(originalItems.map((item) => [item.glossaryId, item]))
-      const draftMap = new Map(draftItems.map((item) => [item.glossaryId, item]))
-
-      const removedIds = originalItems
-        .filter((item) => !draftMap.has(item.glossaryId))
-        .map((item) => item.glossaryId)
-
-      for (const glossaryId of removedIds) {
-        await deleteProjectGlossary(projectId, glossaryId)
-      }
-
-      const newItems = draftItems.filter((item) => !originalMap.has(item.glossaryId))
-      for (const item of newItems) {
-        await attachProjectGlossary(projectId, {
-          glossaryId: item.glossaryId,
-          priority: item.priority,
-        })
-      }
-
-      const updatedItems = draftItems.filter((item) => {
-        const originalItem = originalMap.get(item.glossaryId)
-        return originalItem && item.priority !== originalItem.priority
+    let nextDraftTranslationMemories = draftTranslationMemories
+    if (editingConfigId) {
+      nextDraftTranslationMemories = applySingleWriteRule(
+        draftTranslationMemories.map((item) =>
+          item.translationMemoryId === editingConfigId
+            ? {
+                ...item,
+                accessMode: configForm.accessMode,
+              }
+            : item,
+        ),
+        configForm.accessMode === 'write' ? editingConfigId : null,
+      )
+    } else {
+      const nextItem = createDraftTranslationMemoryConfig({
+        projectId: projectId ?? '',
+        configForm,
+        nextPriority: draftTranslationMemories.length,
+        availableTranslationMemories,
+        projectDetail,
       })
 
-      for (const item of updatedItems) {
-        await updateProjectGlossary(projectId, item.glossaryId, {
-          priority: item.priority,
-        })
+      if (!nextItem) {
+        return
       }
 
-      const [nextProjectDetail, nextGlossaries] = await Promise.all([
-        fetchProjectDetail(projectId),
-        fetchGlossaries(),
-      ])
-
-      setProjectDetail(nextProjectDetail)
-      setDraftGlossaries(nextProjectDetail.glossaries)
-      setGlossaries(nextGlossaries)
-      toast.success('Project glossaries saved successfully.')
-    } catch (saveError) {
-      const message = saveError instanceof Error ? saveError.message : 'Could not save project glossaries.'
-      setError(message)
-      toast.error(message)
-    } finally {
-      setIsSaving(false)
+      nextDraftTranslationMemories = applySingleWriteRule(
+        [...draftTranslationMemories, nextItem],
+        nextItem.accessMode === 'write' ? nextItem.translationMemoryId : null,
+      )
     }
+
+    setDraftTranslationMemories(nextDraftTranslationMemories)
+    handleCloseConfigDialog()
+    schedulePersistTranslationMemories(nextDraftTranslationMemories)
+  }
+
+  async function handleDeleteConfig(translationMemoryId: string) {
+    if (!projectDetail || projectDetail.status === 'auto-translate-processing') {
+      return
+    }
+
+    const config = draftTranslationMemories.find((item) => item.translationMemoryId === translationMemoryId)
+    const shouldDelete = window.confirm(
+      `Remove "${config?.name ?? 'this translation memory'}" from the project?`,
+    )
+
+    if (!shouldDelete) {
+      return
+    }
+
+    const nextDraftTranslationMemories = draftTranslationMemories
+      .filter((item) => item.translationMemoryId !== translationMemoryId)
+      .map((item, index) => ({
+        ...item,
+        priority: index,
+      }))
+
+    setDraftTranslationMemories(nextDraftTranslationMemories)
+    schedulePersistTranslationMemories(nextDraftTranslationMemories)
+  }
+
+  async function handleDeleteGlossaryConfig(glossaryId: string) {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      return
+    }
+
+    const config = draftGlossaries.find((item) => item.glossaryId === glossaryId)
+    const shouldDelete = window.confirm(
+      `Remove "${config?.name ?? 'this glossary'}" from the project?`,
+    )
+    if (!shouldDelete) {
+      return
+    }
+
+    const nextDraftGlossaries = draftGlossaries
+      .filter((item) => item.glossaryId !== glossaryId)
+      .map((item, index) => ({
+        ...item,
+        priority: index,
+      }))
+
+    setDraftGlossaries(nextDraftGlossaries)
+    schedulePersistGlossaries(nextDraftGlossaries)
+  }
+
+  function handleAccessModeChange(translationMemoryId: string, accessMode: 'read' | 'write') {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      return
+    }
+
+    const nextDraftTranslationMemories = applySingleWriteRule(
+      draftTranslationMemories.map((item) =>
+        item.translationMemoryId === translationMemoryId ? { ...item, accessMode } : item,
+      ),
+      accessMode === 'write' ? translationMemoryId : null,
+    )
+
+    setDraftTranslationMemories(nextDraftTranslationMemories)
+    schedulePersistTranslationMemories(nextDraftTranslationMemories)
+  }
+
+  function handleDragStart(translationMemoryId: string) {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      return
+    }
+    setDraggedTranslationMemoryId(translationMemoryId)
+  }
+
+  function handleDragEnd() {
+    setDraggedTranslationMemoryId(null)
+  }
+
+  function handleGlossaryDragStart(glossaryId: string) {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      return
+    }
+    setDraggedGlossaryId(glossaryId)
+  }
+
+  function handleGlossaryDragEnd() {
+    setDraggedGlossaryId(null)
+  }
+
+  function handleDropOnRow(targetTranslationMemoryId: string) {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      setDraggedTranslationMemoryId(null)
+      return
+    }
+
+    if (!draggedTranslationMemoryId || draggedTranslationMemoryId === targetTranslationMemoryId) {
+      setDraggedTranslationMemoryId(null)
+      return
+    }
+
+    const draggedIndex = draftTranslationMemories.findIndex((item) => item.translationMemoryId === draggedTranslationMemoryId)
+    const targetIndex = draftTranslationMemories.findIndex((item) => item.translationMemoryId === targetTranslationMemoryId)
+
+    if (draggedIndex < 0 || targetIndex < 0) {
+      setDraggedTranslationMemoryId(null)
+      return
+    }
+
+    const nextItems = [...draftTranslationMemories]
+    const [draggedItem] = nextItems.splice(draggedIndex, 1)
+    nextItems.splice(targetIndex, 0, draggedItem)
+
+    const nextDraftTranslationMemories = nextItems.map((item, index) => ({
+      ...item,
+      priority: index,
+    }))
+
+    setDraftTranslationMemories(nextDraftTranslationMemories)
+    setDraggedTranslationMemoryId(null)
+    schedulePersistTranslationMemories(nextDraftTranslationMemories)
+  }
+
+  function handleDropGlossaryOnRow(targetGlossaryId: string) {
+    if (projectDetail?.status === 'auto-translate-processing') {
+      setDraggedGlossaryId(null)
+      return
+    }
+
+    if (!draggedGlossaryId || draggedGlossaryId === targetGlossaryId) {
+      setDraggedGlossaryId(null)
+      return
+    }
+
+    const draggedIndex = draftGlossaries.findIndex((item) => item.glossaryId === draggedGlossaryId)
+    const targetIndex = draftGlossaries.findIndex((item) => item.glossaryId === targetGlossaryId)
+    if (draggedIndex < 0 || targetIndex < 0) {
+      setDraggedGlossaryId(null)
+      return
+    }
+
+    const nextItems = [...draftGlossaries]
+    const [draggedItem] = nextItems.splice(draggedIndex, 1)
+    nextItems.splice(targetIndex, 0, draggedItem)
+
+    const nextDraftGlossaries = nextItems.map((item, index) => ({
+      ...item,
+      priority: index,
+    }))
+
+    setDraftGlossaries(nextDraftGlossaries)
+    setDraggedGlossaryId(null)
+    schedulePersistGlossaries(nextDraftGlossaries)
+  }
+
+  async function handleSaveTranslationMemories() {
+    await persistTranslationMemories(draftTranslationMemories)
+  }
+
+  async function handleSaveGlossaries() {
+    await persistGlossaries(draftGlossaries)
   }
 
   return {
@@ -693,6 +772,7 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     isLoading,
     isSaving,
     error,
+    translationResourcesRevision,
     handleTabChange,
     handleConfigFieldChange,
     handleGlossaryConfigFieldChange,

@@ -27,7 +27,6 @@ type ProjectDetailGlossariesSectionProps = {
   availableGlossaries: GlossarySummary[];
   glossaryConfigForm: GlossaryConfigForm;
   isGlossaryDialogOpen: boolean;
-  hasPendingChanges: boolean;
   draggedGlossaryId: string | null;
   isSaving: boolean;
   isReadOnly: boolean;
@@ -42,7 +41,6 @@ type ProjectDetailGlossariesSectionProps = {
   onDragStart: (glossaryId: string) => void;
   onDragEnd: () => void;
   onDropOnRow: (glossaryId: string) => void;
-  onSaveAll: () => Promise<void>;
 };
 
 export function ProjectDetailGlossariesSection({
@@ -50,7 +48,6 @@ export function ProjectDetailGlossariesSection({
   availableGlossaries,
   glossaryConfigForm,
   isGlossaryDialogOpen,
-  hasPendingChanges,
   draggedGlossaryId,
   isSaving,
   isReadOnly,
@@ -62,7 +59,6 @@ export function ProjectDetailGlossariesSection({
   onDragStart,
   onDragEnd,
   onDropOnRow,
-  onSaveAll,
 }: ProjectDetailGlossariesSectionProps) {
   return (
     <Paper className="detail-section-card" elevation={0}>
@@ -166,18 +162,6 @@ export function ProjectDetailGlossariesSection({
           </Box>
         )}
       </Box>
-
-      <Box className="detail-memory-save-row">
-        <Button
-          className="submit-button"
-          variant="contained"
-          disabled={isSaving || isReadOnly || !hasPendingChanges}
-          onClick={() => void onSaveAll()}
-        >
-          Save glossary
-        </Button>
-      </Box>
-
       <Dialog
         open={isGlossaryDialogOpen}
         onClose={onCloseConfigDialog}

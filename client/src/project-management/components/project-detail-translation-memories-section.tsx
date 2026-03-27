@@ -37,7 +37,6 @@ type ProjectDetailTranslationMemoriesSectionProps = {
   configForm: TranslationMemoryConfigForm;
   isConfigDialogOpen: boolean;
   editingConfigId: string | null;
-  hasPendingChanges: boolean;
   draggedTranslationMemoryId: string | null;
   isSaving: boolean;
   isReadOnly: boolean;
@@ -57,7 +56,6 @@ type ProjectDetailTranslationMemoriesSectionProps = {
   onDragStart: (translationMemoryId: string) => void;
   onDragEnd: () => void;
   onDropOnRow: (translationMemoryId: string) => void;
-  onSaveAll: () => Promise<void>;
 };
 
 export function ProjectDetailTranslationMemoriesSection({
@@ -67,7 +65,6 @@ export function ProjectDetailTranslationMemoriesSection({
   configForm,
   isConfigDialogOpen,
   editingConfigId,
-  hasPendingChanges,
   draggedTranslationMemoryId,
   isSaving,
   isReadOnly,
@@ -81,7 +78,6 @@ export function ProjectDetailTranslationMemoriesSection({
   onDragStart,
   onDragEnd,
   onDropOnRow,
-  onSaveAll,
 }: ProjectDetailTranslationMemoriesSectionProps) {
   return (
     <Paper className="detail-section-card" elevation={0}>
@@ -201,18 +197,6 @@ export function ProjectDetailTranslationMemoriesSection({
           </Box>
         )}
       </Box>
-
-      <Box className="detail-memory-save-row">
-        <Button
-          className="submit-button"
-          variant="contained"
-          disabled={isSaving || isReadOnly || !hasPendingChanges}
-          onClick={() => void onSaveAll()}
-        >
-          Save TM
-        </Button>
-      </Box>
-
       <Dialog
         open={isConfigDialogOpen}
         onClose={onCloseConfigDialog}
