@@ -18,8 +18,6 @@ import {
 type GlossaryItemsTableProps = {
   items: GlossaryItem[]
   isLoading: boolean
-  savingItemIds: string[]
-  deletingItemIds: string[]
   onGlossaryItemDraftChange: (
     glossaryItemId: string,
     field: 'source' | 'target' | 'caseSensitive' | 'priority',
@@ -47,8 +45,6 @@ function formatDateTime(value: string) {
 export function GlossaryItemsTable({
   items,
   isLoading,
-  savingItemIds,
-  deletingItemIds,
   onGlossaryItemDraftChange,
   onGlossaryItemBlur,
   onDeleteGlossaryItem,
@@ -110,9 +106,6 @@ export function GlossaryItemsTable({
         label: 'Source',
         gridTemplateColumn: 'minmax(220px, 1.1fr)',
         customRender: (item) => {
-          const isBusy =
-            savingItemIds.includes(item.id) || deletingItemIds.includes(item.id)
-
           return (
             <TextField
               size="small"
@@ -120,7 +113,6 @@ export function GlossaryItemsTable({
               multiline
               minRows={1}
               value={item.source}
-              disabled={isBusy}
               onChange={(event) =>
                 onGlossaryItemDraftChange(item.id, 'source', event.target.value)
               }
@@ -136,9 +128,6 @@ export function GlossaryItemsTable({
         label: 'Target',
         gridTemplateColumn: 'minmax(220px, 1.1fr)',
         customRender: (item) => {
-          const isBusy =
-            savingItemIds.includes(item.id) || deletingItemIds.includes(item.id)
-
           return (
             <TextField
               size="small"
@@ -146,7 +135,6 @@ export function GlossaryItemsTable({
               multiline
               minRows={1}
               value={item.target}
-              disabled={isBusy}
               onChange={(event) =>
                 onGlossaryItemDraftChange(item.id, 'target', event.target.value)
               }
@@ -162,48 +150,36 @@ export function GlossaryItemsTable({
         label: 'Case sensitive',
         gridTemplateColumn: '132px',
         sortValue: (item) => item.caseSensitive,
-        customRender: (item) => {
-          const isBusy =
-            savingItemIds.includes(item.id) || deletingItemIds.includes(item.id)
-
-          return (
-            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-              <Checkbox
-                checked={item.caseSensitive === 1}
-                disabled={isBusy}
-                onChange={(event) => {
-                  onGlossaryItemDraftChange(item.id, 'caseSensitive', event.target.checked)
-                  void onGlossaryItemBlur(item.id)
-                }}
-              />
-            </Box>
-          )
-        },
+        customRender: (item) => (
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <Checkbox
+              checked={item.caseSensitive === 1}
+              onChange={(event) => {
+                onGlossaryItemDraftChange(item.id, 'caseSensitive', event.target.checked)
+                void onGlossaryItemBlur(item.id)
+              }}
+            />
+          </Box>
+        ),
       },
       {
         key: 'priority',
         label: 'Priority',
         gridTemplateColumn: '120px',
-        customRender: (item) => {
-          const isBusy =
-            savingItemIds.includes(item.id) || deletingItemIds.includes(item.id)
-
-          return (
-            <TextField
-              size="small"
-              type="number"
-              value={item.priority}
-              disabled={isBusy}
-              onChange={(event) =>
-                onGlossaryItemDraftChange(item.id, 'priority', Number(event.target.value))
-              }
-              onBlur={() => {
-                void onGlossaryItemBlur(item.id)
-              }}
-              inputProps={{ step: 1 }}
-            />
-          )
-        },
+        customRender: (item) => (
+          <TextField
+            size="small"
+            type="number"
+            value={item.priority}
+            onChange={(event) =>
+              onGlossaryItemDraftChange(item.id, 'priority', Number(event.target.value))
+            }
+            onBlur={() => {
+              void onGlossaryItemBlur(item.id)
+            }}
+            inputProps={{ step: 1 }}
+          />
+        ),
       },
       {
         key: 'lastModifiedAt',
