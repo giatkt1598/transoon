@@ -55,6 +55,12 @@ type SharedTableProps<T> = {
   isLoading: boolean;
   emptyStateText?: string;
   emptyStateSubtext?: string;
+  controlledPagination?: {
+    page: number;
+    rowsPerPage: number;
+    onPageChange: (page: number) => void;
+    onRowsPerPageChange: (rowsPerPage: number) => void;
+  };
 };
 
 export function SharedTable<T extends { id: string }>({
@@ -64,13 +70,16 @@ export function SharedTable<T extends { id: string }>({
   isLoading,
   emptyStateText = "No items match this view.",
   emptyStateSubtext = "Create an item to get started.",
+  controlledPagination,
 }: SharedTableProps<T>) {
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [menuItem, setMenuItem] = useState<T | null>(null);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(
+  const [internalPage, setInternalPage] = useState(0);
+  const [internalRowsPerPage, setInternalRowsPerPage] = useState(
     tableDef.defaultRowsPerPage ?? 10,
   );
+  const page = controlledPagination?.page ?? internalPage;
+  const rowsPerPage = controlledPagination?.rowsPerPage ?? internalRowsPerPage;
   const hasActions = Boolean(tableDef.action.actions?.length);
   const rowsPerPageOptions = tableDef.rowsPerPageOptions ?? [10, 25, 50];
 
@@ -259,11 +268,25 @@ export function SharedTable<T extends { id: string }>({
           className="shared-table-pagination"
           count={data.length}
           page={currentPage}
-          onPageChange={(_event, nextPage) => setPage(nextPage)}
+          onPageChange={(_event, nextPage) => {
+            if (controlledPagination) {
+              controlledPagination.onPageChange(nextPage);
+              return;
+            }
+
+            setInternalPage(nextPage);
+          }}
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={(event) => {
-            setRowsPerPage(Number(event.target.value));
-            setPage(0);
+            const nextRowsPerPage = Number(event.target.value);
+            if (controlledPagination) {
+              controlledPagination.onRowsPerPageChange(nextRowsPerPage);
+              controlledPagination.onPageChange(0);
+              return;
+            }
+
+            setInternalRowsPerPage(nextRowsPerPage);
+            setInternalPage(0);
           }}
           rowsPerPageOptions={rowsPerPageOptions}
         />

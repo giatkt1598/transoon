@@ -22,8 +22,8 @@ export type GlossaryAppliedItem = {
   glossaryId: string;
   source: string;
   target: string;
-  caseSensitive: 0 | 1;
-  wholeWord: 0 | 1;
+  caseSensitive: boolean;
+  wholeWord: boolean;
   priority: number;
 };
 

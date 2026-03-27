@@ -8,15 +8,18 @@ import {
   DialogTitle,
   FormControlLabel,
   IconButton,
+  TextField,
   MenuItem,
   Tab,
   Tabs,
-  TextField,
   Typography,
+  Tooltip,
 } from '@mui/material'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
 import { useEffect, useState } from 'react'
 import { useBlocker, useParams } from 'react-router-dom'
+import type { SortDirection } from '../app/linq'
 import { GlossaryItemsTable } from '../glossary-management/components/glossary-items-table'
 import { useGlossaryDetails } from '../glossary-management/hooks/use-glossary-details'
 import { ProjectPageHeader } from '../project-management/components/project-page-header'
@@ -49,6 +52,16 @@ const UNSAVED_CHANGES_MESSAGE =
 export function GlossaryDetailPage() {
   const [isCaseSensitiveHelpOpen, setIsCaseSensitiveHelpOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(1)
+  const [glossaryItemsSearchTerm, setGlossaryItemsSearchTerm] = useState('')
+  const [glossaryItemsSortState, setGlossaryItemsSortState] = useState<{
+    column: keyof typeof items[number]
+    direction: SortDirection
+  } | null>({
+    column: 'createdAt',
+    direction: 'asc',
+  })
+  const [glossaryItemsPage, setGlossaryItemsPage] = useState(0)
+  const [glossaryItemsRowsPerPage, setGlossaryItemsRowsPerPage] = useState(10)
   const { glossaryId } = useParams()
   const {
     languagesData,
@@ -71,6 +84,21 @@ export function GlossaryDetailPage() {
   const navigationBlocker = useBlocker(hasPendingChanges)
   const lastModified = formatDateTime(glossary?.lastModifiedAt ?? null)
   const lastUsed = formatDateTime(glossary?.lastUsedAt ?? null)
+  const sourceLanguageLabel =
+    languagesData.languages.find((language) => language.code === formValues.sourceLanguage)?.label ??
+    formValues.sourceLanguage
+  const targetLanguageLabel =
+    languagesData.languages.find((language) => language.code === formValues.targetLanguage)?.label ??
+    formValues.targetLanguage
+  const hasDuplicateNewItemSource = items.some((item) =>
+    isDuplicateSourceDraft(
+      {
+        source: newItemDraft.source,
+        caseSensitive: newItemDraft.caseSensitive,
+      },
+      item,
+    ),
+  )
 
   useEffect(() => {
     if (navigationBlocker.state !== 'blocked') {
@@ -245,19 +273,36 @@ export function GlossaryDetailPage() {
                   <GlossaryItemsTable
                     items={items}
                     isLoading={isLoading}
+                    sourceLanguageLabel={sourceLanguageLabel}
+                    targetLanguageLabel={targetLanguageLabel}
+                    searchTerm={glossaryItemsSearchTerm}
+                    onSearchChange={setGlossaryItemsSearchTerm}
+                    sortState={glossaryItemsSortState}
+                    onSortChange={setGlossaryItemsSortState}
+                    page={glossaryItemsPage}
+                    rowsPerPage={glossaryItemsRowsPerPage}
+                    onPageChange={setGlossaryItemsPage}
+                    onRowsPerPageChange={setGlossaryItemsRowsPerPage}
                     onGlossaryItemDraftChange={handleGlossaryItemDraftChange}
                     onGlossaryItemBlur={handleGlossaryItemBlur}
                     onDeleteGlossaryItem={handleDeleteGlossaryItem}
                   />
 
                   <Box className="project-editor-grid" sx={{ gridTemplateColumns: '1.2fr 1.2fr auto 120px auto' }}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: hasDuplicateNewItemSource ? 'auto minmax(0, 1fr)' : 'minmax(0, 1fr)', gap: 1, alignItems: 'center' }}>
+                      {hasDuplicateNewItemSource ? (
+                        <Tooltip title="Another glossary item already matches this source. Duplicate matching can cause ambiguity.">
+                          <WarningAmberRoundedIcon fontSize="small" color="warning" />
+                        </Tooltip>
+                      ) : null}
+                      <TextField
+                        label={`Source (${sourceLanguageLabel})`}
+                        value={newItemDraft.source}
+                        onChange={(event) => handleNewItemDraftChange('source', event.target.value)}
+                      />
+                    </Box>
                     <TextField
-                      label="Source"
-                      value={newItemDraft.source}
-                      onChange={(event) => handleNewItemDraftChange('source', event.target.value)}
-                    />
-                    <TextField
-                      label="Target"
+                      label={`Target (${targetLanguageLabel})`}
                       value={newItemDraft.target}
                       onChange={(event) => handleNewItemDraftChange('target', event.target.value)}
                     />
@@ -280,16 +325,24 @@ export function GlossaryDetailPage() {
                         <HelpOutlineRoundedIcon fontSize="small" />
                       </IconButton>
                     </Box>
-                    <TextField
-                      label="Priority"
-                      type="number"
-                      value={newItemDraft.priority}
-                      onChange={(event) => handleNewItemDraftChange('priority', Number(event.target.value))}
-                    />
                     <Button
                       variant="contained"
                       className="submit-button"
-                      onClick={() => void handleCreateGlossaryItem()}
+                      onClick={async () => {
+                        const didCreateGlossaryItem = await handleCreateGlossaryItem()
+                        if (!didCreateGlossaryItem) {
+                          return
+                        }
+
+                        setGlossaryItemsSearchTerm('')
+                        setGlossaryItemsSortState({
+                          column: 'createdAt',
+                          direction: 'asc',
+                        })
+                        setGlossaryItemsPage(
+                          Math.max(0, Math.ceil((items.length + 1) / glossaryItemsRowsPerPage) - 1),
+                        )
+                      }}
                     >
                       Add item
                     </Button>
@@ -337,5 +390,26 @@ export function GlossaryDetailPage() {
         </DialogActions>
       </Dialog>
     </Box>
+  )
+}
+
+function isDuplicateSourceDraft(
+  draft: { source: string; caseSensitive: boolean },
+  item: { source: string; caseSensitive: boolean },
+) {
+  const draftSource = draft.source.trim()
+  const itemSource = item.source.trim()
+
+  if (!draftSource || !itemSource) {
+    return false
+  }
+
+  if (draftSource === itemSource) {
+    return true
+  }
+
+  return (
+    draftSource.toLocaleLowerCase() === itemSource.toLocaleLowerCase() &&
+    (!draft.caseSensitive || !item.caseSensitive)
   )
 }

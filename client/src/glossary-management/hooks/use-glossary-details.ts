@@ -34,7 +34,7 @@ const defaultNewGlossaryItem: GlossaryItemDraft = {
   target: '',
   caseSensitive: false,
   wholeWord: true,
-  priority: 0,
+  priority: 1,
 }
 
 type UseGlossaryDetailsOptions = {
@@ -152,7 +152,14 @@ export function useGlossaryDetails({ glossaryId }: UseGlossaryDetailsOptions) {
     value: string | number | boolean,
   ) {
     setItems((currentItems) =>
-      currentItems.map((item) => (item.id === glossaryItemId ? { ...item, [field]: value } : item)),
+      currentItems.map((item) =>
+        item.id === glossaryItemId
+          ? {
+              ...item,
+              [field]: value,
+            }
+          : item,
+      ),
     )
   }
 
@@ -189,7 +196,7 @@ export function useGlossaryDetails({ glossaryId }: UseGlossaryDetailsOptions) {
       const target = newItemDraft.target.trim()
       if (!source || !target) {
         toast.error('Glossary items require both source and target text.')
-        return
+        return false
       }
 
       const now = new Date().toISOString()
@@ -200,9 +207,9 @@ export function useGlossaryDetails({ glossaryId }: UseGlossaryDetailsOptions) {
         sourceNormalized: normalizeGlossaryText(source),
         target,
         targetNormalized: normalizeGlossaryText(target),
-        caseSensitive: newItemDraft.caseSensitive ? 1 : 0,
-        wholeWord: 1,
-        priority: newItemDraft.priority,
+        caseSensitive: newItemDraft.caseSensitive,
+        wholeWord: true,
+        priority: 1,
         lastModifiedAt: now,
         lastUsedAt: null,
         createdAt: now,
@@ -213,8 +220,10 @@ export function useGlossaryDetails({ glossaryId }: UseGlossaryDetailsOptions) {
         ...defaultNewGlossaryItem,
         caseSensitive: currentCaseSensitive,
       })
+      return true
     } catch (createError) {
       toast.error(createError instanceof Error ? createError.message : 'Could not stage glossary item.')
+      return false
     }
   }
 
@@ -274,9 +283,9 @@ async function persistGlossaryItems(
       const createdItem = await createGlossaryItem(glossaryId, {
         source,
         target,
-        caseSensitive: item.caseSensitive === 1,
+        caseSensitive: item.caseSensitive,
         wholeWord: true,
-        priority: item.priority,
+        priority: 1,
       })
       persistedItems.push(createdItem)
       continue
@@ -285,9 +294,9 @@ async function persistGlossaryItems(
     const savedItem = await updateGlossaryItem(glossaryId, item.id, {
       source,
       target,
-      caseSensitive: item.caseSensitive === 1,
+      caseSensitive: item.caseSensitive,
       wholeWord: true,
-      priority: item.priority,
+      priority: 1,
     })
 
     if (savedItem) {
@@ -305,7 +314,7 @@ function serializeGlossaryItems(items: GlossaryItem[]) {
     target: item.target.trim(),
     caseSensitive: item.caseSensitive,
     wholeWord: item.wholeWord,
-    priority: item.priority,
+    priority: 1,
   }))
 }
 
