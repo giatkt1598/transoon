@@ -270,7 +270,7 @@ export function createGlossaryItem(glossaryId: string, input: GlossaryItemInput)
     target,
     targetNormalized: normalizeGlossaryText(target),
     caseSensitive: input.caseSensitive ? 1 : 0,
-    wholeWord: input.wholeWord ? 1 : 0,
+    wholeWord: input.wholeWord ?? true ? 1 : 0,
     priority: Number.isInteger(input.priority) ? Number(input.priority) : 0,
     lastModifiedAt: now,
     lastUsedAt: null,
@@ -306,7 +306,7 @@ export function updateGlossaryItem(
     target,
     targetNormalized: normalizeGlossaryText(target),
     caseSensitive: input.caseSensitive ? 1 : 0,
-    wholeWord: input.wholeWord ? 1 : 0,
+    wholeWord: input.wholeWord ?? true ? 1 : 0,
     priority: Number.isInteger(input.priority) ? Number(input.priority) : 0,
     lastModifiedAt: now,
   });

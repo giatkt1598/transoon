@@ -1,8 +1,6 @@
 import {
   Box,
   Button,
-  Checkbox,
-  FormControlLabel,
   MenuItem,
   TextField,
   Typography,
@@ -170,7 +168,7 @@ export function GlossaryDetailPage() {
             </Box>
 
             <Box className="project-editor-form" sx={{ gap: 3 }}>
-              <Box className="project-editor-grid" sx={{ gridTemplateColumns: '1.2fr 1.2fr 120px 120px 120px auto' }}>
+              <Box className="project-editor-grid" sx={{ gridTemplateColumns: '1.2fr 1.2fr 120px 120px auto' }}>
                 <TextField
                   label="Source"
                   value={newItemDraft.source}
@@ -187,24 +185,17 @@ export function GlossaryDetailPage() {
                   value={newItemDraft.priority}
                   onChange={(event) => handleNewItemDraftChange('priority', Number(event.target.value))}
                 />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={newItemDraft.caseSensitive}
-                      onChange={(event) => handleNewItemDraftChange('caseSensitive', event.target.checked)}
-                    />
-                  }
+                <TextField
+                  select
                   label="Case"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={newItemDraft.wholeWord}
-                      onChange={(event) => handleNewItemDraftChange('wholeWord', event.target.checked)}
-                    />
+                  value={newItemDraft.caseSensitive ? 'sensitive' : 'insensitive'}
+                  onChange={(event) =>
+                    handleNewItemDraftChange('caseSensitive', event.target.value === 'sensitive')
                   }
-                  label="Whole word"
-                />
+                >
+                  <MenuItem value="insensitive">Insensitive</MenuItem>
+                  <MenuItem value="sensitive">Sensitive</MenuItem>
+                </TextField>
                 <Button
                   variant="contained"
                   className="submit-button"

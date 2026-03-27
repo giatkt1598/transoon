@@ -33,7 +33,7 @@ const defaultNewGlossaryItem: GlossaryItemDraft = {
   source: '',
   target: '',
   caseSensitive: false,
-  wholeWord: false,
+  wholeWord: true,
   priority: 0,
 }
 
