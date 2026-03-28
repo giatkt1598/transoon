@@ -28,6 +28,34 @@ const theme = createTheme({
   shape: {
     borderRadius: 16,
   },
+  components: {
+    MuiPopover: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "#ffffff",
+          color: "#35261b",
+          boxShadow: "0 14px 32px rgba(53, 38, 27, 0.16)",
+          border: "1px solid rgba(53, 38, 27, 0.08)",
+        },
+      },
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "#ffffff",
+          color: "#35261b",
+        },
+      },
+    },
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "#ffffff",
+          color: "#35261b",
+        },
+      },
+    },
+  },
 });
 
 createRoot(document.getElementById("root")!).render(
