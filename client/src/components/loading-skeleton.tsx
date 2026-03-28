@@ -99,6 +99,15 @@ function LoadingExperience({
   showProgressValue = true,
 }: LoadingExperienceProps) {
   const [progress, setProgress] = useState(22);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setIsVisible(true);
+    }, 100);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -116,38 +125,44 @@ function LoadingExperience({
 
   return (
     <Box
-      className={`loading-experience loading-experience-${mode}`}
+      className={`loading-experience loading-experience-${mode} ${isVisible ? "loading-experience-visible" : "loading-experience-pending"}`}
       role="status"
       aria-live="polite"
     >
-      <Box className="loading-experience-icon-shell">
-        <DonutLargeRoundedIcon className="loading-experience-icon" />
-      </Box>
+      {isVisible ? (
+        <>
+          <Box className="loading-experience-icon-shell">
+            <DonutLargeRoundedIcon className="loading-experience-icon" />
+          </Box>
 
-      {showText ? (
-        <Box className="loading-experience-copy">
-          <Typography component="h3" className="loading-experience-title">
-            {title}
-          </Typography>
-          <Typography component="p" className="loading-experience-subtitle">
-            {subtitle}
-          </Typography>
-        </Box>
-      ) : null}
+          {showText ? (
+            <Box className="loading-experience-copy">
+              <Typography component="h3" className="loading-experience-title">
+                {title}
+              </Typography>
+              <Typography component="p" className="loading-experience-subtitle">
+                {subtitle}
+              </Typography>
+            </Box>
+          ) : null}
 
-      <Box className="loading-experience-progress">
-        <Box className="loading-experience-progress-track">
-          <Box
-            className="loading-experience-progress-fill"
-            style={{ width: `${progress}%` }}
-          />
-        </Box>
-        {showProgressValue ? (
-          <Typography component="span" className="loading-experience-progress-value">
-            {`${Math.round(progress)}%`}
-          </Typography>
-        ) : null}
-      </Box>
+          <Box className="loading-experience-progress">
+            <Box className="loading-experience-progress-track">
+              <Box
+                className="loading-experience-progress-fill"
+                style={{ width: `${progress}%` }}
+              />
+            </Box>
+            {showProgressValue ? (
+              <Typography component="span" className="loading-experience-progress-value">
+                {`${Math.round(progress)}%`}
+              </Typography>
+            ) : null}
+          </Box>
+        </>
+      ) : (
+        <Box className="loading-experience-placeholder" aria-hidden="true" />
+      )}
     </Box>
   );
 }

@@ -12,6 +12,17 @@
   text-align: center;
 }
 
+.loading-experience-pending {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.loading-experience-placeholder {
+  width: 1px;
+  height: 1px;
+}
+
 .loading-experience-page {
   min-height: calc(100vh - 180px);
   width: 100%;
