@@ -40,10 +40,15 @@ import {
 import { TERM_FUZZY_MATCH_THRESHOLD } from "../constants";
 import { AlignmentToolToolbar } from "./alignment-tool-toolbar";
 import { AlignmentAddGlossaryPopover } from "./alignment-add-glossary-popover";
+import {
+  AlignmentFindPopover,
+  type AlignmentFindStatusOption,
+} from "./alignment-find-popover";
 import { SplitSegmentDialog } from "./split-segment-dialog";
 import "./alignment-tool.scss";
 
 const TARGET_CHANGE_EMIT_INTERVAL_MS = 300;
+const FIND_KEYWORD_DEBOUNCE_MS = 300;
 
 type AlignmentToolProps = {
   segments: ProjectSegment[];
@@ -138,12 +143,38 @@ export function AlignmentTool({
   const [selectedGlossarySourceText, setSelectedGlossarySourceText] = useState("");
   const [cachedGlossarySourceText, setCachedGlossarySourceText] = useState("");
   const [addGlossaryAnchorEl, setAddGlossaryAnchorEl] = useState<HTMLElement | null>(null);
+  const [findAnchorEl, setFindAnchorEl] = useState<HTMLElement | null>(null);
+  const [draftFindKeyword, setDraftFindKeyword] = useState("");
+  const [draftFindStatus, setDraftFindStatus] =
+    useState<AlignmentFindStatusOption["value"]>("all");
+  const [appliedFindKeyword, setAppliedFindKeyword] = useState("");
+  const [appliedFindStatus, setAppliedFindStatus] =
+    useState<AlignmentFindStatusOption["value"]>("all");
+  const [goToSegmentValue, setGoToSegmentValue] = useState("");
+  const findKeywordDebounceTimeoutRef = useRef<number | null>(null);
   const targetInputRefs = useRef(
     new Map<string, HTMLTextAreaElement | HTMLInputElement>(),
   );
+  const filteredSegments = useMemo(() => {
+    const normalizedKeyword = appliedFindKeyword.trim().toLocaleLowerCase();
+
+    return segments.filter((segment) => {
+      const matchesKeyword =
+        normalizedKeyword.length === 0 ||
+        segment.sourceText.toLocaleLowerCase().includes(normalizedKeyword) ||
+        segment.targetText.toLocaleLowerCase().includes(normalizedKeyword);
+      const matchesStatus =
+        appliedFindStatus === "all" ||
+        segment.translationStatus === appliedFindStatus;
+
+      return matchesKeyword && matchesStatus;
+    });
+  }, [appliedFindKeyword, appliedFindStatus, segments]);
   const rowHeight = useDynamicRowHeight({
     defaultRowHeight: 96,
-    key: `${segments.length}:${segments.map((segment) => segment.id).join("|")}`,
+    key: `${filteredSegments.length}:${filteredSegments
+      .map((segment) => segment.id)
+      .join("|")}`,
   });
 
   const emitSegmentDraftChange = useCallback(
@@ -196,11 +227,11 @@ export function AlignmentTool({
 
   const focusSegmentAtIndex = useCallback(
     (index: number) => {
-      if (index < 0 || index >= segments.length) {
+      if (index < 0 || index >= filteredSegments.length) {
         return;
       }
 
-      const nextSegment = segments[index];
+      const nextSegment = filteredSegments[index];
       listRef.current?.scrollToRow({
         index,
         align: "smart",
@@ -225,11 +256,11 @@ export function AlignmentTool({
 
       window.requestAnimationFrame(focusNextInput);
     },
-    [listRef, segments],
+    [filteredSegments, listRef],
   );
 
   const rowData: RowData = {
-    segments,
+    segments: filteredSegments,
     savedSegmentTargets,
     draftTargets,
     projectTerms,
@@ -682,6 +713,87 @@ export function AlignmentTool({
     };
   }, []);
 
+  useEffect(() => {
+    if (findKeywordDebounceTimeoutRef.current) {
+      window.clearTimeout(findKeywordDebounceTimeoutRef.current);
+    }
+
+    findKeywordDebounceTimeoutRef.current = window.setTimeout(() => {
+      setAppliedFindKeyword(draftFindKeyword);
+      findKeywordDebounceTimeoutRef.current = null;
+    }, FIND_KEYWORD_DEBOUNCE_MS);
+
+    return () => {
+      if (findKeywordDebounceTimeoutRef.current) {
+        window.clearTimeout(findKeywordDebounceTimeoutRef.current);
+        findKeywordDebounceTimeoutRef.current = null;
+      }
+    };
+  }, [draftFindKeyword]);
+
+  const findStatusOptions = useMemo<AlignmentFindStatusOption[]>(
+    () => [
+      {
+        value: "all",
+        label: "All statuses",
+        count: segments.length,
+        icon: <AutorenewRoundedIcon fontSize="small" />,
+      },
+      {
+        value: "pending",
+        label: "Pending",
+        count: segments.filter((segment) => segment.translationStatus === "pending").length,
+        icon: <CloseRoundedIcon fontSize="small" />,
+      },
+      {
+        value: "translated",
+        label: "Translated",
+        count: segments.filter((segment) => segment.translationStatus === "translated").length,
+        icon: <PendingRoundedIcon fontSize="small" />,
+      },
+      {
+        value: "reviewed",
+        label: "Confirmed",
+        count: segments.filter((segment) => segment.translationStatus === "reviewed").length,
+        icon: <CheckCircleRoundedIcon fontSize="small" />,
+      },
+    ],
+    [segments],
+  );
+
+  const handleApplyFind = useCallback(() => {
+    setAppliedFindKeyword(draftFindKeyword);
+    setAppliedFindStatus(draftFindStatus);
+    setFindAnchorEl(null);
+  }, [draftFindKeyword, draftFindStatus]);
+
+  const handleResetFind = useCallback(() => {
+    setDraftFindKeyword("");
+    setDraftFindStatus("all");
+    setAppliedFindKeyword("");
+    setAppliedFindStatus("all");
+    setGoToSegmentValue("");
+    setFindAnchorEl(null);
+  }, []);
+
+  const handleGoToSegment = useCallback(() => {
+    const nextPosition = Number.parseInt(goToSegmentValue.trim(), 10);
+    if (!Number.isFinite(nextPosition)) {
+      return;
+    }
+
+    const nextFilteredIndex = filteredSegments.findIndex(
+      (segment) => segment.position === nextPosition,
+    );
+    if (nextFilteredIndex < 0) {
+      toast.error("Segment index not found.");
+      return;
+    }
+
+    setFindAnchorEl(null);
+    focusSegmentAtIndex(nextFilteredIndex);
+  }, [filteredSegments, focusSegmentAtIndex, goToSegmentValue]);
+
   return (
     <Paper className="detail-section-card alignment-tool-shell" elevation={0}>
       <AlignmentToolToolbar
@@ -695,6 +807,7 @@ export function AlignmentTool({
         canConfirmCurrent={canConfirmCurrent}
         canClearAll={canClearAll}
         canAddGlossary={canAddGlossary}
+        canFind={segments.length > 0}
         showMergeTooltip={checkedSegmentIds.length === 0}
         onSaveAll={onSaveAll}
         onClearAll={clearAllTargets}
@@ -712,6 +825,7 @@ export function AlignmentTool({
         onExport={onExport}
         onOpenAutoTranslate={onOpenAutoTranslate}
         onShowPreview={onShowPreview}
+        onOpenFind={setFindAnchorEl}
       />
       <AlignmentAddGlossaryPopover
         anchorEl={addGlossaryAnchorEl}
@@ -729,6 +843,23 @@ export function AlignmentTool({
           setCachedGlossarySourceText("");
           await onGlossaryItemCreated?.();
         }}
+      />
+      <AlignmentFindPopover
+        anchorEl={findAnchorEl}
+        open={Boolean(findAnchorEl)}
+        keyword={draftFindKeyword}
+        goToValue={goToSegmentValue}
+        goToPlaceholder={`1 - ${segments.length}`}
+        maxGoToValue={segments.length}
+        selectedStatus={draftFindStatus}
+        statusOptions={findStatusOptions}
+        onKeywordChange={setDraftFindKeyword}
+        onGoToValueChange={setGoToSegmentValue}
+        onStatusChange={setDraftFindStatus}
+        onGoTo={handleGoToSegment}
+        onFind={handleApplyFind}
+        onReset={handleResetFind}
+        onClose={() => setFindAnchorEl(null)}
       />
 
       <Box ref={tableShellRef} className="alignment-grid-shell">
@@ -749,13 +880,19 @@ export function AlignmentTool({
               No segments are ready for alignment yet.
             </Typography>
           </Box>
+        ) : filteredSegments.length === 0 ? (
+          <Box className="empty-state alignment-empty-state">
+            <Typography component="p">
+              No segments match the current find filters.
+            </Typography>
+          </Box>
         ) : (
           <Box className="alignment-grid-body">
             <List
               className="alignment-virtual-list"
               listRef={listRef}
               rowComponent={AlignmentVirtualRow}
-              rowCount={segments.length}
+              rowCount={filteredSegments.length}
               rowHeight={rowHeight}
               rowProps={rowData}
               overscanCount={6}

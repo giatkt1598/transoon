@@ -22,6 +22,7 @@ type AlignmentToolToolbarProps = {
   canConfirmCurrent: boolean;
   canClearAll: boolean;
   canAddGlossary: boolean;
+  canFind: boolean;
   showMergeTooltip: boolean;
   onSaveAll: () => void;
   onClearAll: () => void;
@@ -32,6 +33,7 @@ type AlignmentToolToolbarProps = {
   onExport: () => void;
   onOpenAutoTranslate: () => void;
   onShowPreview: () => void;
+  onOpenFind: (anchorElement: HTMLElement | null) => void;
 };
 
 export function AlignmentToolToolbar({
@@ -45,6 +47,7 @@ export function AlignmentToolToolbar({
   canConfirmCurrent,
   canClearAll,
   canAddGlossary,
+  canFind,
   showMergeTooltip,
   onSaveAll,
   onClearAll,
@@ -55,6 +58,7 @@ export function AlignmentToolToolbar({
   onExport,
   onOpenAutoTranslate,
   onShowPreview,
+  onOpenFind,
 }: AlignmentToolToolbarProps) {
   const [clearAllAnchorEl, setClearAllAnchorEl] = useState<HTMLElement | null>(null);
 
@@ -187,7 +191,9 @@ export function AlignmentToolToolbar({
           variant="outlined"
           size="small"
           startIcon={<FindReplaceOutlinedIcon fontSize="small" />}
-          disabled
+          disabled={!canFind}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={(event) => onOpenFind(event.currentTarget)}
           className="alignment-toolbar-button"
         >
           Find
