@@ -1,8 +1,8 @@
 import DragIndicatorRoundedIcon from "@mui/icons-material/DragIndicatorRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import {
   Alert,
   Box,
@@ -18,11 +18,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import type {
-  ProjectDetail,
-  ProjectTranslationMemoryConfig,
-  TranslationMemorySummary,
-} from "../../app/types";
+import type { ProjectDetail, ProjectTranslationMemoryConfig, TranslationMemorySummary } from "../../app/types";
 import { formatLanguageRoute } from "../../app/utils";
 import { ProjectResourceHelperDialog } from "./project-resource-helper-dialog";
 
@@ -43,19 +39,13 @@ type ProjectDetailTranslationMemoriesSectionProps = {
   draggedTranslationMemoryId: string | null;
   isSaving: boolean;
   isReadOnly: boolean;
-  onFieldChange: <K extends keyof TranslationMemoryConfigForm>(
-    field: K,
-    value: TranslationMemoryConfigForm[K],
-  ) => void;
+  onFieldChange: <K extends keyof TranslationMemoryConfigForm>(field: K, value: TranslationMemoryConfigForm[K]) => void;
   onOpenAddDialog: () => void;
   onOpenEditDialog: (translationMemoryId: string) => void;
   onCloseConfigDialog: () => void;
   onAdd: () => void;
   onDelete: (translationMemoryId: string) => Promise<void>;
-  onAccessModeChange: (
-    translationMemoryId: string,
-    accessMode: "read" | "write",
-  ) => void;
+  onAccessModeChange: (translationMemoryId: string, accessMode: "read" | "write") => void;
   onDragStart: (translationMemoryId: string) => void;
   onDragEnd: () => void;
   onDropOnRow: (translationMemoryId: string) => void;
@@ -73,7 +63,6 @@ export function ProjectDetailTranslationMemoriesSection({
   isReadOnly,
   onFieldChange,
   onOpenAddDialog,
-  onOpenEditDialog,
   onCloseConfigDialog,
   onAdd,
   onDelete,
@@ -136,8 +125,7 @@ export function ProjectDetailTranslationMemoriesSection({
 
       {isReadOnly ? (
         <Alert severity="warning" className="project-processing-warning">
-          Translation memories are locked while auto translate is processing
-          this project in the background.
+          Translation memories are locked while auto translate is processing this project in the background.
         </Alert>
       ) : null}
 
@@ -159,9 +147,7 @@ export function ProjectDetailTranslationMemoriesSection({
 
         {translationMemories.length === 0 ? (
           <Box className="empty-state detail-memory-empty">
-            <Typography component="p">
-              No translation memory is attached to this project yet.
-            </Typography>
+            <Typography component="p">No translation memory is attached to this project yet.</Typography>
           </Box>
         ) : (
           <Box className="detail-memory-table-body">
@@ -169,9 +155,7 @@ export function ProjectDetailTranslationMemoriesSection({
               <Box
                 key={config.translationMemoryId}
                 className={`detail-memory-table-row${
-                  draggedTranslationMemoryId === config.translationMemoryId
-                    ? " dragging"
-                    : ""
+                  draggedTranslationMemoryId === config.translationMemoryId ? " dragging" : ""
                 }`}
                 draggable={!isSaving && !isReadOnly}
                 onDragStart={() => onDragStart(config.translationMemoryId)}
@@ -199,10 +183,7 @@ export function ProjectDetailTranslationMemoriesSection({
                   size="small"
                   value={config.accessMode}
                   onChange={(event) =>
-                    onAccessModeChange(
-                      config.translationMemoryId,
-                      event.target.value as "read" | "write",
-                    )
+                    onAccessModeChange(config.translationMemoryId, event.target.value as "read" | "write")
                   }
                   disabled={isSaving || isReadOnly}
                   className="detail-access-select"
@@ -214,10 +195,12 @@ export function ProjectDetailTranslationMemoriesSection({
                 <Box className="shared-action-cell">
                   <IconButton
                     size="small"
-                    disabled={isSaving || isReadOnly}
-                    onClick={() => onOpenEditDialog(config.translationMemoryId)}
+                    disabled={isSaving}
+                    onClick={() => {
+                      window.location.href = `/translation-memories/${config.translationMemoryId}`;
+                    }}
                   >
-                    <EditOutlinedIcon fontSize="small" />
+                    <VisibilityOutlinedIcon fontSize="small" />
                   </IconButton>
                   <IconButton
                     size="small"
@@ -232,35 +215,18 @@ export function ProjectDetailTranslationMemoriesSection({
           </Box>
         )}
       </Box>
-      <Dialog
-        open={isConfigDialogOpen}
-        onClose={onCloseConfigDialog}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle>
-          {editingConfigId
-            ? "Edit project TM"
-            : "Add translation memory to project"}
-        </DialogTitle>
+      <Dialog open={isConfigDialogOpen} onClose={onCloseConfigDialog} fullWidth maxWidth="sm">
+        <DialogTitle>{editingConfigId ? "Edit project TM" : "Add translation memory to project"}</DialogTitle>
         <DialogContent dividers>
           <Box className="detail-memory-dialog-body">
             {!editingConfigId ? (
               <Box className="detail-memory-dialog-toggle">
                 {configForm.mode === "create" ? (
-                  <Button
-                    variant="text"
-                    onClick={() => onFieldChange("mode", "existing")}
-                    disabled={isSaving}
-                  >
+                  <Button variant="text" onClick={() => onFieldChange("mode", "existing")} disabled={isSaving}>
                     Use existing translation memory
                   </Button>
                 ) : (
-                  <Button
-                    variant="text"
-                    onClick={() => onFieldChange("mode", "create")}
-                    disabled={isSaving}
-                  >
+                  <Button variant="text" onClick={() => onFieldChange("mode", "create")} disabled={isSaving}>
                     Create new translation memory
                   </Button>
                 )}
@@ -268,28 +234,19 @@ export function ProjectDetailTranslationMemoriesSection({
             ) : null}
 
             {editingConfigId ? (
-              <TextField
-                label="Translation memory"
-                value={configForm.name}
-                disabled
-              />
+              <TextField label="Translation memory" value={configForm.name} disabled />
             ) : configForm.mode === "create" ? (
               <>
                 <TextField
                   label="Translation memory name"
                   value={configForm.name}
-                  onChange={(event) =>
-                    onFieldChange("name", event.target.value)
-                  }
+                  onChange={(event) => onFieldChange("name", event.target.value)}
                   disabled={isSaving}
                   placeholder="Product glossary EN -> JA"
                 />
                 <TextField
                   label="Language route"
-                  value={formatLanguageRoute(
-                    projectDetail.sourceLang,
-                    projectDetail.targetLang,
-                  )}
+                  value={formatLanguageRoute(projectDetail.sourceLang, projectDetail.targetLang)}
                   disabled
                 />
               </>
@@ -298,22 +255,13 @@ export function ProjectDetailTranslationMemoriesSection({
                 select
                 label="Translation memory"
                 value={configForm.translationMemoryId}
-                onChange={(event) =>
-                  onFieldChange("translationMemoryId", event.target.value)
-                }
+                onChange={(event) => onFieldChange("translationMemoryId", event.target.value)}
                 disabled={Boolean(editingConfigId) || isSaving}
               >
                 {availableTranslationMemories.map((translationMemory) => (
-                  <MenuItem
-                    key={translationMemory.id}
-                    value={translationMemory.id}
-                  >
+                  <MenuItem key={translationMemory.id} value={translationMemory.id}>
                     {translationMemory.name} (
-                    {formatLanguageRoute(
-                      translationMemory.sourceLanguage,
-                      translationMemory.targetLanguage,
-                    )}
-                    )
+                    {formatLanguageRoute(translationMemory.sourceLanguage, translationMemory.targetLanguage)})
                   </MenuItem>
                 ))}
               </TextField>
@@ -323,12 +271,7 @@ export function ProjectDetailTranslationMemoriesSection({
               select
               label="Access mode"
               value={configForm.accessMode}
-              onChange={(event) =>
-                onFieldChange(
-                  "accessMode",
-                  event.target.value as "read" | "write",
-                )
-              }
+              onChange={(event) => onFieldChange("accessMode", event.target.value as "read" | "write")}
               disabled={isSaving}
             >
               <MenuItem value="read">Read</MenuItem>
@@ -337,11 +280,7 @@ export function ProjectDetailTranslationMemoriesSection({
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button
-            variant="outlined"
-            onClick={onCloseConfigDialog}
-            disabled={isSaving}
-          >
+          <Button variant="outlined" onClick={onCloseConfigDialog} disabled={isSaving}>
             Cancel
           </Button>
           <Button

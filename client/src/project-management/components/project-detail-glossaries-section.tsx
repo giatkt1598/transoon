@@ -1,6 +1,7 @@
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import DragIndicatorRoundedIcon from "@mui/icons-material/DragIndicatorRounded";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import {
   Alert,
   Box,
@@ -163,6 +164,15 @@ export function ProjectDetailGlossariesSection({
                 </Box>
 
                 <Box className="shared-action-cell">
+                  <IconButton
+                    size="small"
+                    disabled={isSaving}
+                    onClick={() => {
+                      window.location.href = `/glossaries/${config.glossaryId}`;
+                    }}
+                  >
+                    <VisibilityOutlinedIcon fontSize="small" />
+                  </IconButton>
                   <IconButton
                     size="small"
                     disabled={isSaving || isReadOnly}

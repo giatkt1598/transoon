@@ -421,14 +421,14 @@
 .detail-memory-table-head,
 .detail-memory-table-row {
   display: grid;
-  grid-template-columns: 46px minmax(220px, 1fr) minmax(140px, 0.8fr) 72px;
+  grid-template-columns: 46px minmax(220px, 1fr) minmax(140px, 0.8fr) 116px;
   gap: 16px;
   align-items: center;
 }
 
 .detail-glossary-table-head,
 .detail-glossary-table-row {
-  grid-template-columns: 46px minmax(0, 1fr) 72px;
+  grid-template-columns: 46px minmax(0, 1fr) 92px;
 }
 
 .detail-memory-table-head {
