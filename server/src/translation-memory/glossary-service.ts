@@ -1,10 +1,5 @@
 import { randomUUID } from "crypto";
-import type {
-  GlossaryAppliedItem,
-  GlossaryEntity,
-  GlossaryItemEntity,
-  ProjectGlossaryEntity,
-} from "./entities";
+import type { GlossaryAppliedItem, GlossaryEntity, GlossaryItemEntity, ProjectGlossaryEntity } from "./entities";
 import { getTranslationMemoryDatabase } from "./database";
 import { createTranslationMemoryRepositories } from "./repositories/repository-service";
 
@@ -12,18 +7,12 @@ export type GlossarySummary = GlossaryEntity & {
   itemCount: number;
 };
 
-export type GlossaryItem = Omit<
-  GlossaryItemEntity,
-  "caseSensitive" | "wholeWord"
-> & {
+export type GlossaryItem = Omit<GlossaryItemEntity, "caseSensitive" | "wholeWord"> & {
   caseSensitive: boolean;
   wholeWord: boolean;
 };
 
-export type AppliedGlossaryItemView = Omit<
-  GlossaryAppliedItem,
-  "caseSensitive" | "wholeWord"
-> & {
+export type AppliedGlossaryItemView = Omit<GlossaryAppliedItem, "caseSensitive" | "wholeWord"> & {
   caseSensitive: boolean;
   wholeWord: boolean;
 };
@@ -88,9 +77,7 @@ export function listGlossaries() {
 }
 
 export function getGlossaryById(glossaryId: string) {
-  return (
-    listGlossaries().find((glossary) => glossary.id === glossaryId) ?? null
-  );
+  return listGlossaries().find((glossary) => glossary.id === glossaryId) ?? null;
 }
 
 export function listGlossaryItems(glossaryId: string) {
@@ -103,10 +90,7 @@ export function listGlossaryItems(glossaryId: string) {
   return glossaryItems.map(mapGlossaryItemEntity);
 }
 
-export function listGlossaryItemsByLanguagePair(
-  sourceLanguage: string,
-  targetLanguage: string,
-) {
+export function listGlossaryItemsByLanguagePair(sourceLanguage: string, targetLanguage: string) {
   const database = getTranslationMemoryDatabase();
   const sql = `
     SELECT
@@ -128,9 +112,7 @@ export function listGlossaryItemsByLanguagePair(
     ORDER BY LENGTH(gi.source) DESC, gi.priority DESC, gi.source ASC
   `;
 
-  const glossaryItems = database
-    .prepare(sql)
-    .all(sourceLanguage, targetLanguage) as GlossaryItemEntity[];
+  const glossaryItems = database.prepare(sql).all(sourceLanguage, targetLanguage) as GlossaryItemEntity[];
   return glossaryItems.map(mapGlossaryItemEntity);
 }
 
@@ -209,11 +191,7 @@ export function listProjectGlossaries(projectId: string) {
 }
 
 export function getProjectGlossary(projectId: string, glossaryId: string) {
-  return (
-    listProjectGlossaries(projectId).find(
-      (item) => item.glossaryId === glossaryId,
-    ) ?? null
-  );
+  return listProjectGlossaries(projectId).find((item) => item.glossaryId === glossaryId) ?? null;
 }
 
 export function listProjectGlossaryItems(projectId: string) {
@@ -239,9 +217,7 @@ export function listProjectGlossaryItems(projectId: string) {
     ORDER BY pg.priority ASC, LENGTH(gi.source) DESC, gi.priority DESC, gi.source ASC
   `;
 
-  const glossaryItems = database
-    .prepare(sql)
-    .all(projectId) as GlossaryItemEntity[];
+  const glossaryItems = database.prepare(sql).all(projectId) as GlossaryItemEntity[];
   return glossaryItems.map(mapGlossaryItemEntity);
 }
 
@@ -278,10 +254,7 @@ export function deleteGlossary(glossaryId: string) {
   createTranslationMemoryRepositories().glossaries.deleteById(glossaryId);
 }
 
-export function createGlossaryItem(
-  glossaryId: string,
-  input: GlossaryItemInput,
-) {
+export function createGlossaryItem(glossaryId: string, input: GlossaryItemInput) {
   const repositories = createTranslationMemoryRepositories();
   const now = new Date().toISOString();
   const source = input.source.trim();
@@ -308,16 +281,10 @@ export function createGlossaryItem(
 
   repositories.glossaryItems.insert(entity);
   touchGlossary(glossaryId, now);
-  return mapGlossaryItemEntity(
-    repositories.glossaryItems.getById(entity.id) ?? entity,
-  );
+  return mapGlossaryItemEntity(repositories.glossaryItems.getById(entity.id) ?? entity);
 }
 
-export function updateGlossaryItem(
-  glossaryId: string,
-  glossaryItemId: string,
-  input: GlossaryItemInput,
-) {
+export function updateGlossaryItem(glossaryId: string, glossaryItemId: string, input: GlossaryItemInput) {
   const repositories = createTranslationMemoryRepositories();
   const existingItem = repositories.glossaryItems.getById(glossaryItemId);
   if (!existingItem || existingItem.glossaryId !== glossaryId) {
@@ -357,17 +324,11 @@ export function deleteGlossaryItem(glossaryId: string, glossaryItemId: string) {
   touchGlossary(glossaryId);
 }
 
-export function getAppliedGlossaryItems(
-  sourceText: string,
-  glossaryItems: GlossaryItem[],
-) {
+export function getAppliedGlossaryItems(sourceText: string, glossaryItems: GlossaryItem[]) {
   return applyGlossaryPreprocess(sourceText, glossaryItems).appliedGlossary;
 }
 
-export function applyGlossaryPreprocess(
-  sourceText: string,
-  glossaryItems: GlossaryItem[],
-): GlossaryPreprocessResult {
+export function applyGlossaryPreprocess(sourceText: string, glossaryItems: GlossaryItem[]): GlossaryPreprocessResult {
   let preparedText = sourceText ?? "";
   const appliedGlossary: AppliedGlossaryItemView[] = [];
   const placeholderTargets: Record<string, string> = {};
@@ -402,10 +363,7 @@ export function applyGlossaryPreprocess(
   };
 }
 
-export function applyGlossaryPostprocess(
-  translatedText: string,
-  placeholderTargets: Record<string, string>,
-) {
+export function applyGlossaryPostprocess(translatedText: string, placeholderTargets: Record<string, string>) {
   let nextText = translatedText ?? "";
 
   for (const [placeholder, target] of Object.entries(placeholderTargets)) {
@@ -442,16 +400,12 @@ function sortGlossaryItems(glossaryItems: GlossaryItem[]) {
 function createGlossaryMatcher(glossaryItem: GlossaryItem) {
   const flags = glossaryItem.caseSensitive ? "gu" : "giu";
   const escapedSource = escapeRegExp(glossaryItem.source);
-  const pattern = glossaryItem.wholeWord
-    ? `(?<![\\p{L}\\p{N}_])${escapedSource}(?![\\p{L}\\p{N}_])`
-    : escapedSource;
+  const pattern = glossaryItem.wholeWord ? `(?<![\\p{L}\\p{N}_])${escapedSource}(?![\\p{L}\\p{N}_])` : escapedSource;
 
   return new RegExp(pattern, flags);
 }
 
-function mapAppliedGlossaryItem(
-  glossaryItem: GlossaryItem,
-): AppliedGlossaryItemView {
+function mapAppliedGlossaryItem(glossaryItem: GlossaryItem): AppliedGlossaryItemView {
   return {
     id: glossaryItem.id,
     glossaryId: glossaryItem.glossaryId,
