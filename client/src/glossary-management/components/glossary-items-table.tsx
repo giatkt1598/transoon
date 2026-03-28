@@ -1,7 +1,14 @@
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
-import { Box, Checkbox, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  Checkbox,
+  InputAdornment,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { useMemo } from "react";
 import type { GlossaryItem } from "../../app/types";
 import { orderBy, orderByDescending, type SortDirection } from "../../app/linq";
@@ -254,7 +261,6 @@ export function GlossaryItemsTable({
       }}
       isLoading={isLoading}
       emptyStateText="No glossary item matches this view."
-      emptyStateSubtext="Add glossary items to enforce terminology in AI translation."
     />
   );
 }

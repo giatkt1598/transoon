@@ -19,6 +19,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  padding-right: 15px;
 }
 
 .tm-terms-grid-head span {
@@ -35,6 +36,7 @@
   max-height: min(68vh, 780px);
   min-height: 220px;
   overflow: auto;
+  overflow-y: scroll;
 }
 
 .tm-terms-grid-row {
@@ -85,8 +87,12 @@
   border: none;
 }
 
-.tm-terms-editor-cell .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline,
-.tm-terms-editor-cell .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+.tm-terms-editor-cell
+  .MuiOutlinedInput-root:hover
+  .MuiOutlinedInput-notchedOutline,
+.tm-terms-editor-cell
+  .MuiOutlinedInput-root.Mui-focused
+  .MuiOutlinedInput-notchedOutline {
   border: none;
 }
 

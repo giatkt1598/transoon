@@ -69,7 +69,7 @@ export function SharedTable<T extends { id: string }>({
   toolbar,
   isLoading,
   emptyStateText = "No items match this view.",
-  emptyStateSubtext = "Create an item to get started.",
+  emptyStateSubtext,
   controlledPagination,
 }: SharedTableProps<T>) {
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
