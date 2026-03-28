@@ -193,7 +193,11 @@ export function AlignmentToolToolbar({
           startIcon={<FindReplaceOutlinedIcon fontSize="small" />}
           disabled={!canFind}
           onMouseDown={(event) => event.preventDefault()}
-          onClick={(event) => onOpenFind(event.currentTarget)}
+          onClick={(event) =>
+            onOpenFind(
+              event.currentTarget.closest(".alignment-toolbar-shell") as HTMLElement | null,
+            )
+          }
           className="alignment-toolbar-button"
         >
           Find

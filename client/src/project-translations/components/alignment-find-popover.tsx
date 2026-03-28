@@ -45,6 +45,7 @@ export function AlignmentFindPopover({
   onClose,
 }: AlignmentFindPopoverProps) {
   const keywordInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const toolbarWidth = anchorEl?.clientWidth ?? 920;
 
   useEffect(() => {
     if (!open) {
@@ -63,53 +64,40 @@ export function AlignmentFindPopover({
       open={open}
       anchorEl={anchorEl}
       onClose={onClose}
-      anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      anchorOrigin={{ vertical: "top", horizontal: "right" }}
       transformOrigin={{ vertical: "top", horizontal: "right" }}
       slots={{ transition: Grow }}
       slotProps={{
         paper: {
           className: "alignment-find-popover-paper",
+          style: {
+            width: toolbarWidth,
+            maxWidth: toolbarWidth,
+          },
         },
       }}
     >
       <Box className="alignment-find-popover">
         <TextField
-          label="Keyword"
-          value={keyword}
-          onChange={(event) => onKeywordChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              onFind();
-            }
-          }}
-          fullWidth
+          label="Index"
+          type="number"
+          value={goToValue}
+          onChange={(event) => onGoToValueChange(event.target.value)}
+          inputProps={{ min: 1, max: maxGoToValue }}
+          placeholder={goToPlaceholder}
           slotProps={{ inputLabel: { shrink: true } }}
-          inputRef={keywordInputRef}
+          className="alignment-find-index-field"
         />
-
-        <Box className="alignment-find-goto-row">
-          <TextField
-            label="Index"
-            type="number"
-            value={goToValue}
-            onChange={(event) => onGoToValueChange(event.target.value)}
-            inputProps={{ min: 1, max: maxGoToValue }}
-            placeholder={goToPlaceholder}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <Button variant="outlined" onClick={onGoTo}>
-            Go to
-          </Button>
-        </Box>
-
+        <Button variant="outlined" onClick={onGoTo}>
+          Go to
+        </Button>
         <TextField
           select
           label="Status"
           value={selectedStatus}
           onChange={(event) => onStatusChange(event.target.value as AlignmentFindStatusOption["value"])}
-          fullWidth
           slotProps={{ inputLabel: { shrink: true } }}
+          className="alignment-find-status-field"
         >
           {statusOptions.map((option) => (
             <MenuItem key={option.value} value={option.value}>
@@ -120,15 +108,26 @@ export function AlignmentFindPopover({
             </MenuItem>
           ))}
         </TextField>
-
-        <Box className="alignment-find-actions">
-          <Button variant="outlined" onClick={onReset}>
-            Reset
-          </Button>
-          <Button variant="contained" onClick={onFind}>
-            Find
-          </Button>
-        </Box>
+        <TextField
+          label="Keyword"
+          value={keyword}
+          onChange={(event) => onKeywordChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              onFind();
+            }
+          }}
+          slotProps={{ inputLabel: { shrink: true } }}
+          inputRef={keywordInputRef}
+          className="alignment-find-keyword-field"
+        />
+        <Button variant="contained" onClick={onFind}>
+          Find
+        </Button>
+        <Button variant="outlined" onClick={onReset}>
+          Reset
+        </Button>
       </Box>
     </Popover>
   );
