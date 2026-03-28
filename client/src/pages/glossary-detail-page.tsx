@@ -320,6 +320,7 @@ export function GlossaryDetailPage() {
                       <TextField
                         inputRef={sourceInputRef}
                         label={`Source (${sourceLanguageLabel})`}
+                        placeholder="Alias 1; Alias 2; Alias 3"
                         value={newItemDraft.source}
                         onChange={(event) =>
                           handleNewItemDraftChange("source", event.target.value)
@@ -480,19 +481,30 @@ function isDuplicateSourceDraft(
   draft: { source: string; caseSensitive: boolean },
   item: { source: string; caseSensitive: boolean },
 ) {
-  const draftSource = draft.source.trim();
-  const itemSource = item.source.trim();
+  const draftSources = splitGlossarySourceValues(draft.source);
+  const itemSources = splitGlossarySourceValues(item.source);
 
-  if (!draftSource || !itemSource) {
+  if (draftSources.length === 0 || itemSources.length === 0) {
     return false;
   }
 
-  if (draftSource === itemSource) {
-    return true;
-  }
+  return draftSources.some((draftSource) =>
+    itemSources.some((itemSource) => {
+      if (draftSource === itemSource) {
+        return true;
+      }
 
-  return (
-    draftSource.toLocaleLowerCase() === itemSource.toLocaleLowerCase() &&
-    (!draft.caseSensitive || !item.caseSensitive)
+      return (
+        draftSource.toLocaleLowerCase() === itemSource.toLocaleLowerCase() &&
+        (!draft.caseSensitive || !item.caseSensitive)
+      );
+    }),
   );
+}
+
+function splitGlossarySourceValues(value: string) {
+  return value
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
 }

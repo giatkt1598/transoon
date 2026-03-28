@@ -1408,8 +1408,11 @@ function buildHighlightedSourceFragments(
       return right.priority - left.priority;
     }
 
-    if (right.source.length !== left.source.length) {
-      return right.source.length - left.source.length;
+    const rightLongestSourceLength = getLongestGlossarySourceLength(right.source);
+    const leftLongestSourceLength = getLongestGlossarySourceLength(left.source);
+
+    if (rightLongestSourceLength !== leftLongestSourceLength) {
+      return rightLongestSourceLength - leftLongestSourceLength;
     }
 
     return left.source.localeCompare(right.source);
@@ -1435,12 +1438,12 @@ function buildHighlightedSourceFragments(
     fragments.push({
       text: segment.sourceText.slice(
         currentIndex,
-        currentIndex + matchedItem.source.length,
+        currentIndex + getGlossaryMatchLengthAt(segment.sourceText, currentIndex, matchedItem),
       ),
       isHighlighted: true,
       glossaryItem: matchedItem,
     });
-    currentIndex += matchedItem.source.length;
+    currentIndex += getGlossaryMatchLengthAt(segment.sourceText, currentIndex, matchedItem);
   }
 
   return compactHighlightedFragments(fragments);
@@ -1480,41 +1483,84 @@ function isGlossaryMatchAt(
   startIndex: number,
   glossaryItem: ProjectSegment["appliedGlossary"][number],
 ) {
-  const candidateText = sourceText.slice(
-    startIndex,
-    startIndex + glossaryItem.source.length,
-  );
-  if (!candidateText) {
-    return false;
-  }
-
-  const leftValue = glossaryItem.caseSensitive
-    ? candidateText
-    : candidateText.toLowerCase();
-  const rightValue = glossaryItem.caseSensitive
-    ? glossaryItem.source
-    : glossaryItem.source.toLowerCase();
-
-  if (leftValue !== rightValue) {
-    return false;
-  }
-
-  if (!glossaryItem.wholeWord) {
-    return true;
-  }
-
-  const previousCharacter = sourceText[startIndex - 1] ?? "";
-  const nextCharacter =
-    sourceText[startIndex + glossaryItem.source.length] ?? "";
-
-  return (
-    !isWordCharacter(previousCharacter) &&
-    !isWordCharacter(nextCharacter)
-  );
+  return getMatchedGlossarySourceVariantAt(sourceText, startIndex, glossaryItem) !== null;
 }
 
 function isWordCharacter(value: string) {
   return value.length > 0 && /[\p{L}\p{N}_]/u.test(value);
+}
+
+function getGlossaryMatchLengthAt(
+  sourceText: string,
+  startIndex: number,
+  glossaryItem: ProjectSegment["appliedGlossary"][number],
+) {
+  return (
+    getMatchedGlossarySourceVariantAt(sourceText, startIndex, glossaryItem)?.length ??
+    0
+  );
+}
+
+function getMatchedGlossarySourceVariantAt(
+  sourceText: string,
+  startIndex: number,
+  glossaryItem: ProjectSegment["appliedGlossary"][number],
+) {
+  const sourceVariants = splitGlossarySourceVariants(glossaryItem.source).sort(
+    (left, right) => right.length - left.length,
+  );
+
+  for (const sourceVariant of sourceVariants) {
+    const candidateText = sourceText.slice(
+      startIndex,
+      startIndex + sourceVariant.length,
+    );
+    if (!candidateText) {
+      continue;
+    }
+
+    const leftValue = glossaryItem.caseSensitive
+      ? candidateText
+      : candidateText.toLowerCase();
+    const rightValue = glossaryItem.caseSensitive
+      ? sourceVariant
+      : sourceVariant.toLowerCase();
+
+    if (leftValue !== rightValue) {
+      continue;
+    }
+
+    if (!glossaryItem.wholeWord) {
+      return sourceVariant;
+    }
+
+    const previousCharacter = sourceText[startIndex - 1] ?? "";
+    const nextCharacter =
+      sourceText[startIndex + sourceVariant.length] ?? "";
+
+    if (
+      !isWordCharacter(previousCharacter) &&
+      !isWordCharacter(nextCharacter)
+    ) {
+      return sourceVariant;
+    }
+  }
+
+  return null;
+}
+
+function splitGlossarySourceVariants(value: string) {
+  return value
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+function getLongestGlossarySourceLength(value: string) {
+  return splitGlossarySourceVariants(value).reduce(
+    (maxLength, sourceVariant) => Math.max(maxLength, sourceVariant.length),
+    0,
+  );
 }
 
 

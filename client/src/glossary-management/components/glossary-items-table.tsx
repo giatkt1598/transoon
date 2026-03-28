@@ -151,6 +151,7 @@ export function GlossaryItemsTable({
             fullWidth
             multiline
             minRows={1}
+            placeholder="Alias 1; Alias 2; Alias 3"
             value={item.source}
             onChange={(event) =>
               onGlossaryItemDraftChange(item.id, "source", event.target.value)
@@ -281,18 +282,29 @@ function findDuplicateGlossaryItemIds(items: GlossaryItem[]) {
 }
 
 function isDuplicateGlossarySource(left: GlossaryItem, right: GlossaryItem) {
-  const leftSource = left.source.trim();
-  const rightSource = right.source.trim();
-  if (!leftSource || !rightSource) {
+  const leftSources = splitGlossarySourceValues(left.source);
+  const rightSources = splitGlossarySourceValues(right.source);
+  if (leftSources.length === 0 || rightSources.length === 0) {
     return false;
   }
 
-  if (leftSource === rightSource) {
-    return true;
-  }
+  return leftSources.some((leftSource) =>
+    rightSources.some((rightSource) => {
+      if (leftSource === rightSource) {
+        return true;
+      }
 
-  return (
-    leftSource.toLocaleLowerCase() === rightSource.toLocaleLowerCase() &&
-    (!left.caseSensitive || !right.caseSensitive)
+      return (
+        leftSource.toLocaleLowerCase() === rightSource.toLocaleLowerCase() &&
+        (!left.caseSensitive || !right.caseSensitive)
+      );
+    }),
   );
+}
+
+function splitGlossarySourceValues(value: string) {
+  return value
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
 }

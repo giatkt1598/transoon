@@ -234,7 +234,7 @@ export function useGlossaryDetails({ glossaryId }: UseGlossaryDetailsOptions) {
         id: `draft:${crypto.randomUUID()}`,
         glossaryId: glossaryId ?? "",
         source,
-        sourceNormalized: normalizeGlossaryText(source),
+        sourceNormalized: normalizeGlossarySourceValue(source),
         target,
         targetNormalized: normalizeGlossaryText(target),
         caseSensitive: newItemDraft.caseSensitive,
@@ -360,4 +360,13 @@ function serializeGlossaryItems(items: GlossaryItem[]) {
 
 function normalizeGlossaryText(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizeGlossarySourceValue(value: string) {
+  return value
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .map((part) => normalizeGlossaryText(part))
+    .join(";");
 }

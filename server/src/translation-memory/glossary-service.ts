@@ -268,7 +268,7 @@ export function createGlossaryItem(glossaryId: string, input: GlossaryItemInput)
     id: randomUUID(),
     glossaryId,
     source,
-    sourceNormalized: normalizeGlossaryText(source),
+    sourceNormalized: normalizeGlossarySourceValue(source),
     target,
     targetNormalized: normalizeGlossaryText(target),
     caseSensitive: input.caseSensitive ? 1 : 0,
@@ -300,7 +300,7 @@ export function updateGlossaryItem(glossaryId: string, glossaryItemId: string, i
   const now = new Date().toISOString();
   repositories.glossaryItems.updateById(glossaryItemId, {
     source,
-    sourceNormalized: normalizeGlossaryText(source),
+    sourceNormalized: normalizeGlossarySourceValue(source),
     target,
     targetNormalized: normalizeGlossaryText(target),
     caseSensitive: input.caseSensitive ? 1 : 0,
@@ -335,7 +335,7 @@ export function applyGlossaryPreprocess(sourceText: string, glossaryItems: Gloss
   let placeholderIndex = 1;
 
   for (const glossaryItem of sortGlossaryItems(glossaryItems)) {
-    if (!glossaryItem.source.trim()) {
+    if (getGlossarySourceVariants(glossaryItem.source).length === 0) {
       continue;
     }
 
@@ -386,10 +386,19 @@ function normalizeGlossaryText(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+function normalizeGlossarySourceValue(value: string) {
+  return getGlossarySourceVariants(value)
+    .map((variant) => normalizeGlossaryText(variant))
+    .join(";");
+}
+
 function sortGlossaryItems(glossaryItems: GlossaryItem[]) {
   return [...glossaryItems].sort((left, right) => {
-    if (right.source.length !== left.source.length) {
-      return right.source.length - left.source.length;
+    const rightLongestSourceLength = getLongestGlossarySourceLength(right.source);
+    const leftLongestSourceLength = getLongestGlossarySourceLength(left.source);
+
+    if (rightLongestSourceLength !== leftLongestSourceLength) {
+      return rightLongestSourceLength - leftLongestSourceLength;
     }
 
     if (right.priority !== left.priority) {
@@ -402,7 +411,10 @@ function sortGlossaryItems(glossaryItems: GlossaryItem[]) {
 
 function createGlossaryMatcher(glossaryItem: GlossaryItem) {
   const flags = glossaryItem.caseSensitive ? "gu" : "giu";
-  const escapedSource = escapeRegExp(glossaryItem.source);
+  const escapedSource = getGlossarySourceVariants(glossaryItem.source)
+    .sort((left, right) => right.length - left.length)
+    .map((sourceVariant) => escapeRegExp(sourceVariant))
+    .join("|");
   const pattern = glossaryItem.wholeWord ? `(?<![\\p{L}\\p{N}_])${escapedSource}(?![\\p{L}\\p{N}_])` : escapedSource;
 
   return new RegExp(pattern, flags);
@@ -430,6 +442,20 @@ function mapGlossaryItemEntity(glossaryItem: GlossaryItemEntity): GlossaryItem {
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getGlossarySourceVariants(value: string) {
+  return value
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+function getLongestGlossarySourceLength(value: string) {
+  return getGlossarySourceVariants(value).reduce(
+    (maxLength, sourceVariant) => Math.max(maxLength, sourceVariant.length),
+    0,
+  );
 }
 
 function resolveGlossaryTargetForMatch(
