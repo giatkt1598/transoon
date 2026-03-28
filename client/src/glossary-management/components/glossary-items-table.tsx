@@ -1,25 +1,20 @@
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
-import {
-  Box,
-  Checkbox,
-  InputAdornment,
-  TextField,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { Box, Checkbox, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import { useMemo } from "react";
 import type { GlossaryItem } from "../../app/types";
 import { orderBy, orderByDescending, type SortDirection } from "../../app/linq";
-import {
-  SharedTable,
-  type TableDefinition,
-} from "../../components/shared-table";
+import { SharedTable, type TableDefinition } from "../../components/shared-table";
+import { GlossaryItemsTransferControls } from "./glossary-items-transfer-controls";
+import type { GlossaryItemDraft } from "../types";
 
 type GlossaryItemsTableProps = {
+  glossaryName: string;
   items: GlossaryItem[];
   isLoading: boolean;
+  sourceLanguageCode: string;
+  targetLanguageCode: string;
   sourceLanguageLabel: string;
   targetLanguageLabel: string;
   searchTerm: string;
@@ -28,9 +23,7 @@ type GlossaryItemsTableProps = {
     column: keyof GlossaryItem;
     direction: SortDirection;
   } | null;
-  onSortChange: (
-    sortState: { column: keyof GlossaryItem; direction: SortDirection } | null,
-  ) => void;
+  onSortChange: (sortState: { column: keyof GlossaryItem; direction: SortDirection } | null) => void;
   page: number;
   rowsPerPage: number;
   onPageChange: (page: number) => void;
@@ -42,6 +35,7 @@ type GlossaryItemsTableProps = {
   ) => void;
   onGlossaryItemBlur: (glossaryItemId: string) => Promise<void>;
   onDeleteGlossaryItem: (glossaryItemId: string) => Promise<void>;
+  onImportGlossaryItems: (items: GlossaryItemDraft[]) => void | Promise<void>;
 };
 
 function formatDateTime(value: string) {
@@ -60,8 +54,11 @@ function formatDateTime(value: string) {
 }
 
 export function GlossaryItemsTable({
+  glossaryName,
   items,
   isLoading,
+  sourceLanguageCode,
+  targetLanguageCode,
   sourceLanguageLabel,
   targetLanguageLabel,
   searchTerm,
@@ -75,6 +72,7 @@ export function GlossaryItemsTable({
   onGlossaryItemDraftChange,
   onGlossaryItemBlur,
   onDeleteGlossaryItem,
+  onImportGlossaryItems,
 }: GlossaryItemsTableProps) {
   const filteredItems = useMemo(() => {
     const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase();
@@ -83,9 +81,7 @@ export function GlossaryItemsTable({
     }
 
     return items.filter((item) =>
-      [item.source, item.target].some((value) =>
-        value.toLocaleLowerCase().includes(normalizedSearchTerm),
-      ),
+      [item.source, item.target].some((value) => value.toLocaleLowerCase().includes(normalizedSearchTerm)),
     );
   }, [items, searchTerm]);
 
@@ -100,10 +96,7 @@ export function GlossaryItemsTable({
       : orderByDescending(filteredItems, selector);
   }, [filteredItems, sortState]);
 
-  const duplicateItemIds = useMemo(
-    () => findDuplicateGlossaryItemIds(items),
-    [items],
-  );
+  const duplicateItemIds = useMemo(() => findDuplicateGlossaryItemIds(items), [items]);
 
   const tableDef: TableDefinition<GlossaryItem> = {
     sortable: true,
@@ -121,9 +114,7 @@ export function GlossaryItemsTable({
         label: "No.",
         gridTemplateColumn: "40px",
         sortable: false,
-        customRender: (_row, index) => (
-          <Typography component="span">{index + 1}.</Typography>
-        ),
+        customRender: (_row, index) => <Typography component="span">{index + 1}.</Typography>,
       },
       {
         key: "sourceNormalized",
@@ -153,9 +144,7 @@ export function GlossaryItemsTable({
             minRows={1}
             placeholder="Alias 1; Alias 2; Alias 3"
             value={item.source}
-            onChange={(event) =>
-              onGlossaryItemDraftChange(item.id, "source", event.target.value)
-            }
+            onChange={(event) => onGlossaryItemDraftChange(item.id, "source", event.target.value)}
             onBlur={() => {
               void onGlossaryItemBlur(item.id);
             }}
@@ -174,9 +163,7 @@ export function GlossaryItemsTable({
               multiline
               minRows={1}
               value={item.target}
-              onChange={(event) =>
-                onGlossaryItemDraftChange(item.id, "target", event.target.value)
-              }
+              onChange={(event) => onGlossaryItemDraftChange(item.id, "target", event.target.value)}
               onBlur={() => {
                 void onGlossaryItemBlur(item.id);
               }}
@@ -194,11 +181,7 @@ export function GlossaryItemsTable({
             <Checkbox
               checked={item.caseSensitive}
               onChange={(event) => {
-                onGlossaryItemDraftChange(
-                  item.id,
-                  "caseSensitive",
-                  event.target.checked,
-                );
+                onGlossaryItemDraftChange(item.id, "caseSensitive", event.target.checked);
                 void onGlossaryItemBlur(item.id);
               }}
             />
@@ -238,21 +221,41 @@ export function GlossaryItemsTable({
       data={sortedItems}
       tableDef={tableDef}
       toolbar={
-        <TextField
-          value={searchTerm}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search glossary items..."
-          size="small"
-          className="shared-toolbar-search"
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchRoundedIcon fontSize="small" />
-              </InputAdornment>
-            ),
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1.5,
+            flexWrap: "wrap",
+            width: "100%",
           }}
-          sx={{ maxWidth: 420 }}
-        />
+        >
+          <TextField
+            value={searchTerm}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search glossary items..."
+            size="small"
+            className="shared-toolbar-search"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchRoundedIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ maxWidth: 420 }}
+          />
+          <GlossaryItemsTransferControls
+            glossaryName={glossaryName}
+            items={items}
+            sourceLanguageCode={sourceLanguageCode}
+            targetLanguageCode={targetLanguageCode}
+            sourceLanguageLabel={sourceLanguageLabel}
+            targetLanguageLabel={targetLanguageLabel}
+            onImportItems={onImportGlossaryItems}
+          />
+        </Box>
       }
       controlledPagination={{
         page,

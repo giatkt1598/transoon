@@ -15,6 +15,14 @@ import {
 } from "../api";
 import type { GlossaryFormValues, GlossaryItemDraft } from "../types";
 
+type PersistedGlossaryItemPayload = {
+  source: string;
+  target: string;
+  caseSensitive: boolean;
+  wholeWord: boolean;
+  priority: number;
+};
+
 const fallbackLanguages: LanguagesResponse = {
   defaultSourceLanguage: "en",
   defaultTargetLanguage: "ja",
@@ -273,6 +281,72 @@ export function useGlossaryDetails({ glossaryId }: UseGlossaryDetailsOptions) {
     }
   }
 
+  function handleImportGlossaryItems(importedItems: GlossaryItemDraft[]) {
+    const now = new Date().toISOString();
+    const nextImportedItems = importedItems
+      .map((item): GlossaryItem | null => {
+        const source = item.source.trim();
+        const target = item.target.trim();
+        if (!source || !target) {
+          return null;
+        }
+
+        return {
+          id: `draft:${crypto.randomUUID()}`,
+          glossaryId: glossaryId ?? "",
+          source,
+          sourceNormalized: normalizeGlossarySourceValue(source),
+          target,
+          targetNormalized: normalizeGlossaryText(target),
+          caseSensitive: item.caseSensitive,
+          wholeWord: true,
+          priority: 1,
+          lastModifiedAt: now,
+          lastUsedAt: null,
+          createdAt: now,
+        };
+      })
+      .filter((item): item is GlossaryItem => item !== null);
+
+    if (nextImportedItems.length === 0) {
+      return;
+    }
+
+    setItems((currentItems) => {
+      const nextItems = [...currentItems];
+
+      nextImportedItems.forEach((importedItem) => {
+        const existingItemIndex = nextItems.findIndex((existingItem) =>
+          isDuplicateGlossarySource(existingItem, importedItem),
+        );
+
+        if (existingItemIndex < 0) {
+          nextItems.push(importedItem);
+          return;
+        }
+
+        const existingItem = nextItems[existingItemIndex];
+        if (!existingItem) {
+          return;
+        }
+
+        nextItems[existingItemIndex] = {
+          ...existingItem,
+          source: importedItem.source,
+          sourceNormalized: importedItem.sourceNormalized,
+          target: importedItem.target,
+          targetNormalized: importedItem.targetNormalized,
+          caseSensitive: importedItem.caseSensitive,
+          wholeWord: true,
+          priority: 1,
+          lastModifiedAt: now,
+        };
+      });
+
+      return nextItems;
+    });
+  }
+
   return {
     languagesData,
     glossary,
@@ -291,6 +365,7 @@ export function useGlossaryDetails({ glossaryId }: UseGlossaryDetailsOptions) {
     handleNewItemDraftChange,
     handleCreateGlossaryItem,
     handleDeleteGlossaryItem,
+    handleImportGlossaryItems,
   };
 }
 
@@ -314,8 +389,8 @@ async function persistGlossaryItems(
         source: string;
         target: string;
         caseSensitive: boolean;
-        wholeWord: true;
-        priority: 1;
+        wholeWord: boolean;
+        priority: number;
       } => item !== null,
     );
 
@@ -344,8 +419,8 @@ async function persistGlossaryItems(
         source: string;
         target: string;
         caseSensitive: boolean;
-        wholeWord: true;
-        priority: 1;
+        wholeWord: boolean;
+        priority: number;
       } => item !== null,
     );
 
@@ -385,7 +460,9 @@ function normalizeGlossaryText(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-function toPersistedGlossaryItemDraft(item: Pick<GlossaryItem, "source" | "target" | "caseSensitive">) {
+function toPersistedGlossaryItemDraft(
+  item: Pick<GlossaryItem, "source" | "target" | "caseSensitive">,
+): PersistedGlossaryItemPayload | null {
   const source = item.source.trim();
   const target = item.target.trim();
 
@@ -397,8 +474,8 @@ function toPersistedGlossaryItemDraft(item: Pick<GlossaryItem, "source" | "targe
     source,
     target,
     caseSensitive: item.caseSensitive,
-    wholeWord: true as const,
-    priority: 1 as const,
+    wholeWord: true,
+    priority: 1,
   };
 }
 
@@ -417,4 +494,32 @@ function normalizeGlossarySourceValue(value: string) {
     .filter((part) => part.length > 0)
     .map((part) => normalizeGlossaryText(part))
     .join(";");
+}
+
+function isDuplicateGlossarySource(left: GlossaryItem, right: GlossaryItem) {
+  const leftSources = splitGlossarySourceValues(left.source);
+  const rightSources = splitGlossarySourceValues(right.source);
+  if (leftSources.length === 0 || rightSources.length === 0) {
+    return false;
+  }
+
+  return leftSources.some((leftSource) =>
+    rightSources.some((rightSource) => {
+      if (leftSource === rightSource) {
+        return true;
+      }
+
+      return (
+        leftSource.toLocaleLowerCase() === rightSource.toLocaleLowerCase() &&
+        (!left.caseSensitive || !right.caseSensitive)
+      );
+    }),
+  );
+}
+
+function splitGlossarySourceValues(value: string) {
+  return value
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
 }

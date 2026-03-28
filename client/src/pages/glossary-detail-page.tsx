@@ -83,6 +83,7 @@ export function GlossaryDetailPage() {
     handleNewItemDraftChange,
     handleCreateGlossaryItem,
     handleDeleteGlossaryItem,
+    handleImportGlossaryItems,
   } = useGlossaryDetails({ glossaryId });
   const sourceInputRef = useRef<any>(null);
   const targetInputRef = useRef<any>(null);
@@ -406,8 +407,11 @@ export function GlossaryDetailPage() {
                     </Button>
                   </Box>
                   <GlossaryItemsTable
+                    glossaryName={glossary?.name ?? "Glossary items"}
                     items={items}
                     isLoading={isLoading}
+                    sourceLanguageCode={formValues.sourceLanguage}
+                    targetLanguageCode={formValues.targetLanguage}
                     sourceLanguageLabel={sourceLanguageLabel}
                     targetLanguageLabel={targetLanguageLabel}
                     searchTerm={glossaryItemsSearchTerm}
@@ -421,6 +425,7 @@ export function GlossaryDetailPage() {
                     onGlossaryItemDraftChange={handleGlossaryItemDraftChange}
                     onGlossaryItemBlur={handleGlossaryItemBlur}
                     onDeleteGlossaryItem={handleDeleteGlossaryItem}
+                    onImportGlossaryItems={handleImportGlossaryItems}
                   />
                 </Box>
               </Box>
