@@ -1,22 +1,15 @@
 import AutoFixHighRoundedIcon from "@mui/icons-material/AutoFixHighRounded";
+import BackspaceOutlinedIcon from "@mui/icons-material/BackspaceOutlined";
 import CallSplitOutlinedIcon from "@mui/icons-material/CallSplitOutlined";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
-import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
 import FindReplaceOutlinedIcon from "@mui/icons-material/FindReplaceOutlined";
 import MergeTypeOutlinedIcon from "@mui/icons-material/MergeTypeOutlined";
 import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { Box, Button, Paper, Tooltip, Typography } from "@mui/material";
-
-const toolbarActions = [
-  { label: "Split", icon: <CallSplitOutlinedIcon fontSize="small" /> },
-  { label: "Merge", icon: <MergeTypeOutlinedIcon fontSize="small" /> },
-  { label: "Comments", icon: <NotesOutlinedIcon fontSize="small" /> },
-  { label: "Filter", icon: <FilterAltOutlinedIcon fontSize="small" /> },
-  { label: "Find", icon: <FindReplaceOutlinedIcon fontSize="small" /> },
-];
+import { Box, Button, Paper, Popover, Tooltip, Typography } from "@mui/material";
+import { useState } from "react";
 
 type AlignmentToolToolbarProps = {
   isReadOnly: boolean;
@@ -27,8 +20,10 @@ type AlignmentToolToolbarProps = {
   isPreviewVisible: boolean;
   canSplitCurrent: boolean;
   canConfirmCurrent: boolean;
+  canClearAll: boolean;
   showMergeTooltip: boolean;
   onSaveAll: () => void;
+  onClearAll: () => void;
   onOpenSplitDialog: () => void;
   onConfirmCurrent: () => void;
   onJoinSelected: () => void;
@@ -46,8 +41,10 @@ export function AlignmentToolToolbar({
   isPreviewVisible,
   canSplitCurrent,
   canConfirmCurrent,
+  canClearAll,
   showMergeTooltip,
   onSaveAll,
+  onClearAll,
   onOpenSplitDialog,
   onConfirmCurrent,
   onJoinSelected,
@@ -55,6 +52,8 @@ export function AlignmentToolToolbar({
   onOpenAutoTranslate,
   onShowPreview,
 }: AlignmentToolToolbarProps) {
+  const [clearAllAnchorEl, setClearAllAnchorEl] = useState<HTMLElement | null>(null);
+
   return (
     <Paper className="alignment-toolbar-shell" elevation={0}>
       <Box className="alignment-toolbar-actions">
@@ -118,76 +117,107 @@ export function AlignmentToolToolbar({
             </Button>
           </span>
         </Tooltip>
-        {toolbarActions.map((action) =>
-          action.label === "Split" ? (
-            <Tooltip
-              key={action.label}
-              title="Ctrl + \"
-              arrow
-              placement="bottom"
-            >
-              <span>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={action.icon}
-                  disabled={!canSplitCurrent}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={onOpenSplitDialog}
-                  className="alignment-toolbar-button"
-                >
-                  {action.label}
-                </Button>
-              </span>
-            </Tooltip>
-          ) : action.label === "Merge" ? (
-            <Tooltip
-              key={action.label}
-              arrow
-              placement="bottom"
-              open={showMergeTooltip ? undefined : false}
-              disableHoverListener={!showMergeTooltip}
-              disableFocusListener={!showMergeTooltip}
-              disableTouchListener={!showMergeTooltip}
-              title={
-                <Box>
-                  <Typography variant="body2">
-                    1. Press Shift to show checkboxes.
-                  </Typography>
-                  <Typography variant="body2">
-                    2. Check 2 adjacent rows.
-                  </Typography>
-                  <Typography variant="body2">
-                    3. Click Merge again to apply.
-                  </Typography>
-                </Box>
-              }
-            >
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={action.icon}
-                data-alignment-merge-button="true"
-                onClick={onJoinSelected}
-                className="alignment-toolbar-button"
-              >
-                {action.label}
-              </Button>
-            </Tooltip>
-          ) : (
+        <Tooltip title={"Ctrl + \\"} arrow placement="bottom">
+          <span>
             <Button
-              key={action.label}
               variant="outlined"
               size="small"
-              startIcon={action.icon}
-              disabled
+              startIcon={<CallSplitOutlinedIcon fontSize="small" />}
+              disabled={!canSplitCurrent}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={onOpenSplitDialog}
               className="alignment-toolbar-button"
             >
-              {action.label}
+              Split
             </Button>
-          ),
-        )}
+          </span>
+        </Tooltip>
+        <Tooltip
+          arrow
+          placement="bottom"
+          open={showMergeTooltip ? undefined : false}
+          disableHoverListener={!showMergeTooltip}
+          disableFocusListener={!showMergeTooltip}
+          disableTouchListener={!showMergeTooltip}
+          title={
+            <Box>
+              <Typography variant="body2">1. Press Shift to show checkboxes.</Typography>
+              <Typography variant="body2">2. Check 2 adjacent rows.</Typography>
+              <Typography variant="body2">3. Click Merge again to apply.</Typography>
+            </Box>
+          }
+        >
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<MergeTypeOutlinedIcon fontSize="small" />}
+            data-alignment-merge-button="true"
+            onClick={onJoinSelected}
+            className="alignment-toolbar-button"
+          >
+            Merge
+          </Button>
+        </Tooltip>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<BackspaceOutlinedIcon fontSize="small" />}
+          disabled={!canClearAll}
+          onClick={(event) => setClearAllAnchorEl(event.currentTarget)}
+          className="alignment-toolbar-button"
+        >
+          Clear All
+        </Button>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<NotesOutlinedIcon fontSize="small" />}
+          disabled
+          className="alignment-toolbar-button"
+        >
+          Comments
+        </Button>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<FindReplaceOutlinedIcon fontSize="small" />}
+          disabled
+          className="alignment-toolbar-button"
+        >
+          Find
+        </Button>
       </Box>
+
+      <Popover
+        open={Boolean(clearAllAnchorEl)}
+        anchorEl={clearAllAnchorEl}
+        onClose={() => setClearAllAnchorEl(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+      >
+        <Box sx={{ p: 2, maxWidth: 280, display: "grid", gap: 1.5 }}>
+          <Typography component="p" sx={{ fontWeight: 700 }}>
+            Clear all target values?
+          </Typography>
+          <Typography component="p" color="text.secondary">
+            This only clears targets on the browser. Nothing will be saved until you click Save.
+          </Typography>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+            <Button variant="outlined" onClick={() => setClearAllAnchorEl(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                onClearAll();
+                setClearAllAnchorEl(null);
+              }}
+            >
+              Clear
+            </Button>
+          </Box>
+        </Box>
+      </Popover>
     </Paper>
   );
 }

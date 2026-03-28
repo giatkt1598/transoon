@@ -310,6 +310,12 @@ export function AlignmentTool({
   const canSplitCurrent = Boolean(activeSegment) && !isReadOnly;
   const canConfirmCurrent =
     Boolean(activeSegment) && !isReadOnly && !confirmingSegmentId;
+  const canClearAll =
+    !isReadOnly &&
+    segments.some((segment) => {
+      const targetValue = draftTargets[segment.id] ?? segment.targetText;
+      return targetValue.length > 0;
+    });
 
   const clearSelectionMode = useCallback(() => {
     setIsShiftSelectionMode(false);
@@ -355,6 +361,38 @@ export function AlignmentTool({
   const closeSplitDialog = useCallback(() => {
     setSplitDialogSegmentId(null);
   }, []);
+
+  const clearAllTargets = useCallback(() => {
+    const segmentIdsToClear = segments
+      .filter((segment) => {
+        const targetValue = draftTargets[segment.id] ?? segment.targetText;
+        return targetValue.length > 0;
+      })
+      .map((segment) => segment.id);
+
+    if (segmentIdsToClear.length === 0) {
+      return;
+    }
+
+    segmentIdsToClear.forEach((segmentId) => {
+      const timeoutId = emitTimeoutsRef.current.get(segmentId);
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+        emitTimeoutsRef.current.delete(segmentId);
+      }
+
+      latestDraftValuesRef.current.set(segmentId, "");
+    });
+
+    setDraftTargets((currentDraftTargets) => ({
+      ...currentDraftTargets,
+      ...Object.fromEntries(segmentIdsToClear.map((segmentId) => [segmentId, ""])),
+    }));
+
+    segmentIdsToClear.forEach((segmentId) => {
+      onTargetChange(segmentId, "");
+    });
+  }, [draftTargets, onTargetChange, segments]);
 
   useEffect(() => {
     setDraftTargets((currentDraftTargets) => {
@@ -588,8 +626,10 @@ export function AlignmentTool({
         isPreviewVisible={isPreviewVisible}
         canSplitCurrent={canSplitCurrent}
         canConfirmCurrent={canConfirmCurrent}
+        canClearAll={canClearAll}
         showMergeTooltip={checkedSegmentIds.length === 0}
         onSaveAll={onSaveAll}
+        onClearAll={clearAllTargets}
         onOpenSplitDialog={openSplitDialog}
         onConfirmCurrent={() => {
           if (!activeSegment) {
