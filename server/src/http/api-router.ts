@@ -36,6 +36,7 @@ import {
   listGlossaries,
   listGlossaryItems,
   listProjectGlossaries,
+  saveGlossaryItemsChanges,
   updateGlossary,
   updateProjectGlossary,
   updateGlossaryItem,
@@ -942,6 +943,30 @@ export function createApiRouter() {
     }
   });
 
+  router.put("/api/glossaries/:glossaryId/items", (req, res) => {
+    try {
+      const glossaryId = String(req.params.glossaryId);
+      const glossary = getGlossaryById(glossaryId);
+      if (!glossary) {
+        res.status(404).json({ error: "Glossary not found." });
+        return;
+      }
+
+      const validationError = validateGlossaryItemsChangesInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const items = saveGlossaryItemsChanges(glossaryId, req.body);
+      res.json({ items });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
   router.post("/api/glossaries", (req, res) => {
     try {
       const validationError = validateGlossaryInput(req.body);
@@ -1475,6 +1500,62 @@ function validateGlossaryItemInput(body: unknown) {
     (typeof priority !== "number" || !Number.isFinite(priority))
   ) {
     return "priority must be a valid number.";
+  }
+
+  return null;
+}
+
+function validateGlossaryItemsChangesInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A glossary items changes payload is required.";
+  }
+
+  const { createdItems, updatedItems, deletedItemIds } = body as Record<
+    string,
+    unknown
+  >;
+
+  if (!Array.isArray(createdItems)) {
+    return "createdItems must be an array.";
+  }
+
+  if (!Array.isArray(updatedItems)) {
+    return "updatedItems must be an array.";
+  }
+
+  if (!Array.isArray(deletedItemIds)) {
+    return "deletedItemIds must be an array.";
+  }
+
+  for (const item of createdItems) {
+    const validationError = validateGlossaryItemInput(item);
+    if (validationError) {
+      return validationError;
+    }
+  }
+
+  for (const item of updatedItems) {
+    if (!item || typeof item !== "object") {
+      return "Each updated glossary item must be an object.";
+    }
+
+    if (
+      typeof (item as Record<string, unknown>).id !== "string" ||
+      String((item as Record<string, unknown>).id).trim().length === 0
+    ) {
+      return "Each updated glossary item must include a valid id.";
+    }
+
+    const validationError = validateGlossaryItemInput(item);
+    if (validationError) {
+      return validationError;
+    }
+  }
+
+  for (const glossaryItemId of deletedItemIds) {
+    if (typeof glossaryItemId !== "string" || glossaryItemId.trim().length === 0) {
+      return "Each deletedItemId must be a valid string.";
+    }
   }
 
   return null;

@@ -6,14 +6,12 @@ import type {
   LanguagesResponse,
 } from "../../app/types";
 import {
-  createGlossaryItem,
   defaultGlossaryFormValues,
-  deleteGlossaryItem,
   fetchGlossary,
   fetchGlossaryItems,
   fetchLanguages,
+  saveGlossaryItemsChanges,
   saveGlossary,
-  updateGlossaryItem,
 } from "../api";
 import type { GlossaryFormValues, GlossaryItemDraft } from "../types";
 
@@ -304,47 +302,72 @@ async function persistGlossaryItems(
   const originalIds = new Set(originalItems.map((item) => item.id));
   const draftIds = new Set(draftItems.map((item) => item.id));
 
-  const removedItems = originalItems.filter((item) => !draftIds.has(item.id));
-  for (const item of removedItems) {
-    await deleteGlossaryItem(glossaryId, item.id);
+  const deletedItemIds = originalItems
+    .filter((item) => !draftIds.has(item.id))
+    .map((item) => item.id);
+
+  const createdItems = draftItems
+    .filter((item) => item.id.startsWith("draft:") || !originalIds.has(item.id))
+    .map(toPersistedGlossaryItemDraft)
+    .filter(
+      (item): item is {
+        source: string;
+        target: string;
+        caseSensitive: boolean;
+        wholeWord: true;
+        priority: 1;
+      } => item !== null,
+    );
+
+  const originalItemsById = new Map(originalItems.map((item) => [item.id, item] as const));
+  const updatedItems = draftItems
+    .filter((item) => !item.id.startsWith("draft:") && originalIds.has(item.id))
+    .map((item) => {
+      const originalItem = originalItemsById.get(item.id);
+      if (!originalItem || !hasGlossaryItemChanged(originalItem, item)) {
+        return null;
+      }
+
+      const persistedDraft = toPersistedGlossaryItemDraft(item);
+      if (!persistedDraft) {
+        return null;
+      }
+
+      return {
+        id: item.id,
+        ...persistedDraft,
+      };
+    })
+    .filter(
+      (item): item is {
+        id: string;
+        source: string;
+        target: string;
+        caseSensitive: boolean;
+        wholeWord: true;
+        priority: 1;
+      } => item !== null,
+    );
+
+  if (
+    createdItems.length === 0 &&
+    updatedItems.length === 0 &&
+    deletedItemIds.length === 0
+  ) {
+    return draftItems
+      .map((item) => ({
+        ...item,
+        source: item.source.trim(),
+        target: item.target.trim(),
+      }))
+      .filter((item) => item.source.length > 0 && item.target.length > 0);
   }
 
-  const persistedItems: GlossaryItem[] = [];
-
-  for (const item of draftItems) {
-    const source = item.source.trim();
-    const target = item.target.trim();
-
-    if (!source || !target) {
-      continue;
-    }
-
-    if (item.id.startsWith("draft:") || !originalIds.has(item.id)) {
-      const createdItem = await createGlossaryItem(glossaryId, {
-        source,
-        target,
-        caseSensitive: item.caseSensitive,
-        wholeWord: true,
-        priority: 1,
-      });
-      persistedItems.push(createdItem);
-      continue;
-    }
-
-    const savedItem = await updateGlossaryItem(glossaryId, item.id, {
-      source,
-      target,
-      caseSensitive: item.caseSensitive,
-      wholeWord: true,
-      priority: 1,
-    });
-
-    if (savedItem) {
-      persistedItems.push(savedItem);
-    }
-  }
-
-  return persistedItems;
+  return saveGlossaryItemsChanges(glossaryId, {
+    createdItems,
+    updatedItems,
+    deletedItemIds,
+  });
 }
 
 function serializeGlossaryItems(items: GlossaryItem[]) {
@@ -360,6 +383,31 @@ function serializeGlossaryItems(items: GlossaryItem[]) {
 
 function normalizeGlossaryText(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function toPersistedGlossaryItemDraft(item: Pick<GlossaryItem, "source" | "target" | "caseSensitive">) {
+  const source = item.source.trim();
+  const target = item.target.trim();
+
+  if (!source || !target) {
+    return null;
+  }
+
+  return {
+    source,
+    target,
+    caseSensitive: item.caseSensitive,
+    wholeWord: true as const,
+    priority: 1 as const,
+  };
+}
+
+function hasGlossaryItemChanged(originalItem: GlossaryItem, draftItem: GlossaryItem) {
+  return (
+    originalItem.source.trim() !== draftItem.source.trim() ||
+    originalItem.target.trim() !== draftItem.target.trim() ||
+    originalItem.caseSensitive !== draftItem.caseSensitive
+  );
 }
 
 function normalizeGlossarySourceValue(value: string) {

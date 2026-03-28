@@ -42,6 +42,16 @@ export type GlossaryItemInput = {
   priority?: number;
 };
 
+export type SaveGlossaryItemsChangesInput = {
+  createdItems: GlossaryItemInput[];
+  updatedItems: Array<
+    GlossaryItemInput & {
+      id: string;
+    }
+  >;
+  deletedItemIds: string[];
+};
+
 export type GlossaryPreprocessResult = {
   preparedText: string;
   appliedGlossary: AppliedGlossaryItemView[];
@@ -322,6 +332,92 @@ export function deleteGlossaryItem(glossaryId: string, glossaryItemId: string) {
 
   repositories.glossaryItems.deleteById(glossaryItemId);
   touchGlossary(glossaryId);
+}
+
+export function saveGlossaryItemsChanges(
+  glossaryId: string,
+  input: SaveGlossaryItemsChangesInput,
+) {
+  const database = getTranslationMemoryDatabase();
+  const repositories = createTranslationMemoryRepositories(database);
+  const glossary = repositories.glossaries.getById(glossaryId);
+  if (!glossary) {
+    throw new Error("Glossary not found.");
+  }
+
+  const now = new Date().toISOString();
+  database.exec("BEGIN");
+
+  try {
+    for (const glossaryItemId of input.deletedItemIds) {
+      const existingItem = repositories.glossaryItems.getById(glossaryItemId);
+      if (!existingItem || existingItem.glossaryId !== glossaryId) {
+        continue;
+      }
+
+      repositories.glossaryItems.deleteById(glossaryItemId);
+    }
+
+    for (const item of input.updatedItems) {
+      const existingItem = repositories.glossaryItems.getById(item.id);
+      if (!existingItem || existingItem.glossaryId !== glossaryId) {
+        continue;
+      }
+
+      const source = item.source.trim();
+      const target = item.target.trim();
+      if (!source || !target) {
+        continue;
+      }
+
+      repositories.glossaryItems.updateById(item.id, {
+        source,
+        sourceNormalized: normalizeGlossarySourceValue(source),
+        target,
+        targetNormalized: normalizeGlossaryText(target),
+        caseSensitive: item.caseSensitive ? 1 : 0,
+        wholeWord: (item.wholeWord ?? true) ? 1 : 0,
+        priority: 1,
+        lastModifiedAt: now,
+      });
+    }
+
+    for (const item of input.createdItems) {
+      const source = item.source.trim();
+      const target = item.target.trim();
+      if (!source || !target) {
+        continue;
+      }
+
+      const entity: GlossaryItemEntity = {
+        id: randomUUID(),
+        glossaryId,
+        source,
+        sourceNormalized: normalizeGlossarySourceValue(source),
+        target,
+        targetNormalized: normalizeGlossaryText(target),
+        caseSensitive: item.caseSensitive ? 1 : 0,
+        wholeWord: (item.wholeWord ?? true) ? 1 : 0,
+        priority: 1,
+        lastModifiedAt: now,
+        lastUsedAt: null,
+        createdAt: now,
+      };
+
+      repositories.glossaryItems.insert(entity);
+    }
+
+    repositories.glossaries.updateById(glossaryId, {
+      lastModifiedAt: now,
+    });
+
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  return listGlossaryItems(glossaryId);
 }
 
 export function getAppliedGlossaryItems(sourceText: string, glossaryItems: GlossaryItem[]) {

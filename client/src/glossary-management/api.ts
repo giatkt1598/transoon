@@ -161,3 +161,27 @@ export async function deleteGlossaryItem(glossaryId: string, glossaryItemId: str
     throw new Error(data.error ?? 'Could not delete glossary item.')
   }
 }
+
+export async function saveGlossaryItemsChanges(
+  glossaryId: string,
+  changes: {
+    createdItems: GlossaryItemDraft[]
+    updatedItems: Array<GlossaryItemDraft & { id: string }>
+    deletedItemIds: string[]
+  },
+) {
+  const response = await fetch(`${apiBaseUrl}/api/glossaries/${glossaryId}/items`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(changes),
+  })
+
+  const data = await readJsonResponse<GlossaryItemsResponse | { error?: string }>(response)
+  if (!response.ok || 'error' in data) {
+    throw new Error('error' in data ? data.error ?? 'Could not save glossary items.' : 'Could not save glossary items.')
+  }
+
+  return (data as GlossaryItemsResponse).items
+}
