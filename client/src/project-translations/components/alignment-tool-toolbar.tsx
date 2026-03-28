@@ -5,6 +5,7 @@ import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import FindReplaceOutlinedIcon from "@mui/icons-material/FindReplaceOutlined";
+import LibraryAddOutlinedIcon from "@mui/icons-material/LibraryAddOutlined";
 import MergeTypeOutlinedIcon from "@mui/icons-material/MergeTypeOutlined";
 import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
@@ -21,9 +22,11 @@ type AlignmentToolToolbarProps = {
   canSplitCurrent: boolean;
   canConfirmCurrent: boolean;
   canClearAll: boolean;
+  canAddGlossary: boolean;
   showMergeTooltip: boolean;
   onSaveAll: () => void;
   onClearAll: () => void;
+  onOpenAddGlossary: (anchorElement: HTMLElement | null) => void;
   onOpenSplitDialog: () => void;
   onConfirmCurrent: () => void;
   onJoinSelected: () => void;
@@ -42,9 +45,11 @@ export function AlignmentToolToolbar({
   canSplitCurrent,
   canConfirmCurrent,
   canClearAll,
+  canAddGlossary,
   showMergeTooltip,
   onSaveAll,
   onClearAll,
+  onOpenAddGlossary,
   onOpenSplitDialog,
   onConfirmCurrent,
   onJoinSelected,
@@ -101,6 +106,17 @@ export function AlignmentToolToolbar({
           className="alignment-toolbar-button"
         >
           Auto Translate
+        </Button>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<LibraryAddOutlinedIcon fontSize="small" />}
+          disabled={isReadOnly || !canAddGlossary}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={(event) => onOpenAddGlossary(event.currentTarget)}
+          className="alignment-toolbar-button"
+        >
+          Add Glossary
         </Button>
         <Tooltip title="Ctrl + Enter" arrow placement="bottom">
           <span>

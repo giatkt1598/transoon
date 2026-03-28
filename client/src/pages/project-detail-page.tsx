@@ -24,6 +24,7 @@ import {
   PROJECT_TRANSLATION_MEMORY_PROVIDER_NAME,
   useProjectTranslations,
 } from "../project-translations/hooks/use-project-translations";
+import { fetchProjectDetail } from "../project-management/api";
 import { getLanguageLabel } from "../app/utils";
 
 const PREVIEW_VISIBILITY_STORAGE_KEY = "transoon.projectTranslations.previewVisible";
@@ -61,6 +62,7 @@ export function ProjectDetailPage() {
     isSaving,
     error,
     translationResourcesRevision,
+    handleRefreshTranslationResources,
     handleTabValueChange,
     handleConfigFieldChange,
     handleGlossaryConfigFieldChange,
@@ -236,6 +238,16 @@ export function ProjectDetailPage() {
     setIsPreviewVisible(true);
   };
 
+  const handleGlossaryItemCreated = async () => {
+    if (!projectId) {
+      return;
+    }
+
+    const nextProjectDetail = await fetchProjectDetail(projectId);
+    setProjectDetail(nextProjectDetail);
+    handleRefreshTranslationResources();
+  };
+
   if (isLoading || !projectDetail) {
     return <LoadingPageSkeleton />;
   }
@@ -370,6 +382,7 @@ export function ProjectDetailPage() {
                     confirmFocusSegmentId={confirmFocusSegmentId}
                     confirmFocusToken={confirmFocusToken}
                     projectTerms={projectTerms}
+                    projectGlossaries={draftGlossaries}
                     isPreviewVisible={isPreviewVisible}
                     restoreScrollKey={segmentSaveRevision}
                     onRegisterFlushPendingChanges={(flushPendingChanges) => {
@@ -385,6 +398,7 @@ export function ProjectDetailPage() {
                     onExport={() => void handleExportDocument()}
                     onOpenAutoTranslate={handleOpenAutoTranslateDialog}
                     onShowPreview={handleShowPreview}
+                    onGlossaryItemCreated={handleGlossaryItemCreated}
                   />
                 }
                 previewPane={
@@ -420,6 +434,7 @@ export function ProjectDetailPage() {
                 confirmFocusSegmentId={confirmFocusSegmentId}
                 confirmFocusToken={confirmFocusToken}
                 projectTerms={projectTerms}
+                projectGlossaries={draftGlossaries}
                 isPreviewVisible={isPreviewVisible}
                 restoreScrollKey={segmentSaveRevision}
                 onRegisterFlushPendingChanges={(flushPendingChanges) => {
@@ -435,6 +450,7 @@ export function ProjectDetailPage() {
                 onExport={() => void handleExportDocument()}
                 onOpenAutoTranslate={handleOpenAutoTranslateDialog}
                 onShowPreview={handleShowPreview}
+                onGlossaryItemCreated={handleGlossaryItemCreated}
               />
             )
           ) : (

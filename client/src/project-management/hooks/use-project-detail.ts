@@ -252,6 +252,10 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     setActiveTab(value)
   }
 
+  function handleRefreshTranslationResources() {
+    setTranslationResourcesRevision((current) => current + 1)
+  }
+
   function handleTabChange(_event: React.SyntheticEvent, value: number) {
     handleTabValueChange(value)
   }
@@ -800,6 +804,7 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     isSaving,
     error,
     translationResourcesRevision,
+    handleRefreshTranslationResources,
     handleTabValueChange,
     handleTabChange,
     handleConfigFieldChange,

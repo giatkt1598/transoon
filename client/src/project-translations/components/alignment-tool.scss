@@ -414,3 +414,63 @@
   caret-color: #24170f;
   cursor: text;
 }
+
+.alignment-add-glossary-popover {
+  display: grid;
+  gap: 12px;
+  width: min(420px, calc(100vw - 32px));
+  padding: 16px;
+}
+
+.alignment-add-glossary-source-row {
+  display: block;
+}
+
+.alignment-add-glossary-warning {
+  flex: 0 0 auto;
+}
+
+.alignment-add-glossary-warning-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.alignment-add-glossary-error-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.alignment-add-glossary-info-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.alignment-add-glossary-warning-text,
+.alignment-add-glossary-info-text,
+.alignment-add-glossary-error-text,
+.alignment-add-glossary-loading-text {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.alignment-add-glossary-warning-text,
+.alignment-add-glossary-loading-text {
+  color: #8a705c;
+}
+
+.alignment-add-glossary-error-text {
+  color: #b42318;
+}
+
+.alignment-add-glossary-info-text {
+  color: #165c96;
+}
+
+.alignment-add-glossary-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

@@ -32,7 +32,7 @@ import {
   type RowComponentProps,
 } from "react-window";
 import type { ProjectSegment } from "../../app/types";
-import type { ProjectTerm } from "../../app/types";
+import type { ProjectGlossaryConfig, ProjectTerm } from "../../app/types";
 import {
   getAppliedTermMatchScore,
   searchFuzzyProjectTerms,
@@ -40,6 +40,7 @@ import {
 } from "../term-fuzzy-search";
 import { TERM_FUZZY_MATCH_THRESHOLD } from "../constants";
 import { AlignmentToolToolbar } from "./alignment-tool-toolbar";
+import { AlignmentAddGlossaryPopover } from "./alignment-add-glossary-popover";
 import { AlignmentTermConflictDialog } from "./alignment-term-conflict-dialog";
 import { SplitSegmentDialog } from "./split-segment-dialog";
 import "./alignment-tool.scss";
@@ -67,6 +68,7 @@ type AlignmentToolProps = {
   confirmFocusSegmentId: string | null;
   confirmFocusToken: number;
   projectTerms: ProjectTerm[];
+  projectGlossaries: ProjectGlossaryConfig[];
   isPreviewVisible: boolean;
   restoreScrollKey?: number;
   onRegisterFlushPendingChanges?: (
@@ -82,6 +84,7 @@ type AlignmentToolProps = {
   onExport: () => void;
   onOpenAutoTranslate: () => void;
   onShowPreview: () => void;
+  onGlossaryItemCreated?: () => Promise<void> | void;
 };
 
 export function AlignmentTool({
@@ -105,6 +108,7 @@ export function AlignmentTool({
   confirmFocusSegmentId,
   confirmFocusToken,
   projectTerms,
+  projectGlossaries,
   isPreviewVisible,
   restoreScrollKey = 0,
   onRegisterFlushPendingChanges,
@@ -118,6 +122,7 @@ export function AlignmentTool({
   onExport,
   onOpenAutoTranslate,
   onShowPreview,
+  onGlossaryItemCreated,
 }: AlignmentToolProps) {
   const listRef = useListRef(null);
   const tableShellRef = useRef<HTMLDivElement | null>(null);
@@ -132,6 +137,9 @@ export function AlignmentTool({
     null,
   );
   const [splitCaretPosition, setSplitCaretPosition] = useState(0);
+  const [selectedGlossarySourceText, setSelectedGlossarySourceText] = useState("");
+  const [cachedGlossarySourceText, setCachedGlossarySourceText] = useState("");
+  const [addGlossaryAnchorEl, setAddGlossaryAnchorEl] = useState<HTMLElement | null>(null);
   const targetInputRefs = useRef(
     new Map<string, HTMLTextAreaElement | HTMLInputElement>(),
   );
@@ -335,6 +343,7 @@ export function AlignmentTool({
       const targetValue = draftTargets[segment.id] ?? segment.targetText;
       return targetValue.length > 0;
     });
+  const canAddGlossary = !isReadOnly;
 
   const clearSelectionMode = useCallback(() => {
     setIsShiftSelectionMode(false);
@@ -413,6 +422,42 @@ export function AlignmentTool({
     });
   }, [draftTargets, onTargetChange, segments]);
 
+  const getSelectedSourceTextFromTable = useCallback(() => {
+    const selection = window.getSelection();
+    const selectedText = selection?.toString() ?? "";
+    const anchorNode = selection?.anchorNode ?? null;
+    const focusNode = selection?.focusNode ?? null;
+
+    if (
+      !selectedText.trim() ||
+      !anchorNode ||
+      !focusNode ||
+      !tableShellRef.current?.contains(anchorNode) ||
+      !tableShellRef.current?.contains(focusNode)
+    ) {
+      return "";
+    }
+
+    return selectedText.trim();
+  }, []);
+
+  const openAddGlossaryPopover = useCallback(
+    (anchorElement: HTMLElement | null) => {
+      const selectedSourceText =
+        getSelectedSourceTextFromTable() ||
+        selectedGlossarySourceText ||
+        cachedGlossarySourceText;
+      setSelectedGlossarySourceText(selectedSourceText);
+      setCachedGlossarySourceText(selectedSourceText);
+      setAddGlossaryAnchorEl(anchorElement ?? tableShellRef.current);
+    },
+    [
+      cachedGlossarySourceText,
+      getSelectedSourceTextFromTable,
+      selectedGlossarySourceText,
+    ],
+  );
+
   useEffect(() => {
     setDraftTargets((currentDraftTargets) => {
       const nextDraftTargets: Record<string, string> = {};
@@ -486,10 +531,10 @@ export function AlignmentTool({
       setCheckedSegmentIds([activeSegmentForSelection.id]);
     };
 
-    window.addEventListener("keydown", handleWindowKeyDown);
+    document.addEventListener("keydown", handleWindowKeyDown, true);
 
     return () => {
-      window.removeEventListener("keydown", handleWindowKeyDown);
+      document.removeEventListener("keydown", handleWindowKeyDown, true);
     };
   }, [
     activeSegmentExternalId,
@@ -498,6 +543,24 @@ export function AlignmentTool({
     isShiftSelectionMode,
     segments,
   ]);
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const selectedText = getSelectedSourceTextFromTable();
+      if (!selectedText) {
+        setSelectedGlossarySourceText("");
+        return;
+      }
+
+      setSelectedGlossarySourceText(selectedText);
+      setCachedGlossarySourceText(selectedText);
+    };
+
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+    };
+  }, [getSelectedSourceTextFromTable]);
 
   useEffect(() => {
     if (!isShiftSelectionMode) {
@@ -646,9 +709,11 @@ export function AlignmentTool({
         canSplitCurrent={canSplitCurrent}
         canConfirmCurrent={canConfirmCurrent}
         canClearAll={canClearAll}
+        canAddGlossary={canAddGlossary}
         showMergeTooltip={checkedSegmentIds.length === 0}
         onSaveAll={onSaveAll}
         onClearAll={clearAllTargets}
+        onOpenAddGlossary={openAddGlossaryPopover}
         onOpenSplitDialog={openSplitDialog}
         onConfirmCurrent={() => {
           if (!activeSegment) {
@@ -662,6 +727,23 @@ export function AlignmentTool({
         onExport={onExport}
         onOpenAutoTranslate={onOpenAutoTranslate}
         onShowPreview={onShowPreview}
+      />
+      <AlignmentAddGlossaryPopover
+        anchorEl={addGlossaryAnchorEl}
+        open={Boolean(addGlossaryAnchorEl)}
+        projectGlossaries={projectGlossaries}
+        defaultSource={cachedGlossarySourceText}
+        onClose={() => {
+          setAddGlossaryAnchorEl(null);
+          setSelectedGlossarySourceText("");
+          setCachedGlossarySourceText("");
+          window.getSelection()?.removeAllRanges();
+        }}
+        onSaved={async () => {
+          setSelectedGlossarySourceText("");
+          setCachedGlossarySourceText("");
+          await onGlossaryItemCreated?.();
+        }}
       />
 
       <Box ref={tableShellRef} className="alignment-grid-shell">
