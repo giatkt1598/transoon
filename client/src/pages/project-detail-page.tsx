@@ -17,7 +17,10 @@ import { ProjectDetailTranslationMemoriesSection } from "../project-management/c
 import { useProjectDetail } from "../project-management/hooks/use-project-detail";
 import { useProjectDocumentPreview } from "../project-translations/hooks/use-project-document-preview";
 import { useProjectTermsPreload } from "../project-translations/hooks/use-project-terms-preload";
-import { useProjectTranslations } from "../project-translations/hooks/use-project-translations";
+import {
+  PROJECT_TRANSLATION_MEMORY_PROVIDER_NAME,
+  useProjectTranslations,
+} from "../project-translations/hooks/use-project-translations";
 import { getLanguageLabel } from "../app/utils";
 
 const PREVIEW_VISIBILITY_STORAGE_KEY = "transoon.projectTranslations.previewVisible";
@@ -124,6 +127,25 @@ export function ProjectDetailPage() {
     projectId,
     refreshKey: translationResourcesRevision,
   });
+  const autoTranslateProviderOptions = [
+    ...translateProviders.map((provider) => ({
+      value: provider.name,
+      label: provider.name,
+      description: provider.description,
+    })),
+    ...((projectDetail?.translationMemories.length ?? 0) > 0
+      ? [
+          {
+            value: PROJECT_TRANSLATION_MEMORY_PROVIDER_NAME,
+            label: `Translation Memory: ${projectDetail?.translationMemories
+              ?.map((translationMemory) => translationMemory.name)
+              .join(", ")}`,
+            description:
+              "Apply the project's linked translation memories to matching segments. Segments without a translation memory match will be left unchanged.",
+          },
+        ]
+      : []),
+  ];
 
   useEffect(() => {
     try {
@@ -385,7 +407,7 @@ export function ProjectDetailPage() {
         open={isAutoTranslateDialogOpen}
         isSubmitting={isStartingAutoTranslate}
         providerName={selectedProviderName}
-        providers={translateProviders}
+        providers={autoTranslateProviderOptions}
         onProviderChange={setSelectedProviderName}
         onClose={handleCloseAutoTranslateDialog}
         onConfirm={() => void handleConfirmAutoTranslate()}

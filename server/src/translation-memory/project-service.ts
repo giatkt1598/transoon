@@ -155,6 +155,8 @@ const runningAutoTranslateJobs = new Map<
   string,
   { runId: string; controller: AbortController }
 >();
+const PROJECT_TRANSLATION_MEMORY_PROVIDER_NAME =
+  "__project_translation_memories__";
 
 export function listProjects() {
   const database = getTranslationMemoryDatabase();
@@ -962,6 +964,15 @@ export async function startProjectAutoTranslate(
   }
 
   const segments = listProjectSegments(projectId);
+  if (
+    providerName === PROJECT_TRANSLATION_MEMORY_PROVIDER_NAME &&
+    listProjectTranslationMemories(projectId).length === 0
+  ) {
+    throw new Error(
+      "Attach at least one translation memory to this project before using Translation Memory auto translate.",
+    );
+  }
+
   if (segments.length === 0) {
     throw new Error("Generate segments before running auto translate.");
   }
@@ -1066,6 +1077,8 @@ async function runProjectAutoTranslate(
   runId: string,
   controller: AbortController,
 ) {
+  const isTranslationMemoryOnlyMode =
+    providerName === PROJECT_TRANSLATION_MEMORY_PROVIDER_NAME;
   const logger = Log.forContext({ projectId, providerName, job: "project-auto-translate" });
   let totalSegments = 0;
   let translatedSegmentCount = 0;
@@ -1186,6 +1199,34 @@ async function runProjectAutoTranslate(
             ? 100
             : Math.round((translatedSegmentCount / totalSegments) * 100),
         message: "Auto translate completed.",
+      });
+      return;
+    }
+
+    if (isTranslationMemoryOnlyMode) {
+      await logger.information(
+        "Completed background auto translate from project translation memories for {projectId}",
+        {
+          warnings: [],
+          translatedCount: translatedSegmentCount,
+          fuzzyTermMatchedCount: termMatchedSegments.length,
+          unmatchedSegmentCount: providerSegments.length,
+        },
+      );
+      setProjectStatus(projectId, "idle");
+      touchProject(projectId);
+      setProjectAutoTranslateProgress(projectId, {
+        phase: "completed",
+        completedSegments: translatedSegmentCount,
+        totalSegments,
+        progressPercent:
+          totalSegments === 0
+            ? 100
+            : Math.round((translatedSegmentCount / totalSegments) * 100),
+        message:
+          translatedSegmentCount >= totalSegments
+            ? "Translation memory auto translate completed."
+            : `Translation memory auto translate completed. ${translatedSegmentCount} of ${totalSegments} segments were matched by the project's translation memories.`,
       });
       return;
     }

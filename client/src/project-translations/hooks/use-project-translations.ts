@@ -22,6 +22,8 @@ import {
   splitProjectSegment,
 } from '../../project-management/api'
 
+export const PROJECT_TRANSLATION_MEMORY_PROVIDER_NAME = '__project_translation_memories__'
+
 type UseProjectTranslationsOptions = {
   projectId?: string
   projectDetail: ProjectDetail | null
@@ -66,6 +68,7 @@ export function useProjectTranslations({
   } | null>(null)
   const projectStatus = projectDetail?.status
   const projectSegmentCount = projectDetail?.segmentCount ?? 0
+  const hasProjectTranslationMemories = (projectDetail?.translationMemories.length ?? 0) > 0
   const projectSegmentCountRef = useRef(projectSegmentCount)
 
   useEffect(() => {
@@ -112,17 +115,20 @@ export function useProjectTranslations({
   }, [projectId, projectStatus, refreshKey])
 
   useEffect(() => {
-    if (!translateProviders.length) {
+    const availableOptionNames = [
+      ...translateProviders.map((provider) => provider.name),
+      ...(hasProjectTranslationMemories ? [PROJECT_TRANSLATION_MEMORY_PROVIDER_NAME] : []),
+    ]
+
+    if (!availableOptionNames.length) {
       setSelectedProviderName('')
       return
     }
 
     setSelectedProviderName((currentValue) =>
-      translateProviders.some((provider) => provider.name === currentValue)
-        ? currentValue
-        : translateProviders[0]?.name ?? '',
+      availableOptionNames.includes(currentValue) ? currentValue : availableOptionNames[0] ?? '',
     )
-  }, [translateProviders])
+  }, [hasProjectTranslationMemories, translateProviders])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -217,7 +223,11 @@ export function useProjectTranslations({
   )
 
   function handleOpenAutoTranslateDialog() {
-    if (isReadOnly || !hasSegments || !translateProviders.length) {
+    if (
+      isReadOnly ||
+      !hasSegments ||
+      (!translateProviders.length && !hasProjectTranslationMemories)
+    ) {
       return
     }
 

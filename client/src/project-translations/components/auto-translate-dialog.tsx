@@ -1,11 +1,14 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField, Typography } from '@mui/material'
-import type { TranslateProviderOption } from '../../app/types'
 
 type AutoTranslateDialogProps = {
   open: boolean
   isSubmitting: boolean
   providerName: string
-  providers: TranslateProviderOption[]
+  providers: Array<{
+    value: string
+    label: string
+    description: string
+  }>
   onProviderChange: (providerName: string) => void
   onClose: () => void
   onConfirm: () => void
@@ -20,7 +23,7 @@ export function AutoTranslateDialog({
   onClose,
   onConfirm,
 }: AutoTranslateDialogProps) {
-  const selectedProvider = providers.find((provider) => provider.name === providerName)
+  const selectedProvider = providers.find((provider) => provider.value === providerName)
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -39,8 +42,8 @@ export function AutoTranslateDialog({
           disabled={isSubmitting}
         >
           {providers.map((provider) => (
-            <MenuItem key={provider.name} value={provider.name}>
-              {provider.name}
+            <MenuItem key={provider.value} value={provider.value}>
+              {provider.label}
             </MenuItem>
           ))}
         </TextField>
