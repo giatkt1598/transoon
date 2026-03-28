@@ -49,14 +49,14 @@
 .page-header-action.MuiButton-root {
   min-height: 48px;
   padding-inline: 18px;
-  border-radius: 14px;
-  background: #1e2936;
-  box-shadow: none;
+  border-radius: 8px;
+  background: #8a5a32;
+  box-shadow: 0 10px 22px rgba(109, 69, 36, 0.18);
 }
 
 .page-header-action.MuiButton-root:hover {
-  background: #16202b;
-  box-shadow: none;
+  background: #6d4524;
+  box-shadow: 0 12px 24px rgba(109, 69, 36, 0.22);
 }
 
 .project-editor-shell {
@@ -66,7 +66,7 @@
 }
 
 .project-editor-form .MuiOutlinedInput-root {
-  border-radius: 16px;
+  border-radius: 8px;
   background: #ffffff;
 }
 
@@ -388,8 +388,7 @@
 .detail-memory-table-head,
 .detail-memory-table-row {
   display: grid;
-  grid-template-columns:
-    46px minmax(220px, 1fr) minmax(140px, 0.8fr) 72px;
+  grid-template-columns: 46px minmax(220px, 1fr) minmax(140px, 0.8fr) 72px;
   gap: 16px;
   align-items: center;
 }
@@ -438,7 +437,7 @@
 }
 
 .detail-access-select .MuiOutlinedInput-root {
-  border-radius: 14px;
+  border-radius: 8px;
   background: #fff;
 }
 

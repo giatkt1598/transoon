@@ -3,12 +3,7 @@
   border-radius: 28px;
   border: 1px solid rgba(58, 44, 30, 0.12);
   background:
-    radial-gradient(
-      circle at top right,
-      rgba(255, 210, 165, 0.2),
-      transparent 24%
-    ),
-    rgba(255, 250, 242, 0.88);
+    radial-gradient(circle at top right, rgba(255, 210, 165, 0.2), transparent 24%), rgba(255, 250, 242, 0.88);
   box-shadow: 0 18px 45px rgba(73, 52, 34, 0.1);
 }
 
@@ -168,12 +163,11 @@
 }
 
 .submit-button,
-.secondary-button,
-.download-link {
+.secondary-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16px;
+  border-radius: 8px;
   border: none;
   text-decoration: none;
   cursor: pointer;
@@ -184,10 +178,8 @@
 }
 
 .submit-button.MuiButton-root,
-.secondary-button.MuiButton-root,
-.download-link.MuiButton-root {
+.secondary-button.MuiButton-root {
   min-width: 0;
-  min-height: 52px;
   line-height: 1.2;
 }
 
@@ -195,27 +187,34 @@
   width: 100%;
   padding: 14px 18px;
   margin-bottom: 14px;
-  background: #efe2cf;
-  color: #5a4028;
+  background: #fffaf4;
+  color: #6d4524;
   font: inherit;
   font-weight: 700;
-  border: 1px solid #d8c2a8;
+  border: 1px solid rgba(109, 69, 36, 0.22);
 }
 
 .submit-button {
   width: 100%;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #285a53 0%, #1d403b 100%);
-  color: #fef7ee !important;
+  background: #8a5a32;
+  color: #fff8ef !important;
   font: inherit;
   font-weight: 700;
-  box-shadow: 0 14px 26px rgba(29, 64, 59, 0.2);
+  box-shadow: 0 10px 22px rgba(109, 69, 36, 0.18);
 }
 
 .submit-button:hover:not(:disabled),
-.secondary-button:hover:not(:disabled),
-.download-link:hover {
+.secondary-button:hover:not(:disabled) {
   transform: translateY(-1px);
+}
+
+.submit-button:hover:not(:disabled) {
+  background: #6d4524;
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: #f8efe3;
 }
 
 .submit-button:disabled,
@@ -269,17 +268,6 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-}
-
-.download-link {
-  padding: 14px 18px;
-  background: #d97f37;
-  color: #fff7ef;
-  font-weight: 700;
-}
-
-.download-link.MuiButton-root:hover {
-  background: #d97f37;
 }
 
 .preview-block,

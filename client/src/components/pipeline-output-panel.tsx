@@ -1,9 +1,9 @@
-import { Box, Button, Link, Paper, Typography } from '@mui/material'
-import { useTranslationApp } from '../app/translation-app-context'
-import { formatProcessingTime } from '../app/utils'
+import { Box, Button, Link, Paper, Typography } from "@mui/material";
+import { useTranslationApp } from "../app/translation-app-context";
+import { formatProcessingTime } from "../app/utils";
 
 export function PipelineOutputPanel() {
-  const { result } = useTranslationApp()
+  const { result } = useTranslationApp();
 
   return (
     <Paper className="panel result-panel" elevation={0}>
@@ -22,10 +22,10 @@ export function PipelineOutputPanel() {
         <Box className="result-content">
           <Box className="result-metrics">
             {[
-              ['Document type', result.documentType.toUpperCase()],
-              ['Text segments', String(result.segmentCount)],
-              ['Provider', result.provider],
-              ['Processing time', formatProcessingTime(result.processingTimeMs)],
+              ["Document type", result.documentType.toUpperCase()],
+              ["Text segments", String(result.segmentCount)],
+              ["Provider", result.provider],
+              ["Processing time", formatProcessingTime(result.processingTimeMs)],
             ].map(([label, value]) => (
               <Box key={label}>
                 <Typography component="span">{label}</Typography>
@@ -37,6 +37,7 @@ export function PipelineOutputPanel() {
           <Button
             className="download-link"
             component={Link}
+            variant="contained"
             href={result.downloadUrl}
             underline="none"
           >
@@ -71,11 +72,11 @@ export function PipelineOutputPanel() {
         <Box className="empty-state">
           <Typography component="p">The translated document will appear here after upload.</Typography>
           <Typography component="p">
-            The server extracts text segments, translates them, then inserts the new
-            text back into the original file structure.
+            The server extracts text segments, translates them, then inserts the new text back into the original file
+            structure.
           </Typography>
         </Box>
       )}
     </Paper>
-  )
+  );
 }
