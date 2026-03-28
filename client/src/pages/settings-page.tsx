@@ -1,5 +1,5 @@
 import { Box, MenuItem, TextField, Typography } from "@mui/material";
-import { LoadingFormSkeleton } from "../components/loading-skeleton";
+import { LoadingPageSkeleton } from "../components/loading-skeleton";
 import { ProjectPageHeader } from "../project-management/components/project-page-header";
 import { useSettingsPage } from "../settings-management/hooks/use-settings-page";
 
@@ -15,6 +15,10 @@ export function SettingsPage() {
     handleSaveSettings,
   } = useSettingsPage();
 
+  if (isLoading) {
+    return <LoadingPageSkeleton />;
+  }
+
   return (
     <Box className="project-page">
       <ProjectPageHeader
@@ -22,9 +26,7 @@ export function SettingsPage() {
         breadcrumbs={[{ label: "Dashboard", to: "/" }, { label: "Settings" }]}
         actionLabel="Save"
         onActionClick={() => void handleSaveSettings()}
-        actionDisabled={
-          isLoading || isSaving || translateProviders.length === 0
-        }
+        actionDisabled={isLoading || isSaving || translateProviders.length === 0}
       />
 
       <Box className="project-editor-shell settings-shell">
@@ -33,59 +35,47 @@ export function SettingsPage() {
             Translation preferences
           </Typography>
           <Typography component="p" className="project-editor-copy">
-            Configure the provider used for inline translation shortcuts in the
-            alignment workspace.
+            Configure the provider used for inline translation shortcuts in the alignment workspace.
           </Typography>
         </Box>
 
         <Box className="project-editor-form settings-form" sx={{ gap: 4 }}>
-          {isLoading ? (
-            <LoadingFormSkeleton fields={2} />
-          ) : (
-            <>
-              <TextField
-                select
-                label="Inline Translate Provider (Ctrl + Space)"
-                value={formValues.inlineTranslateProvider}
-                onChange={(event) =>
-                  handleInlineTranslateProviderChange(event.target.value)
-                }
-                fullWidth
-              >
-                {translateProviders.map((provider) => (
-                  <MenuItem key={provider.name} value={provider.name}>
-                    {provider.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+          <TextField
+            select
+            label="Inline Translate Provider (Ctrl + Space)"
+            value={formValues.inlineTranslateProvider}
+            onChange={(event) => handleInlineTranslateProviderChange(event.target.value)}
+            fullWidth
+          >
+            {translateProviders.map((provider) => (
+              <MenuItem key={provider.name} value={provider.name}>
+                {provider.name}
+              </MenuItem>
+            ))}
+          </TextField>
 
-              <TextField
-                label="Term Fuzzy Match Threshold (%)"
-                type="number"
-                value={Math.round(formValues.termFuzzyMatchThreshold * 100)}
-                onChange={(event) => {
-                  const nextPercentValue = Number.parseFloat(
-                    event.target.value,
-                  );
-                  if (!Number.isFinite(nextPercentValue)) {
-                    handleTermFuzzyMatchThresholdChange(0);
-                    return;
-                  }
+          <TextField
+            label="Term Fuzzy Match Threshold (%)"
+            type="number"
+            value={Math.round(formValues.termFuzzyMatchThreshold * 100)}
+            onChange={(event) => {
+              const nextPercentValue = Number.parseFloat(event.target.value);
+              if (!Number.isFinite(nextPercentValue)) {
+                handleTermFuzzyMatchThresholdChange(0);
+                return;
+              }
 
-                  const nextThresholdValue =
-                    Math.min(Math.max(nextPercentValue, 0), 100) / 100;
-                  handleTermFuzzyMatchThresholdChange(nextThresholdValue);
-                }}
-                fullWidth
-                inputProps={{
-                  min: 0,
-                  max: 100,
-                  step: 1,
-                }}
-                helperText="Minimum score required for term suggestions."
-              />
-            </>
-          )}
+              const nextThresholdValue = Math.min(Math.max(nextPercentValue, 0), 100) / 100;
+              handleTermFuzzyMatchThresholdChange(nextThresholdValue);
+            }}
+            fullWidth
+            inputProps={{
+              min: 0,
+              max: 100,
+              step: 1,
+            }}
+            helperText="Minimum score required for term suggestions."
+          />
         </Box>
       </Box>
 
