@@ -1,7 +1,7 @@
 import { Alert, Box, Button, Paper, Tab, Tabs, Typography } from "@mui/material";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { AutoTranslateDialog } from "../project-translations/components/auto-translate-dialog";
-import { useBlocker, useParams } from "react-router-dom";
+import { useBlocker, useParams, useSearchParams } from "react-router-dom";
 import { AlignmentTool } from "../project-translations/components/alignment-tool";
 import {
   LoadingPageSkeleton,
@@ -32,11 +32,15 @@ const UNSAVED_CHANGES_MESSAGE =
 const ProjectTranslationSummarySection = lazy(() =>
   import("../project-management/components/project-translation-summary-section"),
 );
+const PROJECT_DETAIL_TAB_PARAM_KEY = "tab";
+const PROJECT_DETAIL_TAB_VALUE_BY_INDEX = ["home", "translations"] as const;
 
 export function ProjectDetailPage() {
   const [isPreviewVisible, setIsPreviewVisible] = useState(() => loadPreviewVisibility());
   const flushPendingTranslationDraftsRef = useRef<(() => void) | null>(null);
   const { projectId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTabParam = searchParams.get(PROJECT_DETAIL_TAB_PARAM_KEY);
   const {
     projectDetail,
     setProjectDetail,
@@ -57,7 +61,7 @@ export function ProjectDetailPage() {
     isSaving,
     error,
     translationResourcesRevision,
-    handleTabChange,
+    handleTabValueChange,
     handleConfigFieldChange,
     handleGlossaryConfigFieldChange,
     handleOpenAddDialog,
@@ -154,6 +158,24 @@ export function ProjectDetailPage() {
   ];
 
   useEffect(() => {
+    const nextTabIndex = PROJECT_DETAIL_TAB_VALUE_BY_INDEX.indexOf(
+      (currentTabParam ?? "translations") as (typeof PROJECT_DETAIL_TAB_VALUE_BY_INDEX)[number],
+    );
+    const resolvedTabIndex = nextTabIndex >= 0 ? nextTabIndex : 1;
+    handleTabValueChange(resolvedTabIndex);
+  }, [currentTabParam, handleTabValueChange]);
+
+  const handleProjectDetailTabChange = (_event: React.SyntheticEvent, value: number) => {
+    handleTabValueChange(value);
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.set(
+      PROJECT_DETAIL_TAB_PARAM_KEY,
+      PROJECT_DETAIL_TAB_VALUE_BY_INDEX[value] ?? PROJECT_DETAIL_TAB_VALUE_BY_INDEX[1],
+    );
+    setSearchParams(nextSearchParams, { replace: true });
+  };
+
+  useEffect(() => {
     try {
       window.localStorage.setItem(PREVIEW_VISIBILITY_STORAGE_KEY, JSON.stringify(isPreviewVisible));
     } catch {
@@ -226,7 +248,7 @@ export function ProjectDetailPage() {
       />
 
       <Box className="detail-tabs-shell">
-        <Tabs value={activeTab} onChange={handleTabChange} className="detail-tabs" variant="scrollable">
+        <Tabs value={activeTab} onChange={handleProjectDetailTabChange} className="detail-tabs" variant="scrollable">
           <Tab label="Project Home" />
           <Tab label="Translations" />
         </Tabs>

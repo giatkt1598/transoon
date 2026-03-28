@@ -248,8 +248,12 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     return JSON.stringify(original) !== JSON.stringify(draft)
   }, [draftGlossaries, projectDetail])
 
-  function handleTabChange(_event: React.SyntheticEvent, value: number) {
+  function handleTabValueChange(value: number) {
     setActiveTab(value)
+  }
+
+  function handleTabChange(_event: React.SyntheticEvent, value: number) {
+    handleTabValueChange(value)
   }
 
   function handleConfigFieldChange<K extends keyof TranslationMemoryConfigForm>(
@@ -796,6 +800,7 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
     isSaving,
     error,
     translationResourcesRevision,
+    handleTabValueChange,
     handleTabChange,
     handleConfigFieldChange,
     handleGlossaryConfigFieldChange,
