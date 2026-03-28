@@ -15,7 +15,7 @@ export function ProjectDetailInformationSection({ projectDetail }: ProjectDetail
             Information
           </Typography>
           <Typography component="h2" variant="h4">
-            Project overview
+            Project Review
           </Typography>
         </Box>
       </Box>

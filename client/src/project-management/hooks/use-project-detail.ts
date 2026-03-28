@@ -127,6 +127,25 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
   }, [draftGlossaries])
 
   useEffect(() => {
+    if (!projectDetail) {
+      return
+    }
+
+    setDraftTranslationMemories((currentDraftItems) =>
+      syncDraftTranslationMemoriesWithProjectDetail(
+        currentDraftItems,
+        projectDetail.translationMemories,
+      ),
+    )
+    setDraftGlossaries((currentDraftItems) =>
+      syncDraftGlossariesWithProjectDetail(
+        currentDraftItems,
+        projectDetail.glossaries,
+      ),
+    )
+  }, [projectDetail])
+
+  useEffect(() => {
     return () => {
       if (translationMemorySaveTimeoutRef.current !== null) {
         window.clearTimeout(translationMemorySaveTimeoutRef.current)
@@ -874,4 +893,61 @@ function createDraftTranslationMemoryConfig({
     linkedAt: new Date().toISOString(),
     isDraftNew: true,
   }
+}
+
+function syncDraftTranslationMemoriesWithProjectDetail(
+  draftItems: DraftProjectTranslationMemoryConfig[],
+  projectDetailItems: ProjectTranslationMemoryConfig[],
+) {
+  const latestItemsById = new Map(
+    projectDetailItems.map((item) => [item.translationMemoryId, item] as const),
+  )
+
+  const syncedDraftItems = draftItems
+    .map((draftItem) => {
+      if (draftItem.isDraftNew) {
+        return draftItem
+      }
+
+      const latestItem = latestItemsById.get(draftItem.translationMemoryId)
+      if (!latestItem) {
+        return null
+      }
+
+      return {
+        ...latestItem,
+        accessMode: draftItem.accessMode,
+        priority: draftItem.priority,
+      } satisfies DraftProjectTranslationMemoryConfig
+    })
+    .filter((item): item is DraftProjectTranslationMemoryConfig => item !== null)
+
+  const existingIds = new Set(
+    syncedDraftItems.map((item) => item.translationMemoryId),
+  )
+  const missingProjectItems = projectDetailItems.filter(
+    (item) => !existingIds.has(item.translationMemoryId),
+  )
+
+  return [...syncedDraftItems, ...missingProjectItems]
+}
+
+function syncDraftGlossariesWithProjectDetail(
+  draftItems: ProjectGlossaryConfig[],
+  projectDetailItems: ProjectGlossaryConfig[],
+) {
+  const latestItemsById = new Map(
+    projectDetailItems.map((item) => [item.glossaryId, item] as const),
+  )
+
+  const syncedDraftItems = draftItems
+    .map((draftItem) => latestItemsById.get(draftItem.glossaryId) ?? null)
+    .filter((item): item is ProjectGlossaryConfig => item !== null)
+
+  const existingIds = new Set(syncedDraftItems.map((item) => item.glossaryId))
+  const missingProjectItems = projectDetailItems.filter(
+    (item) => !existingIds.has(item.glossaryId),
+  )
+
+  return [...syncedDraftItems, ...missingProjectItems]
 }

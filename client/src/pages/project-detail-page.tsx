@@ -1,9 +1,12 @@
-import { Alert, Box, Button, Tab, Tabs, Typography } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { Alert, Box, Button, Paper, Tab, Tabs, Typography } from "@mui/material";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { AutoTranslateDialog } from "../project-translations/components/auto-translate-dialog";
 import { useBlocker, useParams } from "react-router-dom";
 import { AlignmentTool } from "../project-translations/components/alignment-tool";
-import { LoadingPageSkeleton } from "../components/loading-skeleton";
+import {
+  LoadingPageSkeleton,
+  LoadingTableSkeleton,
+} from "../components/loading-skeleton";
 import { DocumentPreviewPanel } from "../project-translations/components/document-preview-panel";
 import { GenerateSegmentsCard } from "../project-translations/components/generate-segments-card";
 import {
@@ -26,6 +29,9 @@ import { getLanguageLabel } from "../app/utils";
 const PREVIEW_VISIBILITY_STORAGE_KEY = "transoon.projectTranslations.previewVisible";
 const UNSAVED_CHANGES_MESSAGE =
   "You have unsaved changes on this project. Do you want to leave this page? Your changes will not be saved.";
+const ProjectTranslationSummarySection = lazy(() =>
+  import("../project-management/components/project-translation-summary-section"),
+);
 
 export function ProjectDetailPage() {
   const [isPreviewVisible, setIsPreviewVisible] = useState(() => loadPreviewVisibility());
@@ -125,7 +131,7 @@ export function ProjectDetailPage() {
   });
   const { projectTerms } = useProjectTermsPreload({
     projectId,
-    refreshKey: translationResourcesRevision,
+    refreshKey: `${translationResourcesRevision}:${projectDetail?.lastModifiedAt ?? ""}`,
   });
   const autoTranslateProviderOptions = [
     ...translateProviders.map((provider) => ({
@@ -255,7 +261,23 @@ export function ProjectDetailPage() {
 
       <Box className={activeTab === 0 ? "detail-tab-panel" : "detail-tab-panel detail-tab-panel-hidden"}>
         <Box className="detail-home-grid">
-          <ProjectDetailInformationSection projectDetail={projectDetail} />
+          <Box className="detail-home-summary-grid">
+            <ProjectDetailInformationSection projectDetail={projectDetail} />
+            <Suspense
+              fallback={
+                <Paper className="detail-section-card" elevation={0}>
+                  <LoadingTableSkeleton rows={6} columns={2} showToolbar={false} />
+                </Paper>
+              }
+            >
+              <ProjectTranslationSummarySection
+                totalSegments={projectDetail.segmentCount}
+                translatedSegmentCount={projectDetail.translatedSegmentCount}
+                segments={segments}
+                projectTerms={projectTerms}
+              />
+            </Suspense>
+          </Box>
           <Box className="detail-home-linked-resources-grid">
             <ProjectDetailTranslationMemoriesSection
               projectDetail={projectDetail}

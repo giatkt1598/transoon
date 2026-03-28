@@ -8,7 +8,7 @@ import {
 
 type UseProjectTermsPreloadOptions = {
   projectId?: string;
-  refreshKey?: number;
+  refreshKey?: number | string;
 };
 
 export function useProjectTermsPreload({

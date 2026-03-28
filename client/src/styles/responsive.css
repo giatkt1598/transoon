@@ -44,6 +44,7 @@
   .project-upload-field,
   .project-editor-grid,
   .detail-info-grid,
+  .detail-home-summary-grid,
   .detail-home-linked-resources-grid {
     grid-template-columns: 1fr;
   }
