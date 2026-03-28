@@ -235,6 +235,11 @@
   font-weight: 800;
   line-height: 1;
   color: #d48a16;
+  cursor: pointer;
+
+  &:hover {
+    color: #b9730f;
+  }
 }
 
 .alignment-status-icon {
