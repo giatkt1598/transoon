@@ -44,6 +44,7 @@ import {
 import {
   attachTranslationMemoryToProject,
   createTranslationMemory,
+  deleteTranslationMemoryTerm,
   deleteProjectTranslationMemory,
   deleteTranslationMemory,
   getTranslationMemoryById,
@@ -51,6 +52,7 @@ import {
   listTranslationMemoryTerms,
   listProjectTerms,
   listTranslationMemories,
+  saveTranslationMemoryTermsChanges,
   updateTranslationMemoryTerm,
   updateProjectTranslationMemory,
   updateTranslationMemory,
@@ -792,6 +794,32 @@ export function createApiRouter() {
     }
   });
 
+  router.put("/api/translation-memories/:translationMemoryId/terms", (req, res) => {
+    try {
+      const translationMemoryId = String(req.params.translationMemoryId);
+      const translationMemory = getTranslationMemoryById(translationMemoryId);
+
+      if (!translationMemory) {
+        res.status(404).json({ error: "Translation memory not found." });
+        return;
+      }
+
+      const validationError = validateTranslationMemoryTermsChangesInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      res.json({
+        terms: saveTranslationMemoryTermsChanges(translationMemoryId, req.body),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
   router.post("/api/translation-memories", (req, res) => {
     try {
       const validationError = validateTranslationMemoryInput(req.body);
@@ -868,6 +896,29 @@ export function createApiRouter() {
         }
 
         res.json(term);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unexpected server error.";
+        res.status(500).json({ error: message });
+      }
+    },
+  );
+
+  router.delete(
+    "/api/translation-memories/:translationMemoryId/terms/:termId",
+    (req, res) => {
+      try {
+        const translationMemoryId = String(req.params.translationMemoryId);
+        const termId = String(req.params.termId);
+        const translationMemory = getTranslationMemoryById(translationMemoryId);
+
+        if (!translationMemory) {
+          res.status(404).json({ error: "Translation memory not found." });
+          return;
+        }
+
+        deleteTranslationMemoryTerm(translationMemoryId, termId);
+        res.status(204).send();
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Unexpected server error.";
@@ -1440,6 +1491,62 @@ function validateTranslationMemoryTermInput(body: unknown) {
 
   if (typeof targetTerm !== "string" || targetTerm.trim().length === 0) {
     return "Target term is required.";
+  }
+
+  return null;
+}
+
+function validateTranslationMemoryTermsChangesInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A translation memory terms changes payload is required.";
+  }
+
+  const { createdItems, updatedItems, deletedItemIds } = body as Record<
+    string,
+    unknown
+  >;
+
+  if (!Array.isArray(createdItems)) {
+    return "createdItems must be an array.";
+  }
+
+  if (!Array.isArray(updatedItems)) {
+    return "updatedItems must be an array.";
+  }
+
+  if (!Array.isArray(deletedItemIds)) {
+    return "deletedItemIds must be an array.";
+  }
+
+  for (const item of createdItems) {
+    const validationError = validateTranslationMemoryTermInput(item);
+    if (validationError) {
+      return validationError;
+    }
+  }
+
+  for (const item of updatedItems) {
+    if (!item || typeof item !== "object") {
+      return "Each updated translation memory term must be an object.";
+    }
+
+    if (
+      typeof (item as Record<string, unknown>).id !== "string" ||
+      String((item as Record<string, unknown>).id).trim().length === 0
+    ) {
+      return "Each updated translation memory term must include a valid id.";
+    }
+
+    const validationError = validateTranslationMemoryTermInput(item);
+    if (validationError) {
+      return validationError;
+    }
+  }
+
+  for (const termId of deletedItemIds) {
+    if (typeof termId !== "string" || termId.trim().length === 0) {
+      return "Each deletedItemId must be a valid string.";
+    }
   }
 
   return null;

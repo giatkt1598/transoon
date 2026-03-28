@@ -162,3 +162,33 @@ export async function updateTranslationMemoryTerm(
 
   return data as TranslationMemoryTerm
 }
+
+export async function saveTranslationMemoryTermsChanges(
+  translationMemoryId: string,
+  input: {
+    createdItems: Array<Pick<TranslationMemoryTerm, 'sourceTerm' | 'targetTerm'>>
+    updatedItems: Array<
+      Pick<TranslationMemoryTerm, 'id' | 'sourceTerm' | 'targetTerm'>
+    >
+    deletedItemIds: string[]
+  },
+) {
+  const response = await fetch(`${apiBaseUrl}/api/translation-memories/${translationMemoryId}/terms`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  })
+
+  const data = await readJsonResponse<TranslationMemoryTermsResponse | { error?: string }>(response)
+  if (!response.ok || 'error' in data) {
+    throw new Error(
+      'error' in data
+        ? data.error ?? 'Could not save translation memory terms.'
+        : 'Could not save translation memory terms.',
+    )
+  }
+
+  return (data as TranslationMemoryTermsResponse).terms
+}

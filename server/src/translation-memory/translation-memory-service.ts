@@ -69,6 +69,21 @@ export type ProjectTermSummary = TermEntity & {
   priority: number;
 };
 
+export type TranslationMemoryTermInput = {
+  sourceTerm: string;
+  targetTerm: string;
+};
+
+export type SaveTranslationMemoryTermsChangesInput = {
+  createdItems: TranslationMemoryTermInput[];
+  updatedItems: Array<
+    TranslationMemoryTermInput & {
+      id: string;
+    }
+  >;
+  deletedItemIds: string[];
+};
+
 export type TranslationMemoryTermSummary = TermEntity;
 
 export function listTranslationMemories() {
@@ -223,6 +238,131 @@ export function updateTranslationMemoryTerm(
   });
   touchTranslationMemory(translationMemoryId, now);
   return repositories.terms.getById(termId);
+}
+
+export function deleteTranslationMemoryTerm(
+  translationMemoryId: string,
+  termId: string,
+) {
+  const repositories = createTranslationMemoryRepositories();
+  const existingTerm = repositories.terms.getById(termId);
+  if (!existingTerm || existingTerm.translationMemoryId !== translationMemoryId) {
+    return;
+  }
+
+  repositories.terms.deleteById(termId);
+  touchTranslationMemory(translationMemoryId);
+}
+
+export function saveTranslationMemoryTermsChanges(
+  translationMemoryId: string,
+  input: SaveTranslationMemoryTermsChangesInput,
+) {
+  const database = getTranslationMemoryDatabase();
+  const repositories = createTranslationMemoryRepositories(database);
+  const translationMemory =
+    repositories.translationMemories.getById(translationMemoryId);
+  if (!translationMemory) {
+    throw new Error("Translation memory not found.");
+  }
+
+  const now = new Date().toISOString();
+  database.exec("BEGIN");
+
+  try {
+    for (const termId of input.deletedItemIds) {
+      const existingTerm = repositories.terms.getById(termId);
+      if (!existingTerm || existingTerm.translationMemoryId !== translationMemoryId) {
+        continue;
+      }
+
+      repositories.terms.deleteById(termId);
+    }
+
+    const seenNormalizedSources = new Map<string, string>();
+    const existingTerms = repositories.terms
+      .query()
+      .where("translationMemoryId", translationMemoryId)
+      .toList();
+
+    for (const existingTerm of existingTerms) {
+      if (input.deletedItemIds.includes(existingTerm.id)) {
+        continue;
+      }
+
+      seenNormalizedSources.set(
+        existingTerm.sourceTermNormalized,
+        existingTerm.id,
+      );
+    }
+
+    for (const item of input.updatedItems) {
+      const existingTerm = repositories.terms.getById(item.id);
+      if (!existingTerm || existingTerm.translationMemoryId !== translationMemoryId) {
+        continue;
+      }
+
+      const sourceTerm = item.sourceTerm.trim();
+      const targetTerm = item.targetTerm.trim();
+      if (!sourceTerm || !targetTerm) {
+        continue;
+      }
+
+      const sourceTermNormalized = normalizeTerm(sourceTerm);
+      const duplicateTermId = seenNormalizedSources.get(sourceTermNormalized);
+      if (duplicateTermId && duplicateTermId !== item.id) {
+        throw new Error("Another term with the same source text already exists.");
+      }
+
+      repositories.terms.updateById(item.id, {
+        sourceTerm,
+        sourceTermNormalized,
+        targetTerm,
+        targetTermNormalized: normalizeTerm(targetTerm),
+        lastModifiedAt: now,
+      });
+      seenNormalizedSources.set(sourceTermNormalized, item.id);
+    }
+
+    for (const item of input.createdItems) {
+      const sourceTerm = item.sourceTerm.trim();
+      const targetTerm = item.targetTerm.trim();
+      if (!sourceTerm || !targetTerm) {
+        continue;
+      }
+
+      const sourceTermNormalized = normalizeTerm(sourceTerm);
+      if (seenNormalizedSources.has(sourceTermNormalized)) {
+        throw new Error("Another term with the same source text already exists.");
+      }
+
+      const entity: TermEntity = {
+        id: randomUUID(),
+        translationMemoryId,
+        sourceTerm,
+        sourceTermNormalized,
+        targetTerm,
+        targetTermNormalized: normalizeTerm(targetTerm),
+        lastModifiedAt: now,
+        lastUsedAt: null,
+        createdAt: now,
+      };
+
+      repositories.terms.insert(entity);
+      seenNormalizedSources.set(sourceTermNormalized, entity.id);
+    }
+
+    repositories.translationMemories.updateById(translationMemoryId, {
+      lastModifiedAt: now,
+    });
+
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  return listTranslationMemoryTerms(translationMemoryId);
 }
 
 export function upsertTranslationMemoryTerm(
@@ -504,7 +644,10 @@ export function getProjectTranslationMemory(
   );
 }
 
-function touchTranslationMemory(translationMemoryId: string, timestamp: string) {
+function touchTranslationMemory(
+  translationMemoryId: string,
+  timestamp = new Date().toISOString(),
+) {
   createTranslationMemoryRepositories().translationMemories.updateById(
     translationMemoryId,
     {

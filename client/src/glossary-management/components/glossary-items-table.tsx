@@ -17,6 +17,7 @@ type GlossaryItemsTableProps = {
   targetLanguageCode: string;
   sourceLanguageLabel: string;
   targetLanguageLabel: string;
+  searchInputValue: string;
   searchTerm: string;
   onSearchChange: (value: string) => void;
   sortState: {
@@ -61,6 +62,7 @@ export function GlossaryItemsTable({
   targetLanguageCode,
   sourceLanguageLabel,
   targetLanguageLabel,
+  searchInputValue,
   searchTerm,
   onSearchChange,
   sortState,
@@ -232,7 +234,7 @@ export function GlossaryItemsTable({
           }}
         >
           <TextField
-            value={searchTerm}
+            value={searchInputValue}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search glossary items..."
             size="small"

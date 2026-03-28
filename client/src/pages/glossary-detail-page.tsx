@@ -54,6 +54,7 @@ const UNSAVED_CHANGES_MESSAGE =
 export function GlossaryDetailPage() {
   const [isCaseSensitiveHelpOpen, setIsCaseSensitiveHelpOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(1);
+  const [glossaryItemsSearchInput, setGlossaryItemsSearchInput] = useState("");
   const [glossaryItemsSearchTerm, setGlossaryItemsSearchTerm] = useState("");
   const DEFAULT_SORT_COLUMN: keyof GlossaryItem = "createdAt" as const;
   const DEFAULT_SORT_DIRECTION: SortDirection = "desc";
@@ -88,6 +89,9 @@ export function GlossaryDetailPage() {
   } = useGlossaryDetails({ glossaryId });
   const sourceInputRef = useRef<any>(null);
   const targetInputRef = useRef<any>(null);
+  const searchThrottleTimeoutRef = useRef<number | null>(null);
+  const lastSearchApplyAtRef = useRef(0);
+  const pendingSearchValueRef = useRef(glossaryItemsSearchInput);
   const navigationBlocker = useBlocker(hasPendingChanges);
   const lastModified = formatDateTime(glossary?.lastModifiedAt ?? null);
   const lastUsed = formatDateTime(glossary?.lastUsedAt ?? null);
@@ -136,6 +140,53 @@ export function GlossaryDetailPage() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasPendingChanges]);
+
+  useEffect(() => {
+    pendingSearchValueRef.current = glossaryItemsSearchInput;
+
+    const applySearchTerm = () => {
+      const nextSearchTerm = pendingSearchValueRef.current;
+      searchThrottleTimeoutRef.current = null;
+      lastSearchApplyAtRef.current = Date.now();
+
+      setGlossaryItemsSearchTerm((currentValue) => {
+        if (currentValue === nextSearchTerm) {
+          return currentValue;
+        }
+
+        setGlossaryItemsPage(0);
+        return nextSearchTerm;
+      });
+    };
+
+    const elapsedTime = Date.now() - lastSearchApplyAtRef.current;
+    const remainingTime = Math.max(0, 300 - elapsedTime);
+
+    if (remainingTime === 0) {
+      if (searchThrottleTimeoutRef.current !== null) {
+        window.clearTimeout(searchThrottleTimeoutRef.current);
+        searchThrottleTimeoutRef.current = null;
+      }
+
+      applySearchTerm();
+      return;
+    }
+
+    if (searchThrottleTimeoutRef.current === null) {
+      searchThrottleTimeoutRef.current = window.setTimeout(
+        applySearchTerm,
+        remainingTime,
+      );
+    }
+  }, [glossaryItemsSearchInput]);
+
+  useEffect(() => {
+    return () => {
+      if (searchThrottleTimeoutRef.current !== null) {
+        window.clearTimeout(searchThrottleTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <Box className="project-page">
@@ -297,8 +348,20 @@ export function GlossaryDetailPage() {
                 <Box className="project-editor-form" sx={{ gap: 3 }}>
                   <Box
                     className="project-editor-grid"
-                    sx={{ gridTemplateColumns: "1.2fr 1.2fr auto 120px auto" }}
+                    sx={{ gridTemplateColumns: "auto 1.2fr 1.2fr auto 120px auto" }}
                   >
+                    <Typography
+                      component="span"
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        fontWeight: 600,
+                        color: "#6f5b4c",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Add New:
+                    </Typography>
                     <Box
                       sx={{
                         display: "grid",
@@ -387,6 +450,7 @@ export function GlossaryDetailPage() {
                           return;
                         }
 
+                        setGlossaryItemsSearchInput("");
                         setGlossaryItemsSearchTerm("");
                         setGlossaryItemsSortState({
                           column: DEFAULT_SORT_COLUMN,
@@ -413,8 +477,9 @@ export function GlossaryDetailPage() {
                     targetLanguageCode={formValues.targetLanguage}
                     sourceLanguageLabel={sourceLanguageLabel}
                     targetLanguageLabel={targetLanguageLabel}
+                    searchInputValue={glossaryItemsSearchInput}
                     searchTerm={glossaryItemsSearchTerm}
-                    onSearchChange={setGlossaryItemsSearchTerm}
+                    onSearchChange={setGlossaryItemsSearchInput}
                     sortState={glossaryItemsSortState}
                     onSortChange={setGlossaryItemsSortState}
                     page={glossaryItemsPage}
