@@ -413,6 +413,57 @@
   white-space: nowrap;
 }
 
+.detail-memory-head-with-helper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.detail-memory-head-with-helper .MuiSvgIcon-root {
+  font-size: 1rem;
+  color: #7f8fa4;
+  cursor: help;
+  flex-shrink: 0;
+}
+
+.detail-section-title-with-helper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-section-helper-button.MuiIconButton-root {
+  color: #7f8fa4;
+}
+
+.detail-resource-helper-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-resource-helper-list,
+.detail-resource-helper-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detail-resource-helper-example {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f7f3ee;
+  border: 1px solid rgba(58, 44, 30, 0.08);
+}
+
+.detail-resource-helper-example-title {
+  font-weight: 700;
+  color: #3a2c1e;
+}
+
 .detail-memory-table-body {
   display: flex;
   flex-direction: column;

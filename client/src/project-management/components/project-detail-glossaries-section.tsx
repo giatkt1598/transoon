@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import type { GlossarySummary, ProjectGlossaryConfig } from "../../app/types";
 import { formatLanguageRoute } from "../../app/utils";
+import { ProjectResourceHelperDialog } from "./project-resource-helper-dialog";
 
 type GlossaryConfigForm = {
   glossaryId: string;
@@ -67,9 +68,39 @@ export function ProjectDetailGlossariesSection({
           <Typography component="p" className="panel-kicker">
             Glossaries
           </Typography>
-          <Typography component="h2" variant="h4">
-            Project terminology sources
-          </Typography>
+          <Box className="detail-section-title-with-helper">
+            <Typography component="h2" variant="h4">
+              Project terminology sources
+            </Typography>
+            <ProjectResourceHelperDialog
+              buttonLabel="Explain project terminology sources"
+              dialogTitle="Project terminology sources"
+              summary="Glossaries define preferred terminology that should be enforced consistently before and after machine translation."
+              bullets={[
+                "Glossary entries are best for product names, feature names, fixed terminology, abbreviations, and branded phrases.",
+                "Attached glossaries are applied only to this project, so you can keep terminology rules specific to a customer or document set.",
+                "Glossaries help both inline translation and auto-translate preserve required wording even when the AI would choose a different phrase.",
+              ]}
+              examplesTitle="Example cases"
+              examples={[
+                {
+                  title: "Protect brand and feature names",
+                  description:
+                    "Map 'Scrum Guide' to 'Hướng Dẫn Scrum' so the same term is reused everywhere instead of being rephrased differently by the model.",
+                },
+                {
+                  title: "Handle abbreviations consistently",
+                  description:
+                    "Add entries like 'HP Potion' or product acronyms so the longest and most specific term is preferred during preprocessing.",
+                },
+                {
+                  title: "Project-specific wording",
+                  description:
+                    "Use a client glossary when one customer wants 'subscriber' while another prefers 'member' for the same English source term.",
+                },
+              ]}
+            />
+          </Box>
         </Box>
         <Button
           className="page-header-action"

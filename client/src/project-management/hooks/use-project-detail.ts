@@ -30,7 +30,7 @@ type TranslationMemoryConfigForm = {
 }
 
 const initialConfigForm: TranslationMemoryConfigForm = {
-  mode: 'create',
+  mode: 'existing',
   translationMemoryId: '',
   name: '',
   accessMode: 'read',
@@ -248,7 +248,11 @@ export function useProjectDetail({ projectId }: UseProjectDetailOptions) {
       return
     }
     setEditingConfigId(null)
-    setConfigForm(initialConfigForm)
+    setConfigForm({
+      ...initialConfigForm,
+      mode: 'existing',
+      translationMemoryId: availableTranslationMemories[0]?.id ?? '',
+    })
     setIsConfigDialogOpen(true)
   }
 

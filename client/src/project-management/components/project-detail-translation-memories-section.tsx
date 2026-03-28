@@ -2,6 +2,7 @@ import DragIndicatorRoundedIcon from "@mui/icons-material/DragIndicatorRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
 import {
   Alert,
   Box,
@@ -14,6 +15,7 @@ import {
   MenuItem,
   Paper,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import type {
@@ -22,6 +24,7 @@ import type {
   TranslationMemorySummary,
 } from "../../app/types";
 import { formatLanguageRoute } from "../../app/utils";
+import { ProjectResourceHelperDialog } from "./project-resource-helper-dialog";
 
 type TranslationMemoryConfigForm = {
   mode: "create" | "existing";
@@ -86,9 +89,39 @@ export function ProjectDetailTranslationMemoriesSection({
           <Typography component="p" className="panel-kicker">
             Translation Memories
           </Typography>
-          <Typography component="h2" variant="h4">
-            Project lookup datasources
-          </Typography>
+          <Box className="detail-section-title-with-helper">
+            <Typography component="h2" variant="h4">
+              Project lookup datasources
+            </Typography>
+            <ProjectResourceHelperDialog
+              buttonLabel="Explain project lookup datasources"
+              dialogTitle="Project lookup datasources"
+              summary="Translation memories attached here are the reusable bilingual sources that the project can consult while translating segments."
+              bullets={[
+                "Read access means the translation memory is used only for lookup and auto-translate matching.",
+                "Write access means confirmed translations can also be saved back into that translation memory.",
+                "Priority controls which translation memory is considered first when multiple memories contain overlapping entries.",
+              ]}
+              examplesTitle="Example cases"
+              examples={[
+                {
+                  title: "Use a team translation memory as Read",
+                  description:
+                    "Attach a shared company TM as Read when you want to reuse approved translations without writing project-specific content back into the shared resource.",
+                },
+                {
+                  title: "Use a project TM as Write",
+                  description:
+                    "Attach a dedicated project TM as Write when confirmed translations from this project should accumulate into a reusable memory for future jobs.",
+                },
+                {
+                  title: "Use multiple TMs together",
+                  description:
+                    "Put a client-specific TM above a general TM so client terminology is matched first, while the general TM still helps fill gaps.",
+                },
+              ]}
+            />
+          </Box>
         </Box>
         <Button
           className="page-header-action"
@@ -112,7 +145,15 @@ export function ProjectDetailTranslationMemoriesSection({
         <Box className="detail-memory-table-head">
           <span></span>
           <span>Translation memory</span>
-          <span>Access mode</span>
+          <span className="detail-memory-head-with-helper">
+            Access mode
+            <Tooltip
+              arrow
+              title="Read means this translation memory is used only for lookup. Write means confirmed translations can also be saved back into this translation memory."
+            >
+              <HelpOutlineRoundedIcon fontSize="inherit" />
+            </Tooltip>
+          </span>
           <span>Actions</span>
         </Box>
 
