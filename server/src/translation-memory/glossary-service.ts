@@ -340,10 +340,15 @@ export function applyGlossaryPreprocess(sourceText: string, glossaryItems: Gloss
     }
 
     const matcher = createGlossaryMatcher(glossaryItem);
-    const nextPlaceholder = `⟦G${placeholderIndex}⟧`;
     let matched = false;
-    preparedText = preparedText.replace(matcher, () => {
+    preparedText = preparedText.replace(matcher, (matchedSourceText) => {
       matched = true;
+      const nextPlaceholder = `⟦G${placeholderIndex}⟧`;
+      placeholderTargets[nextPlaceholder] = resolveGlossaryTargetForMatch(
+        glossaryItem,
+        matchedSourceText,
+      );
+      placeholderIndex += 1;
       return nextPlaceholder;
     });
 
@@ -351,9 +356,7 @@ export function applyGlossaryPreprocess(sourceText: string, glossaryItems: Gloss
       continue;
     }
 
-    placeholderTargets[nextPlaceholder] = glossaryItem.target;
     appliedGlossary.push(mapAppliedGlossaryItem(glossaryItem));
-    placeholderIndex += 1;
   }
 
   return {
@@ -427,4 +430,54 @@ function mapGlossaryItemEntity(glossaryItem: GlossaryItemEntity): GlossaryItem {
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function resolveGlossaryTargetForMatch(
+  glossaryItem: GlossaryItem,
+  matchedSourceText: string,
+) {
+  if (glossaryItem.caseSensitive) {
+    return glossaryItem.target;
+  }
+
+  switch (detectCase(matchedSourceText)) {
+    case "upper":
+      return glossaryItem.target.toLocaleUpperCase();
+    case "lower":
+      return glossaryItem.target.toLocaleLowerCase();
+    case "title":
+      return toTitleCase(glossaryItem.target);
+    default:
+      return glossaryItem.target;
+  }
+}
+
+function detectCase(text: string) {
+  if (text === text.toLocaleUpperCase()) {
+    return "upper";
+  }
+
+  if (text === text.toLocaleLowerCase()) {
+    return "lower";
+  }
+
+  if (text === toTitleCase(text)) {
+    return "title";
+  }
+
+  return "default";
+}
+
+function toTitleCase(text: string) {
+  return text.replace(/\S+/gu, (word) => {
+    const [firstCharacter, ...restCharacters] = Array.from(word);
+    if (!firstCharacter) {
+      return word;
+    }
+
+    return (
+      firstCharacter.toLocaleUpperCase() +
+      restCharacters.join("").toLocaleLowerCase()
+    );
+  });
 }
