@@ -14,55 +14,58 @@ import {
   Tabs,
   Typography,
   Tooltip,
-} from '@mui/material'
-import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
-import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
-import { useEffect, useState } from 'react'
-import { useBlocker, useParams } from 'react-router-dom'
-import type { SortDirection } from '../app/linq'
-import { GlossaryItemsTable } from '../glossary-management/components/glossary-items-table'
-import { useGlossaryDetails } from '../glossary-management/hooks/use-glossary-details'
-import { ProjectPageHeader } from '../project-management/components/project-page-header'
+} from "@mui/material";
+import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import { useEffect, useRef, useState } from "react";
+import { useBlocker, useParams } from "react-router-dom";
+import type { SortDirection } from "../app/linq";
+import { GlossaryItemsTable } from "../glossary-management/components/glossary-items-table";
+import { useGlossaryDetails } from "../glossary-management/hooks/use-glossary-details";
+import { ProjectPageHeader } from "../project-management/components/project-page-header";
+import type { GlossaryItem } from "../app/types";
 
 function formatDateTime(value: string | null) {
   if (!value) {
     return {
-      date: 'Never used',
-      time: 'No activity yet',
-    }
+      date: "Never used",
+      time: "No activity yet",
+    };
   }
 
-  const date = new Date(value)
+  const date = new Date(value);
   return {
-    date: date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
+    date: date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     }),
-    time: date.toLocaleTimeString('en-GB', {
-      hour: 'numeric',
-      minute: '2-digit',
+    time: date.toLocaleTimeString("en-GB", {
+      hour: "numeric",
+      minute: "2-digit",
     }),
-  }
+  };
 }
 
 const UNSAVED_CHANGES_MESSAGE =
-  'You have unsaved changes in this glossary. Do you want to leave this page? Your changes will not be saved.'
+  "You have unsaved changes in this glossary. Do you want to leave this page? Your changes will not be saved.";
 
 export function GlossaryDetailPage() {
-  const [isCaseSensitiveHelpOpen, setIsCaseSensitiveHelpOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState(1)
-  const [glossaryItemsSearchTerm, setGlossaryItemsSearchTerm] = useState('')
+  const [isCaseSensitiveHelpOpen, setIsCaseSensitiveHelpOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState(1);
+  const [glossaryItemsSearchTerm, setGlossaryItemsSearchTerm] = useState("");
+  const DEFAULT_SORT_COLUMN: keyof GlossaryItem = "createdAt" as const;
+  const DEFAULT_SORT_DIRECTION: SortDirection = "desc";
   const [glossaryItemsSortState, setGlossaryItemsSortState] = useState<{
-    column: keyof typeof items[number]
-    direction: SortDirection
+    column: keyof GlossaryItem;
+    direction: SortDirection;
   } | null>({
-    column: 'createdAt',
-    direction: 'asc',
-  })
-  const [glossaryItemsPage, setGlossaryItemsPage] = useState(0)
-  const [glossaryItemsRowsPerPage, setGlossaryItemsRowsPerPage] = useState(10)
-  const { glossaryId } = useParams()
+    column: DEFAULT_SORT_COLUMN,
+    direction: DEFAULT_SORT_DIRECTION,
+  });
+  const [glossaryItemsPage, setGlossaryItemsPage] = useState(0);
+  const [glossaryItemsRowsPerPage, setGlossaryItemsRowsPerPage] = useState(10);
+  const { glossaryId } = useParams();
   const {
     languagesData,
     glossary,
@@ -80,16 +83,20 @@ export function GlossaryDetailPage() {
     handleNewItemDraftChange,
     handleCreateGlossaryItem,
     handleDeleteGlossaryItem,
-  } = useGlossaryDetails({ glossaryId })
-  const navigationBlocker = useBlocker(hasPendingChanges)
-  const lastModified = formatDateTime(glossary?.lastModifiedAt ?? null)
-  const lastUsed = formatDateTime(glossary?.lastUsedAt ?? null)
+  } = useGlossaryDetails({ glossaryId });
+  const sourceInputRef = useRef<any>(null);
+  const targetInputRef = useRef<any>(null);
+  const navigationBlocker = useBlocker(hasPendingChanges);
+  const lastModified = formatDateTime(glossary?.lastModifiedAt ?? null);
+  const lastUsed = formatDateTime(glossary?.lastUsedAt ?? null);
   const sourceLanguageLabel =
-    languagesData.languages.find((language) => language.code === formValues.sourceLanguage)?.label ??
-    formValues.sourceLanguage
+    languagesData.languages.find(
+      (language) => language.code === formValues.sourceLanguage,
+    )?.label ?? formValues.sourceLanguage;
   const targetLanguageLabel =
-    languagesData.languages.find((language) => language.code === formValues.targetLanguage)?.label ??
-    formValues.targetLanguage
+    languagesData.languages.find(
+      (language) => language.code === formValues.targetLanguage,
+    )?.label ?? formValues.targetLanguage;
   const hasDuplicateNewItemSource = items.some((item) =>
     isDuplicateSourceDraft(
       {
@@ -98,44 +105,44 @@ export function GlossaryDetailPage() {
       },
       item,
     ),
-  )
+  );
 
   useEffect(() => {
-    if (navigationBlocker.state !== 'blocked') {
-      return
+    if (navigationBlocker.state !== "blocked") {
+      return;
     }
 
-    const shouldLeave = window.confirm(UNSAVED_CHANGES_MESSAGE)
+    const shouldLeave = window.confirm(UNSAVED_CHANGES_MESSAGE);
     if (shouldLeave) {
-      navigationBlocker.proceed()
-      return
+      navigationBlocker.proceed();
+      return;
     }
 
-    navigationBlocker.reset()
-  }, [navigationBlocker])
+    navigationBlocker.reset();
+  }, [navigationBlocker]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!hasPendingChanges) {
-        return
+        return;
       }
 
-      event.preventDefault()
-      event.returnValue = ''
-    }
+      event.preventDefault();
+      event.returnValue = "";
+    };
 
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [hasPendingChanges])
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasPendingChanges]);
 
   return (
     <Box className="project-page">
       <ProjectPageHeader
-        title={glossary?.name ?? 'Glossary details'}
+        title={glossary?.name ?? "Glossary details"}
         breadcrumbs={[
-          { label: 'Dashboard', to: '/' },
-          { label: 'Glossaries', to: '/glossaries' },
-          { label: glossary?.name ?? 'Details' },
+          { label: "Dashboard", to: "/" },
+          { label: "Glossaries", to: "/glossaries" },
+          { label: glossary?.name ?? "Details" },
         ]}
         actionLabel="Save"
         onActionClick={() => void handleSaveGlossary()}
@@ -163,8 +170,8 @@ export function GlossaryDetailPage() {
           <Box
             className={
               activeTab === 0
-                ? 'detail-tab-panel'
-                : 'detail-tab-panel detail-tab-panel-hidden'
+                ? "detail-tab-panel"
+                : "detail-tab-panel detail-tab-panel-hidden"
             }
           >
             <Box className="detail-home-grid">
@@ -175,7 +182,8 @@ export function GlossaryDetailPage() {
                       Details
                     </Typography>
                     <Typography component="p" className="project-editor-copy">
-                      Update metadata and language routing for {glossary?.name ?? 'this glossary'}.
+                      Update metadata and language routing for{" "}
+                      {glossary?.name ?? "this glossary"}.
                     </Typography>
                   </Box>
                 </Box>
@@ -186,7 +194,9 @@ export function GlossaryDetailPage() {
                     <TextField
                       fullWidth
                       value={formValues.name}
-                      onChange={(event) => handleFieldChange('name', event.target.value)}
+                      onChange={(event) =>
+                        handleFieldChange("name", event.target.value)
+                      }
                       placeholder="Game UI EN -> VI"
                       disabled={isSaving}
                       sx={{ mt: 1.5 }}
@@ -200,7 +210,12 @@ export function GlossaryDetailPage() {
                         select
                         fullWidth
                         value={formValues.sourceLanguage}
-                        onChange={(event) => handleFieldChange('sourceLanguage', event.target.value)}
+                        onChange={(event) =>
+                          handleFieldChange(
+                            "sourceLanguage",
+                            event.target.value,
+                          )
+                        }
                         disabled={isSaving}
                         sx={{ mt: 1.5 }}
                       >
@@ -218,12 +233,17 @@ export function GlossaryDetailPage() {
                         select
                         fullWidth
                         value={formValues.targetLanguage}
-                        onChange={(event) => handleFieldChange('targetLanguage', event.target.value)}
+                        onChange={(event) =>
+                          handleFieldChange(
+                            "targetLanguage",
+                            event.target.value,
+                          )
+                        }
                         disabled={isSaving}
                         sx={{ mt: 1.5 }}
                       >
                         {languagesData.languages
-                          .filter((language) => language.code !== 'auto')
+                          .filter((language) => language.code !== "auto")
                           .map((language) => (
                             <MenuItem key={language.code} value={language.code}>
                               {language.label}
@@ -234,13 +254,17 @@ export function GlossaryDetailPage() {
 
                     <Box className="detail-info-item">
                       <Typography component="span">Last modified</Typography>
-                      <Typography component="strong">{lastModified.date}</Typography>
+                      <Typography component="strong">
+                        {lastModified.date}
+                      </Typography>
                       <Typography component="p">{lastModified.time}</Typography>
                     </Box>
 
                     <Box className="detail-info-item">
                       <Typography component="span">Last used</Typography>
-                      <Typography component="strong">{lastUsed.date}</Typography>
+                      <Typography component="strong">
+                        {lastUsed.date}
+                      </Typography>
                       <Typography component="p">{lastUsed.time}</Typography>
                     </Box>
                   </Box>
@@ -252,8 +276,8 @@ export function GlossaryDetailPage() {
           <Box
             className={
               activeTab === 1
-                ? 'detail-tab-panel'
-                : 'detail-tab-panel detail-tab-panel-hidden'
+                ? "detail-tab-panel"
+                : "detail-tab-panel detail-tab-panel-hidden"
             }
           >
             <Box className="detail-home-grid">
@@ -264,54 +288,81 @@ export function GlossaryDetailPage() {
                       Glossary items
                     </Typography>
                     <Typography component="p" className="project-editor-copy">
-                      Items are applied before and after AI translation to protect preferred terminology.
+                      Items are applied before and after AI translation to
+                      protect preferred terminology.
                     </Typography>
                   </Box>
                 </Box>
 
                 <Box className="project-editor-form" sx={{ gap: 3 }}>
-                  <GlossaryItemsTable
-                    items={items}
-                    isLoading={isLoading}
-                    sourceLanguageLabel={sourceLanguageLabel}
-                    targetLanguageLabel={targetLanguageLabel}
-                    searchTerm={glossaryItemsSearchTerm}
-                    onSearchChange={setGlossaryItemsSearchTerm}
-                    sortState={glossaryItemsSortState}
-                    onSortChange={setGlossaryItemsSortState}
-                    page={glossaryItemsPage}
-                    rowsPerPage={glossaryItemsRowsPerPage}
-                    onPageChange={setGlossaryItemsPage}
-                    onRowsPerPageChange={setGlossaryItemsRowsPerPage}
-                    onGlossaryItemDraftChange={handleGlossaryItemDraftChange}
-                    onGlossaryItemBlur={handleGlossaryItemBlur}
-                    onDeleteGlossaryItem={handleDeleteGlossaryItem}
-                  />
-
-                  <Box className="project-editor-grid" sx={{ gridTemplateColumns: '1.2fr 1.2fr auto 120px auto' }}>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: hasDuplicateNewItemSource ? 'auto minmax(0, 1fr)' : 'minmax(0, 1fr)', gap: 1, alignItems: 'center' }}>
+                  <Box
+                    className="project-editor-grid"
+                    sx={{ gridTemplateColumns: "1.2fr 1.2fr auto 120px auto" }}
+                  >
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: hasDuplicateNewItemSource
+                          ? "auto minmax(0, 1fr)"
+                          : "minmax(0, 1fr)",
+                        gap: 1,
+                        alignItems: "center",
+                      }}
+                    >
                       {hasDuplicateNewItemSource ? (
                         <Tooltip title="Another glossary item already matches this source. Duplicate matching can cause ambiguity.">
-                          <WarningAmberRoundedIcon fontSize="small" color="warning" />
+                          <WarningAmberRoundedIcon
+                            fontSize="small"
+                            color="warning"
+                          />
                         </Tooltip>
                       ) : null}
                       <TextField
+                        inputRef={sourceInputRef}
                         label={`Source (${sourceLanguageLabel})`}
                         value={newItemDraft.source}
-                        onChange={(event) => handleNewItemDraftChange('source', event.target.value)}
+                        onChange={(event) =>
+                          handleNewItemDraftChange("source", event.target.value)
+                        }
+                        onKeyUp={(e) => {
+                          if (
+                            e.key === "Enter" &&
+                            newItemDraft.source?.trim()
+                          ) {
+                            targetInputRef.current.focus();
+                          }
+                        }}
                       />
                     </Box>
                     <TextField
+                      inputRef={targetInputRef}
                       label={`Target (${targetLanguageLabel})`}
                       value={newItemDraft.target}
-                      onChange={(event) => handleNewItemDraftChange('target', event.target.value)}
+                      onChange={(event) =>
+                        handleNewItemDraftChange("target", event.target.value)
+                      }
+                      onKeyUp={(e) => {
+                        if (e.key === "Enter" && newItemDraft.target?.trim()) {
+                          handleCreateGlossaryItem();
+                          setGlossaryItemsSortState({
+                            column: DEFAULT_SORT_COLUMN,
+                            direction: DEFAULT_SORT_DIRECTION,
+                          });
+                          sourceInputRef.current.focus();
+                        }
+                      }}
                     />
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <FormControlLabel
                         control={
                           <Checkbox
                             checked={newItemDraft.caseSensitive}
-                            onChange={(event) => handleNewItemDraftChange('caseSensitive', event.target.checked)}
+                            onChange={(event) =>
+                              handleNewItemDraftChange(
+                                "caseSensitive",
+                                event.target.checked,
+                              )
+                            }
                           />
                         }
                         label="Case sensitive"
@@ -329,24 +380,47 @@ export function GlossaryDetailPage() {
                       variant="contained"
                       className="submit-button"
                       onClick={async () => {
-                        const didCreateGlossaryItem = await handleCreateGlossaryItem()
+                        const didCreateGlossaryItem =
+                          await handleCreateGlossaryItem();
                         if (!didCreateGlossaryItem) {
-                          return
+                          return;
                         }
 
-                        setGlossaryItemsSearchTerm('')
+                        setGlossaryItemsSearchTerm("");
                         setGlossaryItemsSortState({
-                          column: 'createdAt',
-                          direction: 'asc',
-                        })
+                          column: DEFAULT_SORT_COLUMN,
+                          direction: DEFAULT_SORT_DIRECTION,
+                        });
                         setGlossaryItemsPage(
-                          Math.max(0, Math.ceil((items.length + 1) / glossaryItemsRowsPerPage) - 1),
-                        )
+                          Math.max(
+                            0,
+                            Math.ceil(
+                              (items.length + 1) / glossaryItemsRowsPerPage,
+                            ) - 1,
+                          ),
+                        );
                       }}
                     >
                       Add item
                     </Button>
                   </Box>
+                  <GlossaryItemsTable
+                    items={items}
+                    isLoading={isLoading}
+                    sourceLanguageLabel={sourceLanguageLabel}
+                    targetLanguageLabel={targetLanguageLabel}
+                    searchTerm={glossaryItemsSearchTerm}
+                    onSearchChange={setGlossaryItemsSearchTerm}
+                    sortState={glossaryItemsSortState}
+                    onSortChange={setGlossaryItemsSortState}
+                    page={glossaryItemsPage}
+                    rowsPerPage={glossaryItemsRowsPerPage}
+                    onPageChange={setGlossaryItemsPage}
+                    onRowsPerPageChange={setGlossaryItemsRowsPerPage}
+                    onGlossaryItemDraftChange={handleGlossaryItemDraftChange}
+                    onGlossaryItemBlur={handleGlossaryItemBlur}
+                    onDeleteGlossaryItem={handleDeleteGlossaryItem}
+                  />
                 </Box>
               </Box>
             </Box>
@@ -368,48 +442,57 @@ export function GlossaryDetailPage() {
       >
         <DialogTitle>Case sensitive matching</DialogTitle>
         <DialogContent dividers>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <Typography component="p">
-              When <strong>Case sensitive</strong> is enabled, the glossary item only matches text with the exact same uppercase and lowercase letters.
+              When <strong>Case sensitive</strong> is enabled, the glossary item
+              only matches text with the exact same uppercase and lowercase
+              letters.
             </Typography>
             <Typography component="p">
-              Example 1: glossary source <strong>Apple</strong> matches <strong>Apple</strong>, but it does not match <strong>apple</strong>.
+              Example 1: glossary source <strong>Apple</strong> matches{" "}
+              <strong>Apple</strong>, but it does not match{" "}
+              <strong>apple</strong>.
             </Typography>
             <Typography component="p">
-              Example 2: glossary source <strong>HP</strong> matches <strong>HP</strong>, but it does not match <strong>hp</strong>.
+              Example 2: glossary source <strong>HP</strong> matches{" "}
+              <strong>HP</strong>, but it does not match <strong>hp</strong>.
             </Typography>
             <Typography component="p">
-              Leave it unchecked when the term should match regardless of letter case.
+              Leave it unchecked when the term should match regardless of letter
+              case.
             </Typography>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button variant="contained" onClick={() => setIsCaseSensitiveHelpOpen(false)}>
+          <Button
+            variant="contained"
+            onClick={() => setIsCaseSensitiveHelpOpen(false)}
+          >
             Close
           </Button>
         </DialogActions>
       </Dialog>
     </Box>
-  )
+  );
 }
 
 function isDuplicateSourceDraft(
   draft: { source: string; caseSensitive: boolean },
   item: { source: string; caseSensitive: boolean },
 ) {
-  const draftSource = draft.source.trim()
-  const itemSource = item.source.trim()
+  const draftSource = draft.source.trim();
+  const itemSource = item.source.trim();
 
   if (!draftSource || !itemSource) {
-    return false
+    return false;
   }
 
   if (draftSource === itemSource) {
-    return true
+    return true;
   }
 
   return (
     draftSource.toLocaleLowerCase() === itemSource.toLocaleLowerCase() &&
     (!draft.caseSensitive || !item.caseSensitive)
-  )
+  );
 }

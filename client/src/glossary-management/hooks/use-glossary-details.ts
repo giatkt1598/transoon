@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
-import { toast } from 'react-toastify'
-import type { GlossaryItem, GlossarySummary, LanguagesResponse } from '../../app/types'
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "react-toastify";
+import type {
+  GlossaryItem,
+  GlossarySummary,
+  LanguagesResponse,
+} from "../../app/types";
 import {
   createGlossaryItem,
   defaultGlossaryFormValues,
@@ -10,139 +14,162 @@ import {
   fetchLanguages,
   saveGlossary,
   updateGlossaryItem,
-} from '../api'
-import type { GlossaryFormValues, GlossaryItemDraft } from '../types'
+} from "../api";
+import type { GlossaryFormValues, GlossaryItemDraft } from "../types";
 
 const fallbackLanguages: LanguagesResponse = {
-  defaultSourceLanguage: 'en',
-  defaultTargetLanguage: 'ja',
+  defaultSourceLanguage: "en",
+  defaultTargetLanguage: "ja",
   languages: [
-    { code: 'auto', label: 'Auto detect' },
-    { code: 'en', label: 'English' },
-    { code: 'ja', label: 'Japanese' },
-    { code: 'vi', label: 'Vietnamese' },
-    { code: 'zh-CN', label: 'Chinese (Simplified)' },
-    { code: 'ko', label: 'Korean' },
-    { code: 'fr', label: 'French' },
-    { code: 'de', label: 'German' },
-    { code: 'es', label: 'Spanish' },
+    { code: "auto", label: "Auto detect" },
+    { code: "en", label: "English" },
+    { code: "ja", label: "Japanese" },
+    { code: "vi", label: "Vietnamese" },
+    { code: "zh-CN", label: "Chinese (Simplified)" },
+    { code: "ko", label: "Korean" },
+    { code: "fr", label: "French" },
+    { code: "de", label: "German" },
+    { code: "es", label: "Spanish" },
   ],
-}
+};
 
 const defaultNewGlossaryItem: GlossaryItemDraft = {
-  source: '',
-  target: '',
-  caseSensitive: false,
+  source: "",
+  target: "",
+  caseSensitive: true,
   wholeWord: true,
   priority: 1,
-}
+};
 
 type UseGlossaryDetailsOptions = {
-  glossaryId?: string
-}
+  glossaryId?: string;
+};
 
 export function useGlossaryDetails({ glossaryId }: UseGlossaryDetailsOptions) {
-  const [languagesData, setLanguagesData] = useState<LanguagesResponse>(fallbackLanguages)
-  const [glossary, setGlossary] = useState<GlossarySummary | null>(null)
-  const [formValues, setFormValues] = useState<GlossaryFormValues>(defaultGlossaryFormValues)
-  const [savedFormValues, setSavedFormValues] = useState<GlossaryFormValues>(defaultGlossaryFormValues)
-  const [items, setItems] = useState<GlossaryItem[]>([])
-  const [savedItems, setSavedItems] = useState<GlossaryItem[]>([])
-  const [newItemDraft, setNewItemDraft] = useState<GlossaryItemDraft>(defaultNewGlossaryItem)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [languagesData, setLanguagesData] =
+    useState<LanguagesResponse>(fallbackLanguages);
+  const [glossary, setGlossary] = useState<GlossarySummary | null>(null);
+  const [formValues, setFormValues] = useState<GlossaryFormValues>(
+    defaultGlossaryFormValues,
+  );
+  const [savedFormValues, setSavedFormValues] = useState<GlossaryFormValues>(
+    defaultGlossaryFormValues,
+  );
+  const [items, setItems] = useState<GlossaryItem[]>([]);
+  const [savedItems, setSavedItems] = useState<GlossaryItem[]>([]);
+  const [newItemDraft, setNewItemDraft] = useState<GlossaryItemDraft>(
+    defaultNewGlossaryItem,
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const isReady = useMemo(() => Boolean(glossaryId), [glossaryId])
+  const isReady = useMemo(() => Boolean(glossaryId), [glossaryId]);
 
   useEffect(() => {
     if (!glossaryId) {
-      setError('Glossary not found.')
-      setIsLoading(false)
-      return
+      setError("Glossary not found.");
+      setIsLoading(false);
+      return;
     }
 
-    const resolvedGlossaryId = glossaryId
-    const controller = new AbortController()
+    const resolvedGlossaryId = glossaryId;
+    const controller = new AbortController();
 
     async function loadDetails() {
       try {
-        setIsLoading(true)
-        setError(null)
+        setIsLoading(true);
+        setError(null);
         const [languages, existingGlossary, existingItems] = await Promise.all([
           fetchLanguages(controller.signal),
           fetchGlossary(resolvedGlossaryId, controller.signal),
           fetchGlossaryItems(resolvedGlossaryId, controller.signal),
-        ])
+        ]);
 
-        setLanguagesData(languages)
-        setGlossary(existingGlossary)
+        setLanguagesData(languages);
+        setGlossary(existingGlossary);
         setFormValues({
           name: existingGlossary.name,
           sourceLanguage: existingGlossary.sourceLanguage,
           targetLanguage: existingGlossary.targetLanguage,
-        })
+        });
         setSavedFormValues({
           name: existingGlossary.name,
           sourceLanguage: existingGlossary.sourceLanguage,
           targetLanguage: existingGlossary.targetLanguage,
-        })
-        setItems(existingItems)
-        setSavedItems(existingItems)
+        });
+        setItems(existingItems);
+        setSavedItems(existingItems);
       } catch (loadError) {
         if (controller.signal.aborted) {
-          return
+          return;
         }
 
-        setError(loadError instanceof Error ? loadError.message : 'Could not load glossary details.')
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Could not load glossary details.",
+        );
       } finally {
         if (!controller.signal.aborted) {
-          setIsLoading(false)
+          setIsLoading(false);
         }
       }
     }
 
-    void loadDetails()
-    return () => controller.abort()
-  }, [glossaryId])
+    void loadDetails();
+    return () => controller.abort();
+  }, [glossaryId]);
 
-  function handleFieldChange<K extends keyof GlossaryFormValues>(field: K, value: GlossaryFormValues[K]) {
+  function handleFieldChange<K extends keyof GlossaryFormValues>(
+    field: K,
+    value: GlossaryFormValues[K],
+  ) {
     setFormValues((current) => ({
       ...current,
       [field]: value,
-    }))
+    }));
   }
 
   const hasPendingChanges = useMemo(() => {
     return (
       JSON.stringify(formValues) !== JSON.stringify(savedFormValues) ||
-      JSON.stringify(serializeGlossaryItems(items)) !== JSON.stringify(serializeGlossaryItems(savedItems))
-    )
-  }, [formValues, items, savedFormValues, savedItems])
+      JSON.stringify(serializeGlossaryItems(items)) !==
+        JSON.stringify(serializeGlossaryItems(savedItems))
+    );
+  }, [formValues, items, savedFormValues, savedItems]);
 
   async function handleSaveGlossary() {
     if (!glossaryId) {
-      return
+      return;
     }
 
     try {
-      setIsSaving(true)
-      setError(null)
-      const savedGlossary = await saveGlossary(glossaryId, formValues)
-      const savedCurrentItems = await persistGlossaryItems(glossaryId, savedItems, items)
-      setGlossary(savedGlossary)
+      setIsSaving(true);
+      setError(null);
+      const savedGlossary = await saveGlossary(glossaryId, formValues);
+      const savedCurrentItems = await persistGlossaryItems(
+        glossaryId,
+        savedItems,
+        items,
+      );
+      setGlossary(savedGlossary);
       setSavedFormValues({
         name: savedGlossary.name,
         sourceLanguage: savedGlossary.sourceLanguage,
         targetLanguage: savedGlossary.targetLanguage,
-      })
-      setItems(savedCurrentItems)
-      setSavedItems(savedCurrentItems)
-      toast.success('Glossary updated successfully.')
+      });
+      setItems(savedCurrentItems);
+      setSavedItems(savedCurrentItems);
+      toast.success("Glossary updated successfully.");
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Could not save glossary.')
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Could not save glossary.",
+      );
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
   }
 
@@ -160,13 +187,13 @@ export function useGlossaryDetails({ glossaryId }: UseGlossaryDetailsOptions) {
             }
           : item,
       ),
-    )
+    );
   }
 
   async function handleGlossaryItemBlur(glossaryItemId: string) {
-    const glossaryItem = items.find((item) => item.id === glossaryItemId)
+    const glossaryItem = items.find((item) => item.id === glossaryItemId);
     if (!glossaryItem) {
-      return
+      return;
     }
 
     setItems((currentItems) =>
@@ -179,30 +206,33 @@ export function useGlossaryDetails({ glossaryId }: UseGlossaryDetailsOptions) {
             }
           : item,
       ),
-    )
+    );
   }
 
-  function handleNewItemDraftChange<K extends keyof GlossaryItemDraft>(field: K, value: GlossaryItemDraft[K]) {
+  function handleNewItemDraftChange<K extends keyof GlossaryItemDraft>(
+    field: K,
+    value: GlossaryItemDraft[K],
+  ) {
     setNewItemDraft((current) => ({
       ...current,
       [field]: value,
-    }))
+    }));
   }
 
   async function handleCreateGlossaryItem() {
     try {
-      const currentCaseSensitive = newItemDraft.caseSensitive
-      const source = newItemDraft.source.trim()
-      const target = newItemDraft.target.trim()
+      const currentCaseSensitive = newItemDraft.caseSensitive;
+      const source = newItemDraft.source.trim();
+      const target = newItemDraft.target.trim();
       if (!source || !target) {
-        toast.error('Glossary items require both source and target text.')
-        return false
+        toast.error("Glossary items require both source and target text.");
+        return false;
       }
 
-      const now = new Date().toISOString()
+      const now = new Date().toISOString();
       const createdItem: GlossaryItem = {
         id: `draft:${crypto.randomUUID()}`,
-        glossaryId: glossaryId ?? '',
+        glossaryId: glossaryId ?? "",
         source,
         sourceNormalized: normalizeGlossaryText(source),
         target,
@@ -213,25 +243,35 @@ export function useGlossaryDetails({ glossaryId }: UseGlossaryDetailsOptions) {
         lastModifiedAt: now,
         lastUsedAt: null,
         createdAt: now,
-      }
+      };
 
-      setItems((currentItems) => [createdItem, ...currentItems])
+      setItems((currentItems) => [createdItem, ...currentItems]);
       setNewItemDraft({
         ...defaultNewGlossaryItem,
         caseSensitive: currentCaseSensitive,
-      })
-      return true
+      });
+      return true;
     } catch (createError) {
-      toast.error(createError instanceof Error ? createError.message : 'Could not stage glossary item.')
-      return false
+      toast.error(
+        createError instanceof Error
+          ? createError.message
+          : "Could not stage glossary item.",
+      );
+      return false;
     }
   }
 
   async function handleDeleteGlossaryItem(glossaryItemId: string) {
     try {
-      setItems((currentItems) => currentItems.filter((item) => item.id !== glossaryItemId))
+      setItems((currentItems) =>
+        currentItems.filter((item) => item.id !== glossaryItemId),
+      );
     } catch (deleteError) {
-      toast.error(deleteError instanceof Error ? deleteError.message : 'Could not remove glossary item.')
+      toast.error(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Could not remove glossary item.",
+      );
     }
   }
 
@@ -253,7 +293,7 @@ export function useGlossaryDetails({ glossaryId }: UseGlossaryDetailsOptions) {
     handleNewItemDraftChange,
     handleCreateGlossaryItem,
     handleDeleteGlossaryItem,
-  }
+  };
 }
 
 async function persistGlossaryItems(
@@ -261,34 +301,34 @@ async function persistGlossaryItems(
   originalItems: GlossaryItem[],
   draftItems: GlossaryItem[],
 ) {
-  const originalIds = new Set(originalItems.map((item) => item.id))
-  const draftIds = new Set(draftItems.map((item) => item.id))
+  const originalIds = new Set(originalItems.map((item) => item.id));
+  const draftIds = new Set(draftItems.map((item) => item.id));
 
-  const removedItems = originalItems.filter((item) => !draftIds.has(item.id))
+  const removedItems = originalItems.filter((item) => !draftIds.has(item.id));
   for (const item of removedItems) {
-    await deleteGlossaryItem(glossaryId, item.id)
+    await deleteGlossaryItem(glossaryId, item.id);
   }
 
-  const persistedItems: GlossaryItem[] = []
+  const persistedItems: GlossaryItem[] = [];
 
   for (const item of draftItems) {
-    const source = item.source.trim()
-    const target = item.target.trim()
+    const source = item.source.trim();
+    const target = item.target.trim();
 
     if (!source || !target) {
-      continue
+      continue;
     }
 
-    if (item.id.startsWith('draft:') || !originalIds.has(item.id)) {
+    if (item.id.startsWith("draft:") || !originalIds.has(item.id)) {
       const createdItem = await createGlossaryItem(glossaryId, {
         source,
         target,
         caseSensitive: item.caseSensitive,
         wholeWord: true,
         priority: 1,
-      })
-      persistedItems.push(createdItem)
-      continue
+      });
+      persistedItems.push(createdItem);
+      continue;
     }
 
     const savedItem = await updateGlossaryItem(glossaryId, item.id, {
@@ -297,14 +337,14 @@ async function persistGlossaryItems(
       caseSensitive: item.caseSensitive,
       wholeWord: true,
       priority: 1,
-    })
+    });
 
     if (savedItem) {
-      persistedItems.push(savedItem)
+      persistedItems.push(savedItem);
     }
   }
 
-  return persistedItems
+  return persistedItems;
 }
 
 function serializeGlossaryItems(items: GlossaryItem[]) {
@@ -315,9 +355,9 @@ function serializeGlossaryItems(items: GlossaryItem[]) {
     caseSensitive: item.caseSensitive,
     wholeWord: item.wholeWord,
     priority: 1,
-  }))
+  }));
 }
 
 function normalizeGlossaryText(value: string) {
-  return value.trim().replace(/\s+/g, ' ').toLowerCase()
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
