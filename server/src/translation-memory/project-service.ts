@@ -781,7 +781,6 @@ export function confirmProjectSegment(
   const writeTranslationMemory = listProjectTranslationMemories(projectId).find(
     (item) => item.accessMode === "write",
   );
-  let termConflict = false;
   let insertedIntoWriteTranslationMemory = false;
 
   database.exec("BEGIN");
@@ -811,12 +810,12 @@ export function confirmProjectSegment(
       });
       insertedIntoWriteTranslationMemory = true;
 
-      const termResult = upsertTranslationMemoryTerm({
+      upsertTranslationMemoryTerm({
         translationMemoryId: writeTranslationMemory.translationMemoryId,
         sourceTerm: segment.sourceText,
         targetTerm: targetText,
+        database,
       });
-      termConflict = termResult.conflict;
     }
 
     touchProject(projectId, now);
@@ -840,7 +839,7 @@ export function confirmProjectSegment(
     insertedIntoWriteTranslationMemory,
     writeTranslationMemoryId:
       writeTranslationMemory?.translationMemoryId ?? null,
-    termConflict,
+    termConflict: false,
   };
 }
 

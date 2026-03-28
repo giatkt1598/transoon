@@ -7,7 +7,6 @@ import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import FindReplaceOutlinedIcon from "@mui/icons-material/FindReplaceOutlined";
 import LibraryAddOutlinedIcon from "@mui/icons-material/LibraryAddOutlined";
 import MergeTypeOutlinedIcon from "@mui/icons-material/MergeTypeOutlined";
-import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { Box, Button, Paper, Popover, Tooltip, Typography } from "@mui/material";
 import { useState } from "react";
@@ -183,15 +182,6 @@ export function AlignmentToolToolbar({
           className="alignment-toolbar-button"
         >
           Clear All
-        </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<NotesOutlinedIcon fontSize="small" />}
-          disabled
-          className="alignment-toolbar-button"
-        >
-          Comments
         </Button>
         <Button
           variant="outlined"

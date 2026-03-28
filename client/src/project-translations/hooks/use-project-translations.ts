@@ -4,6 +4,7 @@ import type {
   ProjectAutoTranslateProgressResponse,
   ProjectDetail,
   ProjectSegment,
+  ProjectTerm,
   TranslateProviderOption,
 } from '../../app/types'
 import { getAppSocket } from '../../app/socket'
@@ -29,6 +30,7 @@ type UseProjectTranslationsOptions = {
   projectDetail: ProjectDetail | null
   translateProviders: TranslateProviderOption[]
   onProjectDetailChange: Dispatch<SetStateAction<ProjectDetail | null>>
+  onProjectTermsChange?: Dispatch<SetStateAction<ProjectTerm[]>>
   refreshKey?: number
 }
 
@@ -37,6 +39,7 @@ export function useProjectTranslations({
   projectDetail,
   translateProviders,
   onProjectDetailChange,
+  onProjectTermsChange,
   refreshKey = 0,
 }: UseProjectTranslationsOptions) {
   const [segments, setSegments] = useState<ProjectSegment[]>([])
@@ -422,15 +425,97 @@ export function useProjectTranslations({
         targetTextOverride ?? segment.targetText,
       )
 
+      const confirmedSourceNormalized = result.segment.sourceText.trim().toLocaleLowerCase()
+      const confirmedTargetText = result.segment.targetText
+      const autofilledSegmentIds: string[] = []
+
       setSegments((currentSegments) =>
-        currentSegments.map((currentSegment) =>
-          currentSegment.id === result.segment.id ? result.segment : currentSegment,
-        ),
+        currentSegments.map((currentSegment) => {
+          if (currentSegment.id === result.segment.id) {
+            return result.segment
+          }
+
+          const hasSameSource =
+            currentSegment.sourceText.trim().toLocaleLowerCase() === confirmedSourceNormalized
+          const hasEmptyTarget = currentSegment.targetText.trim().length === 0
+
+          if (!hasSameSource || !hasEmptyTarget) {
+            return currentSegment
+          }
+
+          autofilledSegmentIds.push(currentSegment.id)
+          return {
+            ...currentSegment,
+            targetText: confirmedTargetText,
+            translationStatus: 'translated',
+          }
+        }),
       )
       setSavedSegmentTargets((currentTargets) => ({
         ...currentTargets,
-        [segmentId]: result.segment.targetText,
+        [segmentId]: confirmedTargetText,
+        ...Object.fromEntries(autofilledSegmentIds.map((autofilledSegmentId) => [autofilledSegmentId, confirmedTargetText])),
       }))
+
+      if (result.writeTranslationMemoryId && confirmedTargetText) {
+        const writeTranslationMemoryId = result.writeTranslationMemoryId
+        const writeTranslationMemory =
+          result.project?.translationMemories.find(
+            (translationMemory) =>
+              translationMemory.translationMemoryId === writeTranslationMemoryId,
+          ) ??
+          projectDetail?.translationMemories.find(
+            (translationMemory) =>
+              translationMemory.translationMemoryId === writeTranslationMemoryId,
+          ) ??
+          null
+
+        onProjectTermsChange?.((currentTerms) => {
+          const sourceTermNormalized = result.segment.sourceText.trim().toLocaleLowerCase()
+          const targetTermNormalized = confirmedTargetText.trim().toLocaleLowerCase()
+          const existingTermIndex = currentTerms.findIndex(
+            (term) =>
+              term.translationMemoryId === writeTranslationMemoryId &&
+              term.sourceTermNormalized === sourceTermNormalized,
+          )
+
+          if (existingTermIndex >= 0) {
+            const nextTerms = [...currentTerms]
+            nextTerms[existingTermIndex] = {
+              ...nextTerms[existingTermIndex],
+              sourceTerm: result.segment.sourceText,
+              sourceTermNormalized,
+              targetTerm: confirmedTargetText,
+              targetTermNormalized,
+              lastModifiedAt: new Date().toISOString(),
+              lastUsedAt: new Date().toISOString(),
+            }
+            return nextTerms
+          }
+
+          const nextTerm: ProjectTerm = {
+            id: `local-${writeTranslationMemoryId}-${sourceTermNormalized}`,
+            translationMemoryId: writeTranslationMemoryId,
+            sourceTerm: result.segment.sourceText,
+            sourceTermNormalized,
+            targetTerm: confirmedTargetText,
+            targetTermNormalized,
+            lastModifiedAt: new Date().toISOString(),
+            lastUsedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            name: writeTranslationMemory?.name ?? 'Write Translation Memory',
+            sourceLanguage:
+              writeTranslationMemory?.sourceLanguage ?? projectDetail?.sourceLang ?? '',
+            targetLanguage:
+              writeTranslationMemory?.targetLanguage ?? projectDetail?.targetLang ?? '',
+            accessMode: writeTranslationMemory?.accessMode ?? 'write',
+            priority: writeTranslationMemory?.priority ?? 0,
+          }
+
+          return [nextTerm, ...currentTerms]
+        })
+      }
+
       const nextSegment = segments[segmentIndex + 1]
       if (nextSegment) {
         setConfirmFocusSegmentId(nextSegment.id)

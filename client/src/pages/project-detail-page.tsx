@@ -83,6 +83,10 @@ export function ProjectDetailPage() {
     handleGlossaryDragEnd,
     handleDropGlossaryOnRow,
   } = useProjectDetail({ projectId });
+  const { projectTerms, setProjectTerms } = useProjectTermsPreload({
+    projectId,
+    refreshKey: `${translationResourcesRevision}:${projectDetail?.lastModifiedAt ?? ""}`,
+  });
   const {
     segments,
     savedSegmentTargets,
@@ -127,6 +131,7 @@ export function ProjectDetailPage() {
     projectDetail,
     translateProviders,
     onProjectDetailChange: setProjectDetail,
+    onProjectTermsChange: setProjectTerms,
     refreshKey: translationResourcesRevision,
   });
   const hasUnsavedChanges = hasPendingSegmentChanges;
@@ -134,10 +139,6 @@ export function ProjectDetailPage() {
   const { preview, isLoadingPreview, previewError } = useProjectDocumentPreview({
     projectId,
     documentFileName: projectDetail?.documentFileName,
-  });
-  const { projectTerms } = useProjectTermsPreload({
-    projectId,
-    refreshKey: `${translationResourcesRevision}:${projectDetail?.lastModifiedAt ?? ""}`,
   });
   const autoTranslateProviderOptions = [
     ...translateProviders.map((provider) => ({

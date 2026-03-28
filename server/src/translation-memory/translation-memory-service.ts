@@ -1,3 +1,4 @@
+import type { DatabaseSync } from "node:sqlite";
 import { createHash, randomUUID } from "crypto";
 import type {
   ProjectTranslationMemoryEntity,
@@ -29,6 +30,7 @@ export type UpsertTranslationMemoryTermInput = {
   translationMemoryId: string;
   sourceTerm: string;
   targetTerm: string;
+  database?: DatabaseSync;
 };
 
 export type UpsertTranslationMemoryTermResult = {
@@ -368,7 +370,7 @@ export function saveTranslationMemoryTermsChanges(
 export function upsertTranslationMemoryTerm(
   input: UpsertTranslationMemoryTermInput,
 ): UpsertTranslationMemoryTermResult {
-  const repositories = createTranslationMemoryRepositories();
+  const repositories = createTranslationMemoryRepositories(input.database);
   const now = new Date().toISOString();
   const sourceTerm = input.sourceTerm.trim();
   const targetTerm = input.targetTerm.trim();
@@ -386,12 +388,28 @@ export function upsertTranslationMemoryTerm(
     .firstOrDefault();
 
   if (existingTerm) {
+    repositories.terms.updateById(existingTerm.id, {
+      sourceTerm,
+      sourceTermNormalized,
+      targetTerm,
+      targetTermNormalized,
+      lastModifiedAt: now,
+      lastUsedAt: now,
+    });
     touchTranslationMemory(input.translationMemoryId, now);
+    const updatedTerm = repositories.terms.getById(existingTerm.id) ?? {
+      ...existingTerm,
+      sourceTerm,
+      sourceTermNormalized,
+      targetTerm,
+      targetTermNormalized,
+      lastModifiedAt: now,
+      lastUsedAt: now,
+    };
     return {
-      term: existingTerm,
+      term: updatedTerm,
       inserted: false,
-      conflict:
-        existingTerm.targetTermNormalized !== targetTermNormalized,
+      conflict: false,
     };
   }
 
