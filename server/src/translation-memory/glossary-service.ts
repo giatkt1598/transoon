@@ -12,12 +12,18 @@ export type GlossarySummary = GlossaryEntity & {
   itemCount: number;
 };
 
-export type GlossaryItem = Omit<GlossaryItemEntity, "caseSensitive" | "wholeWord"> & {
+export type GlossaryItem = Omit<
+  GlossaryItemEntity,
+  "caseSensitive" | "wholeWord"
+> & {
   caseSensitive: boolean;
   wholeWord: boolean;
 };
 
-export type AppliedGlossaryItemView = Omit<GlossaryAppliedItem, "caseSensitive" | "wholeWord"> & {
+export type AppliedGlossaryItemView = Omit<
+  GlossaryAppliedItem,
+  "caseSensitive" | "wholeWord"
+> & {
   caseSensitive: boolean;
   wholeWord: boolean;
 };
@@ -82,15 +88,16 @@ export function listGlossaries() {
 }
 
 export function getGlossaryById(glossaryId: string) {
-  return listGlossaries().find((glossary) => glossary.id === glossaryId) ?? null;
+  return (
+    listGlossaries().find((glossary) => glossary.id === glossaryId) ?? null
+  );
 }
 
 export function listGlossaryItems(glossaryId: string) {
-  const glossaryItems = createTranslationMemoryRepositories().glossaryItems
-    .query()
+  const glossaryItems = createTranslationMemoryRepositories()
+    .glossaryItems.query()
     .where("glossaryId", glossaryId)
-    .orderBy("lastModifiedAt", "desc")
-    .orderBy("lastModifiedAt", "desc")
+    .orderBy("createdAt", "desc")
     .toList();
 
   return glossaryItems.map(mapGlossaryItemEntity);
@@ -121,7 +128,9 @@ export function listGlossaryItemsByLanguagePair(
     ORDER BY LENGTH(gi.source) DESC, gi.priority DESC, gi.source ASC
   `;
 
-  const glossaryItems = database.prepare(sql).all(sourceLanguage, targetLanguage) as GlossaryItemEntity[];
+  const glossaryItems = database
+    .prepare(sql)
+    .all(sourceLanguage, targetLanguage) as GlossaryItemEntity[];
   return glossaryItems.map(mapGlossaryItemEntity);
 }
 
@@ -201,8 +210,9 @@ export function listProjectGlossaries(projectId: string) {
 
 export function getProjectGlossary(projectId: string, glossaryId: string) {
   return (
-    listProjectGlossaries(projectId).find((item) => item.glossaryId === glossaryId) ??
-    null
+    listProjectGlossaries(projectId).find(
+      (item) => item.glossaryId === glossaryId,
+    ) ?? null
   );
 }
 
@@ -229,7 +239,9 @@ export function listProjectGlossaryItems(projectId: string) {
     ORDER BY pg.priority ASC, LENGTH(gi.source) DESC, gi.priority DESC, gi.source ASC
   `;
 
-  const glossaryItems = database.prepare(sql).all(projectId) as GlossaryItemEntity[];
+  const glossaryItems = database
+    .prepare(sql)
+    .all(projectId) as GlossaryItemEntity[];
   return glossaryItems.map(mapGlossaryItemEntity);
 }
 
@@ -266,7 +278,10 @@ export function deleteGlossary(glossaryId: string) {
   createTranslationMemoryRepositories().glossaries.deleteById(glossaryId);
 }
 
-export function createGlossaryItem(glossaryId: string, input: GlossaryItemInput) {
+export function createGlossaryItem(
+  glossaryId: string,
+  input: GlossaryItemInput,
+) {
   const repositories = createTranslationMemoryRepositories();
   const now = new Date().toISOString();
   const source = input.source.trim();
@@ -284,7 +299,7 @@ export function createGlossaryItem(glossaryId: string, input: GlossaryItemInput)
     target,
     targetNormalized: normalizeGlossaryText(target),
     caseSensitive: input.caseSensitive ? 1 : 0,
-    wholeWord: input.wholeWord ?? true ? 1 : 0,
+    wholeWord: (input.wholeWord ?? true) ? 1 : 0,
     priority: 1,
     lastModifiedAt: now,
     lastUsedAt: null,
@@ -293,7 +308,9 @@ export function createGlossaryItem(glossaryId: string, input: GlossaryItemInput)
 
   repositories.glossaryItems.insert(entity);
   touchGlossary(glossaryId, now);
-  return mapGlossaryItemEntity(repositories.glossaryItems.getById(entity.id) ?? entity);
+  return mapGlossaryItemEntity(
+    repositories.glossaryItems.getById(entity.id) ?? entity,
+  );
 }
 
 export function updateGlossaryItem(
@@ -320,7 +337,7 @@ export function updateGlossaryItem(
     target,
     targetNormalized: normalizeGlossaryText(target),
     caseSensitive: input.caseSensitive ? 1 : 0,
-    wholeWord: input.wholeWord ?? true ? 1 : 0,
+    wholeWord: (input.wholeWord ?? true) ? 1 : 0,
     priority: 1,
     lastModifiedAt: now,
   });
@@ -432,7 +449,9 @@ function createGlossaryMatcher(glossaryItem: GlossaryItem) {
   return new RegExp(pattern, flags);
 }
 
-function mapAppliedGlossaryItem(glossaryItem: GlossaryItem): AppliedGlossaryItemView {
+function mapAppliedGlossaryItem(
+  glossaryItem: GlossaryItem,
+): AppliedGlossaryItemView {
   return {
     id: glossaryItem.id,
     glossaryId: glossaryItem.glossaryId,
