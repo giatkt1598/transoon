@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { Box, Button, Grow, MenuItem, Popover, TextField, Typography } from "@mui/material";
+import "./alignment-find-popover.scss";
 
 export type AlignmentFindStatusOption = {
   value: "all" | "pending" | "translated" | "reviewed" | "rejected";

@@ -37,49 +37,6 @@
   border-color: rgba(88, 65, 45, 0.08);
 }
 
-.alignment-find-popover-paper {
-  transform-origin: top right !important;
-  margin: 0 !important;
-  border-radius: 16px !important;
-}
-
-.alignment-find-popover {
-  display: grid;
-  grid-template-columns: 120px auto 180px minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 64px;
-  padding: 14px;
-  box-sizing: border-box;
-}
-
-.alignment-find-status-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.alignment-find-status-option-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  color: #8a705c;
-}
-
-.alignment-find-index-field {
-  min-width: 0;
-}
-
-.alignment-find-status-field {
-  min-width: 0;
-}
-
-.alignment-find-keyword-field {
-  min-width: 0;
-}
-
 .alignment-grid-shell {
   overflow: hidden;
   margin-top: 12px;
