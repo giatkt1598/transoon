@@ -1,5 +1,6 @@
 import { Box, MenuItem, TextField, Typography } from '@mui/material'
 import { useParams } from 'react-router-dom'
+import { LoadingPageSkeleton } from '../components/loading-skeleton'
 import { ProjectPageHeader } from '../project-management/components/project-page-header'
 import { TranslationMemoryTermsTable } from '../translation-memory-management/components/translation-memory-terms-table'
 import { useTranslationMemoryDetails } from '../translation-memory-management/hooks/use-translation-memory-details'
@@ -60,9 +61,7 @@ export function TranslationMemoryDetailPage() {
       />
 
       {isLoading ? (
-        <Box className="empty-state">
-          <Typography component="p">Loading translation memory detail...</Typography>
-        </Box>
+        <LoadingPageSkeleton />
       ) : (
         <Box className="detail-home-grid">
           <Box className="detail-section-card">

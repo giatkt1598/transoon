@@ -1,4 +1,5 @@
 import { Box, MenuItem, TextField, Typography } from "@mui/material";
+import { LoadingFormSkeleton } from "../components/loading-skeleton";
 import { ProjectPageHeader } from "../project-management/components/project-page-header";
 import { useSettingsPage } from "../settings-management/hooks/use-settings-page";
 
@@ -39,7 +40,7 @@ export function SettingsPage() {
 
         <Box className="project-editor-form settings-form" sx={{ gap: 4 }}>
           {isLoading ? (
-            <Typography component="p">Loading settings...</Typography>
+            <LoadingFormSkeleton fields={2} />
           ) : (
             <>
               <TextField

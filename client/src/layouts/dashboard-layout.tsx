@@ -2,6 +2,7 @@ import { Box } from '@mui/material'
 import { Suspense, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { DashboardHeader } from '../components/dashboard-header'
+import { LoadingRouteSkeleton } from '../components/loading-skeleton'
 import { NavigationSidebar } from '../components/navigation-sidebar'
 
 export function DashboardLayout() {
@@ -17,7 +18,7 @@ export function DashboardLayout() {
       <Box className={`dashboard-shell${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
         <DashboardHeader sidebarCollapsed={sidebarCollapsed} />
         <Box className="dashboard-content">
-          <Suspense fallback={<Box className="route-loading">Loading workspace...</Box>}>
+          <Suspense fallback={<LoadingRouteSkeleton />}>
             <Outlet />
           </Suspense>
         </Box>

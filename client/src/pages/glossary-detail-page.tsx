@@ -20,6 +20,7 @@ import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import { useEffect, useRef, useState } from "react";
 import { useBlocker, useParams } from "react-router-dom";
 import type { SortDirection } from "../app/linq";
+import { LoadingPageSkeleton } from "../components/loading-skeleton";
 import { GlossaryItemsTable } from "../glossary-management/components/glossary-items-table";
 import { useGlossaryDetails } from "../glossary-management/hooks/use-glossary-details";
 import { ProjectPageHeader } from "../project-management/components/project-page-header";
@@ -163,9 +164,7 @@ export function GlossaryDetailPage() {
       </Box>
 
       {isLoading ? (
-        <Box className="empty-state">
-          <Typography component="p">Loading glossary detail...</Typography>
-        </Box>
+        <LoadingPageSkeleton />
       ) : (
         <>
           <Box

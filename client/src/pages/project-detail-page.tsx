@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { AutoTranslateDialog } from "../project-translations/components/auto-translate-dialog";
 import { useBlocker, useParams } from "react-router-dom";
 import { AlignmentTool } from "../project-translations/components/alignment-tool";
+import { LoadingPageSkeleton } from "../components/loading-skeleton";
 import { DocumentPreviewPanel } from "../project-translations/components/document-preview-panel";
 import { GenerateSegmentsCard } from "../project-translations/components/generate-segments-card";
 import {
@@ -19,15 +20,12 @@ import { useProjectTermsPreload } from "../project-translations/hooks/use-projec
 import { useProjectTranslations } from "../project-translations/hooks/use-project-translations";
 import { getLanguageLabel } from "../app/utils";
 
-const PREVIEW_VISIBILITY_STORAGE_KEY =
-  "transoon.projectTranslations.previewVisible";
+const PREVIEW_VISIBILITY_STORAGE_KEY = "transoon.projectTranslations.previewVisible";
 const UNSAVED_CHANGES_MESSAGE =
   "You have unsaved changes on this project. Do you want to leave this page? Your changes will not be saved.";
 
 export function ProjectDetailPage() {
-  const [isPreviewVisible, setIsPreviewVisible] = useState(() =>
-    loadPreviewVisibility(),
-  );
+  const [isPreviewVisible, setIsPreviewVisible] = useState(() => loadPreviewVisibility());
   const flushPendingTranslationDraftsRef = useRef<(() => void) | null>(null);
   const { projectId } = useParams();
   const {
@@ -118,12 +116,10 @@ export function ProjectDetailPage() {
   });
   const hasUnsavedChanges = hasPendingSegmentChanges;
   const navigationBlocker = useBlocker(hasUnsavedChanges);
-  const { preview, isLoadingPreview, previewError } = useProjectDocumentPreview(
-    {
-      projectId,
-      documentFileName: projectDetail?.documentFileName,
-    },
-  );
+  const { preview, isLoadingPreview, previewError } = useProjectDocumentPreview({
+    projectId,
+    documentFileName: projectDetail?.documentFileName,
+  });
   const { projectTerms } = useProjectTermsPreload({
     projectId,
     refreshKey: translationResourcesRevision,
@@ -131,10 +127,7 @@ export function ProjectDetailPage() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(
-        PREVIEW_VISIBILITY_STORAGE_KEY,
-        JSON.stringify(isPreviewVisible),
-      );
+      window.localStorage.setItem(PREVIEW_VISIBILITY_STORAGE_KEY, JSON.stringify(isPreviewVisible));
     } catch {
       // ignore storage write failures
     }
@@ -193,24 +186,19 @@ export function ProjectDetailPage() {
     setIsPreviewVisible(true);
   };
 
+  if (isLoading || !projectDetail) {
+    return <LoadingPageSkeleton />;
+  }
+
   return (
     <Box className="project-page">
       <ProjectPageHeader
         title={projectDetail?.name ?? "Project detail"}
-        breadcrumbs={[
-          { label: "Dashboard", to: "/" },
-          { label: "Projects", to: "/projects" },
-          { label: "Detail" },
-        ]}
+        breadcrumbs={[{ label: "Dashboard", to: "/" }, { label: "Projects", to: "/projects" }, { label: "Detail" }]}
       />
 
       <Box className="detail-tabs-shell">
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          className="detail-tabs"
-          variant="scrollable"
-        >
+        <Tabs value={activeTab} onChange={handleTabChange} className="detail-tabs" variant="scrollable">
           <Tab label="Project Home" />
           <Tab label="Translations" />
         </Tabs>
@@ -238,161 +226,68 @@ export function ProjectDetailPage() {
             </Button>
           }
         >
-          This project is running auto translate in the background. Manual
-          editing is temporarily disabled until the job finishes.
+          This project is running auto translate in the background. Manual editing is temporarily disabled until the job
+          finishes.
         </Alert>
       ) : null}
 
-      {isLoading || !projectDetail ? (
-        <Box className="empty-state">
-          <Typography component="p">Loading project detail...</Typography>
-        </Box>
-      ) : (
-        <>
-          <Box
-            className={
-              activeTab === 0
-                ? "detail-tab-panel"
-                : "detail-tab-panel detail-tab-panel-hidden"
-            }
-          >
-            <Box className="detail-home-grid">
-              <ProjectDetailInformationSection projectDetail={projectDetail} />
-              <Box className="detail-home-linked-resources-grid">
-                <ProjectDetailTranslationMemoriesSection
-                  projectDetail={projectDetail}
-                  translationMemories={draftTranslationMemories}
-                  availableTranslationMemories={availableTranslationMemories}
-                  configForm={configForm}
-                  isConfigDialogOpen={isConfigDialogOpen}
-                  editingConfigId={editingConfigId}
-                  draggedTranslationMemoryId={draggedTranslationMemoryId}
-                  isSaving={isSaving}
-                  isReadOnly={
-                    projectDetail.status === "auto-translate-processing"
-                  }
-                  onFieldChange={handleConfigFieldChange}
-                  onOpenAddDialog={handleOpenAddDialog}
-                  onOpenEditDialog={handleOpenEditDialog}
-                  onCloseConfigDialog={handleCloseConfigDialog}
-                  onAdd={handleAddTranslationMemory}
-                  onDelete={handleDeleteConfig}
-                  onAccessModeChange={handleAccessModeChange}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  onDropOnRow={handleDropOnRow}
-                />
-                <ProjectDetailGlossariesSection
-                  projectGlossaries={draftGlossaries}
-                  availableGlossaries={availableGlossaries}
-                  glossaryConfigForm={glossaryConfigForm}
-                  isGlossaryDialogOpen={isGlossaryDialogOpen}
-                  draggedGlossaryId={draggedGlossaryId}
-                  isSaving={isSaving}
-                  isReadOnly={
-                    projectDetail.status === "auto-translate-processing"
-                  }
-                  onFieldChange={handleGlossaryConfigFieldChange}
-                  onOpenAddDialog={handleOpenAddGlossaryDialog}
-                  onCloseConfigDialog={handleCloseGlossaryDialog}
-                  onAdd={handleAddGlossary}
-                  onDelete={handleDeleteGlossaryConfig}
-                  onDragStart={handleGlossaryDragStart}
-                  onDragEnd={handleGlossaryDragEnd}
-                  onDropOnRow={handleDropGlossaryOnRow}
-                />
-              </Box>
-            </Box>
+      <Box className={activeTab === 0 ? "detail-tab-panel" : "detail-tab-panel detail-tab-panel-hidden"}>
+        <Box className="detail-home-grid">
+          <ProjectDetailInformationSection projectDetail={projectDetail} />
+          <Box className="detail-home-linked-resources-grid">
+            <ProjectDetailTranslationMemoriesSection
+              projectDetail={projectDetail}
+              translationMemories={draftTranslationMemories}
+              availableTranslationMemories={availableTranslationMemories}
+              configForm={configForm}
+              isConfigDialogOpen={isConfigDialogOpen}
+              editingConfigId={editingConfigId}
+              draggedTranslationMemoryId={draggedTranslationMemoryId}
+              isSaving={isSaving}
+              isReadOnly={projectDetail.status === "auto-translate-processing"}
+              onFieldChange={handleConfigFieldChange}
+              onOpenAddDialog={handleOpenAddDialog}
+              onOpenEditDialog={handleOpenEditDialog}
+              onCloseConfigDialog={handleCloseConfigDialog}
+              onAdd={handleAddTranslationMemory}
+              onDelete={handleDeleteConfig}
+              onAccessModeChange={handleAccessModeChange}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDropOnRow={handleDropOnRow}
+            />
+            <ProjectDetailGlossariesSection
+              projectGlossaries={draftGlossaries}
+              availableGlossaries={availableGlossaries}
+              glossaryConfigForm={glossaryConfigForm}
+              isGlossaryDialogOpen={isGlossaryDialogOpen}
+              draggedGlossaryId={draggedGlossaryId}
+              isSaving={isSaving}
+              isReadOnly={projectDetail.status === "auto-translate-processing"}
+              onFieldChange={handleGlossaryConfigFieldChange}
+              onOpenAddDialog={handleOpenAddGlossaryDialog}
+              onCloseConfigDialog={handleCloseGlossaryDialog}
+              onAdd={handleAddGlossary}
+              onDelete={handleDeleteGlossaryConfig}
+              onDragStart={handleGlossaryDragStart}
+              onDragEnd={handleGlossaryDragEnd}
+              onDropOnRow={handleDropGlossaryOnRow}
+            />
           </Box>
+        </Box>
+      </Box>
 
-          <Box
-            className={
-              activeTab === 1
-                ? "detail-tab-panel"
-                : "detail-tab-panel detail-tab-panel-hidden"
-            }
-          >
-            <Box className="translations-tab-grid">
-              {projectDetail.segmentCount > 0 ||
-              hasSegments ||
-              isLoadingSegments ? (
-                isPreviewVisible ? (
-                  <TranslationsSplitPane
-                    alignmentPane={
-                      <AlignmentTool
-                        segments={segments}
-                        savedSegmentTargets={savedSegmentTargets}
-                        sourceLanguageLabel={getLanguageLabel(
-                          projectDetail.sourceLang,
-                        )}
-                        targetLanguageLabel={getLanguageLabel(
-                          projectDetail.targetLang,
-                        )}
-                        isLoading={isLoadingSegments}
-                        isReadOnly={isReadOnly}
-                        isBusy={isStartingAutoTranslate}
-                        isSaving={isSavingSegments}
-                        isExporting={isExportingDocument}
-                        hasPendingChanges={hasPendingSegmentChanges}
-                        activeSegmentExternalId={activeSegmentExternalId}
-                        inlineTranslatingSegmentId={inlineTranslatingSegmentId}
-                        confirmingSegmentId={confirmingSegmentId}
-                        inlineTranslateProviderName={
-                          inlineTranslateProviderName
-                        }
-                        termFuzzyMatchThreshold={termFuzzyMatchThreshold}
-                        inlineCaretRestoreSegmentId={
-                          inlineCaretRestoreSegmentId
-                        }
-                        inlineCaretRestoreToken={inlineCaretRestoreToken}
-                        confirmFocusSegmentId={confirmFocusSegmentId}
-                        confirmFocusToken={confirmFocusToken}
-                        projectTerms={projectTerms}
-                        isPreviewVisible={isPreviewVisible}
-                        restoreScrollKey={segmentSaveRevision}
-                        onRegisterFlushPendingChanges={(
-                          flushPendingChanges,
-                        ) => {
-                          flushPendingTranslationDraftsRef.current =
-                            flushPendingChanges;
-                        }}
-                        onTargetChange={handleTargetChange}
-                        onActiveSegmentChange={handleActiveSegmentChange}
-                        onInlineTranslateSegment={handleInlineTranslateSegment}
-                        onConfirmSegment={handleConfirmSegment}
-                        onSplitSegment={(segmentId, splitIndex) =>
-                          void handleSplitSegment(segmentId, splitIndex)
-                        }
-                        onJoinSelected={(segmentIds) =>
-                          void handleMergeSegments(segmentIds)
-                        }
-                        onSaveAll={() => void handleSaveSegments()}
-                        onExport={() => void handleExportDocument()}
-                        onOpenAutoTranslate={handleOpenAutoTranslateDialog}
-                        onShowPreview={handleShowPreview}
-                      />
-                    }
-                    previewPane={
-                      <DocumentPreviewPanel
-                        preview={preview}
-                        segments={segments}
-                        activeSegmentExternalId={activeSegmentExternalId}
-                        isLoading={isLoadingPreview}
-                        error={previewError}
-                        onClose={() => setIsPreviewVisible(false)}
-                      />
-                    }
-                  />
-                ) : (
+      <Box className={activeTab === 1 ? "detail-tab-panel" : "detail-tab-panel detail-tab-panel-hidden"}>
+        <Box className="translations-tab-grid">
+          {projectDetail.segmentCount > 0 || hasSegments || isLoadingSegments ? (
+            isPreviewVisible ? (
+              <TranslationsSplitPane
+                alignmentPane={
                   <AlignmentTool
                     segments={segments}
                     savedSegmentTargets={savedSegmentTargets}
-                    sourceLanguageLabel={getLanguageLabel(
-                      projectDetail.sourceLang,
-                    )}
-                    targetLanguageLabel={getLanguageLabel(
-                      projectDetail.targetLang,
-                    )}
+                    sourceLanguageLabel={getLanguageLabel(projectDetail.sourceLang)}
+                    targetLanguageLabel={getLanguageLabel(projectDetail.targetLang)}
                     isLoading={isLoadingSegments}
                     isReadOnly={isReadOnly}
                     isBusy={isStartingAutoTranslate}
@@ -412,36 +307,79 @@ export function ProjectDetailPage() {
                     isPreviewVisible={isPreviewVisible}
                     restoreScrollKey={segmentSaveRevision}
                     onRegisterFlushPendingChanges={(flushPendingChanges) => {
-                      flushPendingTranslationDraftsRef.current =
-                        flushPendingChanges;
+                      flushPendingTranslationDraftsRef.current = flushPendingChanges;
                     }}
                     onTargetChange={handleTargetChange}
                     onActiveSegmentChange={handleActiveSegmentChange}
                     onInlineTranslateSegment={handleInlineTranslateSegment}
                     onConfirmSegment={handleConfirmSegment}
-                    onSplitSegment={(segmentId, splitIndex) =>
-                      void handleSplitSegment(segmentId, splitIndex)
-                    }
-                    onJoinSelected={(segmentIds) =>
-                      void handleMergeSegments(segmentIds)
-                    }
+                    onSplitSegment={(segmentId, splitIndex) => void handleSplitSegment(segmentId, splitIndex)}
+                    onJoinSelected={(segmentIds) => void handleMergeSegments(segmentIds)}
                     onSaveAll={() => void handleSaveSegments()}
                     onExport={() => void handleExportDocument()}
                     onOpenAutoTranslate={handleOpenAutoTranslateDialog}
                     onShowPreview={handleShowPreview}
                   />
-                )
-              ) : (
-                <GenerateSegmentsCard
-                  canGenerate={Boolean(projectDetail.documentFileName)}
-                  isGenerating={isGeneratingSegments}
-                  onGenerate={() => void handleGenerateSegments()}
-                />
-              )}
-            </Box>
-          </Box>
-        </>
-      )}
+                }
+                previewPane={
+                  <DocumentPreviewPanel
+                    preview={preview}
+                    segments={segments}
+                    activeSegmentExternalId={activeSegmentExternalId}
+                    isLoading={isLoadingPreview}
+                    error={previewError}
+                    onClose={() => setIsPreviewVisible(false)}
+                  />
+                }
+              />
+            ) : (
+              <AlignmentTool
+                segments={segments}
+                savedSegmentTargets={savedSegmentTargets}
+                sourceLanguageLabel={getLanguageLabel(projectDetail.sourceLang)}
+                targetLanguageLabel={getLanguageLabel(projectDetail.targetLang)}
+                isLoading={isLoadingSegments}
+                isReadOnly={isReadOnly}
+                isBusy={isStartingAutoTranslate}
+                isSaving={isSavingSegments}
+                isExporting={isExportingDocument}
+                hasPendingChanges={hasPendingSegmentChanges}
+                activeSegmentExternalId={activeSegmentExternalId}
+                inlineTranslatingSegmentId={inlineTranslatingSegmentId}
+                confirmingSegmentId={confirmingSegmentId}
+                inlineTranslateProviderName={inlineTranslateProviderName}
+                termFuzzyMatchThreshold={termFuzzyMatchThreshold}
+                inlineCaretRestoreSegmentId={inlineCaretRestoreSegmentId}
+                inlineCaretRestoreToken={inlineCaretRestoreToken}
+                confirmFocusSegmentId={confirmFocusSegmentId}
+                confirmFocusToken={confirmFocusToken}
+                projectTerms={projectTerms}
+                isPreviewVisible={isPreviewVisible}
+                restoreScrollKey={segmentSaveRevision}
+                onRegisterFlushPendingChanges={(flushPendingChanges) => {
+                  flushPendingTranslationDraftsRef.current = flushPendingChanges;
+                }}
+                onTargetChange={handleTargetChange}
+                onActiveSegmentChange={handleActiveSegmentChange}
+                onInlineTranslateSegment={handleInlineTranslateSegment}
+                onConfirmSegment={handleConfirmSegment}
+                onSplitSegment={(segmentId, splitIndex) => void handleSplitSegment(segmentId, splitIndex)}
+                onJoinSelected={(segmentIds) => void handleMergeSegments(segmentIds)}
+                onSaveAll={() => void handleSaveSegments()}
+                onExport={() => void handleExportDocument()}
+                onOpenAutoTranslate={handleOpenAutoTranslateDialog}
+                onShowPreview={handleShowPreview}
+              />
+            )
+          ) : (
+            <GenerateSegmentsCard
+              canGenerate={Boolean(projectDetail.documentFileName)}
+              isGenerating={isGeneratingSegments}
+              onGenerate={() => void handleGenerateSegments()}
+            />
+          )}
+        </Box>
+      </Box>
 
       <AutoTranslateDialog
         open={isAutoTranslateDialogOpen}
@@ -458,9 +396,7 @@ export function ProjectDetailPage() {
 
 function loadPreviewVisibility() {
   try {
-    const storedValue = window.localStorage.getItem(
-      PREVIEW_VISIBILITY_STORAGE_KEY,
-    );
+    const storedValue = window.localStorage.getItem(PREVIEW_VISIBILITY_STORAGE_KEY);
     if (storedValue === null) {
       return true;
     }

@@ -1,0 +1,131 @@
+.loading-experience {
+  display: grid;
+  gap: 16px;
+  place-items: center;
+  padding: 32px 24px;
+  border: 1px solid rgba(53, 38, 27, 0.1);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.78), transparent 34%),
+    linear-gradient(145deg, rgba(255, 249, 242, 0.98), rgba(244, 232, 214, 0.96));
+  box-shadow: 0 20px 48px rgba(53, 38, 27, 0.08);
+  text-align: center;
+}
+
+.loading-experience-page {
+  min-height: calc(100vh - 180px);
+  width: 100%;
+}
+
+.loading-experience-table {
+  min-height: 220px;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.loading-experience-icon-shell {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 24px;
+  background: linear-gradient(145deg, #fffaf4, #f2dec0);
+  color: #8b6336;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 14px 30px rgba(139, 99, 54, 0.16);
+}
+
+.loading-experience-icon {
+  font-size: 34px !important;
+  animation: loadingIconSpin 3.8s linear infinite;
+}
+
+.loading-experience-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.loading-experience-title {
+  margin: 0;
+  color: #2c1d13;
+  font-size: clamp(1.08rem, 1rem + 0.35vw, 1.35rem);
+  font-weight: 800;
+}
+
+.loading-experience-subtitle {
+  margin: 0;
+  color: #6b5340;
+  max-width: 480px;
+}
+
+.loading-experience-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) auto;
+  gap: 12px;
+  align-items: center;
+  width: min(100%, 420px);
+}
+
+.loading-experience-progress-track {
+  position: relative;
+  overflow: hidden;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(139, 99, 54, 0.12);
+}
+
+.loading-experience-progress-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.48) 38%,
+    transparent 72%
+  );
+  animation: loadingTrackSweep 1.8s linear infinite;
+}
+
+.loading-experience-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #a0703f, #cfb181 55%, #f2e2c4);
+  transition: width 0.26s ease;
+}
+
+.loading-experience-progress-value {
+  color: #8b6336;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+@keyframes loadingIconSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loadingTrackSweep {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(220%); }
+}
+
+@media (max-width: 640px) {
+  .loading-experience {
+    padding: 24px 18px;
+  }
+
+  .loading-experience-page {
+    min-height: calc(100vh - 140px);
+  }
+
+  .loading-experience-table {
+    min-height: 180px;
+  }
+
+  .loading-experience-progress {
+    grid-template-columns: 1fr;
+  }
+}
