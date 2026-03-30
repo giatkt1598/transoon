@@ -18,7 +18,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "serve": "node dist/index.js --serve-static",
+    "serve": "cd ../client && npm run build && cd ../server && npm run build && cross-env PORT=5203 node dist/index.js --serve-static",
     "tunnel": "cloudflared tunnel --url http://localhost:5203"
   },
   "devDependencies": {
