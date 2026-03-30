@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { toast } from 'react-toastify'
+import { dispatchAutoTranslateStartedNotification } from '../../app/auto-translate-notifications-context'
 import type {
   ProjectAutoTranslateProgressResponse,
   ProjectDetail,
@@ -661,6 +662,12 @@ export function useProjectTranslations({
         updatedAt: new Date().toISOString(),
       })
       setIsAutoTranslateDialogOpen(false)
+      dispatchAutoTranslateStartedNotification({
+        projectId,
+        projectName: projectDetail?.name ?? 'Project',
+        providerName: selectedProviderName,
+        totalSegments: projectSegmentCount,
+      })
       toast.success('Auto translate started in the background.')
     } catch (autoTranslateError) {
       const message =

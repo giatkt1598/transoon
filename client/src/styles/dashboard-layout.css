@@ -298,6 +298,205 @@
   color: #5d4736;
 }
 
+.auto-translate-notifications-popover {
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.auto-translate-notifications-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.auto-translate-notifications-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.auto-translate-notifications-title {
+  margin: 0;
+  color: #24170f;
+  font-weight: 700;
+}
+
+.auto-translate-notifications-subtitle {
+  margin: 4px 0 0;
+  color: #7d634f;
+  font-size: 0.85rem;
+}
+
+.auto-translate-notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow: auto;
+}
+
+.auto-translate-notification-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(58, 44, 30, 0.08);
+  background: #fffaf4;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.auto-translate-notification-item:hover {
+  background: #fff7ee;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(73, 52, 34, 0.08);
+}
+
+.auto-translate-notification-item.unread {
+  border-color: rgba(13, 103, 200, 0.18);
+  box-shadow: inset 3px 0 0 #0d67c8;
+}
+
+.auto-translate-notification-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.auto-translate-notification-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: rgba(13, 103, 200, 0.08);
+  color: #0d67c8;
+}
+
+.auto-translate-notification-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.auto-translate-notification-project-name {
+  min-width: 0;
+  color: #24170f;
+}
+
+.auto-translate-notification-cancel.MuiButton-root {
+  align-self: start;
+}
+
+.auto-translate-notification-copy {
+  min-width: 0;
+  padding-left: 40px;
+}
+
+.auto-translate-notification-copy p {
+  margin: 0;
+  color: #4d392b;
+  font-size: 0.92rem;
+}
+
+.auto-translate-notification-copy span {
+  display: block;
+  margin-top: 6px;
+  color: #8a705c;
+  font-size: 0.8rem;
+}
+
+.auto-translate-notification-progress.MuiLinearProgress-root {
+  margin-top: 10px;
+  height: 6px;
+  border-radius: 999px;
+  background: #ead9c3;
+  overflow: hidden;
+}
+
+.auto-translate-notification-progress .MuiLinearProgress-bar {
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    #d97f37 0%,
+    #f0b86d 25%,
+    #285a53 50%,
+    #f0b86d 75%,
+    #d97f37 100%
+  );
+  background-size: 200% 100%;
+  animation: auto-translate-notification-progress-flow 1.2s linear infinite;
+}
+
+.auto-translate-notification-chip.MuiChip-root {
+  height: 22px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.auto-translate-notification-chip.queued,
+.auto-translate-notification-chip.translating {
+  background: #fff0da;
+  color: #b35d18;
+}
+
+.auto-translate-notification-chip.completed {
+  background: #d9f7cf;
+  color: #3b7f2f;
+}
+
+.auto-translate-notification-chip.failed,
+.auto-translate-notification-chip.cancelled {
+  background: #ffe0dd;
+  color: #b42318;
+}
+
+.auto-translate-notifications-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 14px;
+  color: #7d634f;
+}
+
+.auto-translate-notification-spin {
+  animation: auto-translate-notification-spin 0.9s linear infinite;
+}
+
+@keyframes auto-translate-notification-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes auto-translate-notification-progress-flow {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: 0 0;
+  }
+}
+
 .user-avatar.MuiAvatar-root {
   width: 42px;
   height: 42px;

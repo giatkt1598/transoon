@@ -1,9 +1,12 @@
-import { Box, MenuItem, TextField, Typography } from "@mui/material";
+import DeleteSweepRoundedIcon from "@mui/icons-material/DeleteSweepRounded";
+import { Box, Button, MenuItem, TextField, Typography } from "@mui/material";
+import { useAutoTranslateNotifications } from "../app/auto-translate-notifications-context";
 import { LoadingPageSkeleton } from "../components/loading-skeleton";
 import { ProjectPageHeader } from "../project-management/components/project-page-header";
 import { useSettingsPage } from "../settings-management/hooks/use-settings-page";
 
 export function SettingsPage() {
+  const { notifications, clearAllNotifications } = useAutoTranslateNotifications();
   const {
     translateProviders,
     formValues,
@@ -71,6 +74,39 @@ export function SettingsPage() {
             }}
             helperText="Minimum score required for term suggestions."
           />
+        </Box>
+      </Box>
+
+      <Box className="project-editor-shell settings-shell">
+        <Box className="project-editor-section-head">
+          <Typography component="h2" className="project-editor-title">
+            Notifications
+          </Typography>
+          <Typography component="p" className="project-editor-copy">
+            Manage auto translate notifications shown in the header notification center.
+          </Typography>
+        </Box>
+
+        <Box
+          className="project-editor-form settings-form"
+          sx={{
+            gap: 2,
+            alignItems: "flex-start",
+          }}
+        >
+          <Typography component="p" className="project-editor-copy">
+            Stored notifications: {notifications.length}
+          </Typography>
+          <Button
+            type="button"
+            variant="contained"
+            color="primary"
+            disabled={notifications.length === 0}
+            onClick={clearAllNotifications}
+            startIcon={<DeleteSweepRoundedIcon fontSize="small" />}
+          >
+            Clear all notifications
+          </Button>
         </Box>
       </Box>
 

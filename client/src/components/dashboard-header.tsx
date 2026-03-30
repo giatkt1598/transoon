@@ -11,6 +11,13 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  useAutoTranslateNotifications,
+  type AutoTranslateNotification,
+} from "../app/auto-translate-notifications-context";
+import { AutoTranslateNotificationsPopover } from "./auto-translate-notifications-popover";
 
 type DashboardHeaderProps = {
   sidebarCollapsed: boolean;
@@ -23,6 +30,27 @@ export function DashboardHeader({
   isMobileNavigation = false,
   onOpenMobileNavigation,
 }: DashboardHeaderProps) {
+  const navigate = useNavigate();
+  const [notificationAnchorEl, setNotificationAnchorEl] =
+    useState<HTMLElement | null>(null);
+  const {
+    notifications,
+    unreadCount,
+    activeJobCount,
+    isCancellingProjectId,
+    markAllAsRead,
+    markNotificationAsRead,
+    cancelProjectJob,
+  } = useAutoTranslateNotifications();
+
+  function handleOpenNotification(
+    notification: AutoTranslateNotification,
+  ) {
+    markNotificationAsRead(notification.id);
+    setNotificationAnchorEl(null);
+    navigate(`/projects/${notification.projectId}?tab=translations`);
+  }
+
   return (
     <Box
       component="header"
@@ -50,13 +78,32 @@ export function DashboardHeader({
             sx={{ width: "100%" }}
           />
         </Box>
-        <IconButton className="topbar-icon-button">
-          <Badge badgeContent={3} color="error">
+        <IconButton
+          className="topbar-icon-button"
+          onClick={(event) => setNotificationAnchorEl(event.currentTarget)}
+        >
+          <Badge
+            badgeContent={unreadCount}
+            color="error"
+            invisible={unreadCount === 0}
+          >
             <NotificationsNoneRoundedIcon fontSize="small" />
           </Badge>
         </IconButton>
         <Avatar className="user-avatar">T</Avatar>
       </Box>
+      <AutoTranslateNotificationsPopover
+        anchorEl={notificationAnchorEl}
+        open={Boolean(notificationAnchorEl)}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        activeJobCount={activeJobCount}
+        isCancellingProjectId={isCancellingProjectId}
+        onClose={() => setNotificationAnchorEl(null)}
+        onReadAll={markAllAsRead}
+        onCancelJob={(projectId) => void cancelProjectJob(projectId)}
+        onOpenNotification={handleOpenNotification}
+      />
     </Box>
   );
 }
