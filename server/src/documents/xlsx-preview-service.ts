@@ -436,8 +436,9 @@ function toCellSegmentBinding(block: XlsxSegmentBlock): CellSegmentBinding {
 }
 
 function getCellDisplayText(cell: ExcelJS.Cell) {
-  if (typeof cell.text === "string" && cell.text.length > 0) {
-    return cell.text;
+  const safeCellText = getSafeCellText(cell);
+  if (typeof safeCellText === "string" && safeCellText.length > 0) {
+    return safeCellText;
   }
 
   const value = cell.value;
@@ -484,6 +485,14 @@ function getCellDisplayText(cell: ExcelJS.Cell) {
   }
 
   return "";
+}
+
+function getSafeCellText(cell: ExcelJS.Cell) {
+  try {
+    return cell.text;
+  } catch {
+    return "";
+  }
 }
 
 function hasMeaningfulStyle(cell: ExcelJS.Cell) {
