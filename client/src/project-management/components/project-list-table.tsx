@@ -10,7 +10,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
@@ -23,9 +23,22 @@ type ProjectListTableProps = {
   projects: ProjectSummary[];
   searchTerm: string;
   isLoading: boolean;
-  isDeleting: boolean;
   onSearchChange: (value: string) => void;
   onDeleteProject: (projectId: string) => Promise<void>;
+  sortState: {
+    column: keyof ProjectSummary;
+    direction: SortDirection;
+  } | null;
+  onSortChange: (
+    sortState: {
+      column: keyof ProjectSummary;
+      direction: SortDirection;
+    } | null,
+  ) => void;
+  page: number;
+  rowsPerPage: number;
+  onPageChange: (page: number) => void;
+  onRowsPerPageChange: (rowsPerPage: number) => void;
 };
 
 function formatDateTime(value: string | null) {
@@ -56,15 +69,14 @@ export function ProjectListTable({
   isLoading,
   onSearchChange,
   onDeleteProject,
+  sortState,
+  onSortChange,
+  page,
+  rowsPerPage,
+  onPageChange,
+  onRowsPerPageChange,
 }: ProjectListTableProps) {
   const navigate = useNavigate();
-  const [sortState, setSortState] = useState<{
-    column: keyof ProjectSummary;
-    direction: SortDirection;
-  } | null>({
-    column: "createdAt",
-    direction: "desc",
-  });
 
   const sortedProjects = useMemo(() => {
     if (!sortState) {
@@ -84,7 +96,7 @@ export function ProjectListTable({
     pagination: true,
     sortState: sortState ?? undefined,
     onSortChange: (column, sortDirection) => {
-      setSortState(sortDirection ? { column, direction: sortDirection } : null);
+      onSortChange(sortDirection ? { column, direction: sortDirection } : null);
     },
     columns: [
       {
@@ -233,6 +245,12 @@ export function ProjectListTable({
         />
       }
       isLoading={isLoading}
+      controlledPagination={{
+        page,
+        rowsPerPage,
+        onPageChange,
+        onRowsPerPageChange,
+      }}
       emptyStateText="No project matches this view."
       emptyStateSubtext="Create a project to manage translations, segments, and review progress."
     />

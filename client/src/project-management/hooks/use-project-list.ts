@@ -4,9 +4,12 @@ import { getAppSocket } from '../../app/socket'
 import type { ProjectAutoTranslateProgressResponse, ProjectSummary } from '../../app/types'
 import { deleteProject, fetchProjects } from '../api'
 
-export function useProjectList() {
+type UseProjectListOptions = {
+  searchTerm: string
+}
+
+export function useProjectList({ searchTerm }: UseProjectListOptions) {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -17,6 +20,7 @@ export function useProjectList() {
     async function loadProjects() {
       try {
         setIsLoading(true)
+        setError(null)
         setProjects(await fetchProjects(controller.signal))
       } catch (loadError) {
         if (controller.signal.aborted) {
@@ -127,11 +131,9 @@ export function useProjectList() {
   return {
     projects,
     filteredProjects,
-    searchTerm,
     isLoading,
     isDeleting,
     error,
-    setSearchTerm,
     handleDeleteProject,
   }
 }

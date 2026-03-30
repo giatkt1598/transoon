@@ -3,9 +3,14 @@ import { toast } from 'react-toastify'
 import type { TranslationMemorySummary } from '../../app/types'
 import { deleteTranslationMemory, fetchTranslationMemories } from '../api'
 
-export function useTranslationMemoryList() {
+type UseTranslationMemoryListOptions = {
+  searchTerm: string
+}
+
+export function useTranslationMemoryList({
+  searchTerm,
+}: UseTranslationMemoryListOptions) {
   const [translationMemories, setTranslationMemories] = useState<TranslationMemorySummary[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -16,6 +21,7 @@ export function useTranslationMemoryList() {
     async function loadTranslationMemories() {
       try {
         setIsLoading(true)
+        setError(null)
         setTranslationMemories(await fetchTranslationMemories(controller.signal))
       } catch (loadError) {
         if (controller.signal.aborted) {
@@ -79,11 +85,9 @@ export function useTranslationMemoryList() {
 
   return {
     filteredTranslationMemories,
-    searchTerm,
     isLoading,
     isDeleting,
     error,
-    setSearchTerm,
     handleDeleteTranslationMemory,
   }
 }

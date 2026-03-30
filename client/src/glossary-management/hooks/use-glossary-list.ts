@@ -3,9 +3,12 @@ import { toast } from 'react-toastify'
 import type { GlossarySummary } from '../../app/types'
 import { deleteGlossary, fetchGlossaries } from '../api'
 
-export function useGlossaryList() {
+type UseGlossaryListOptions = {
+  searchTerm: string
+}
+
+export function useGlossaryList({ searchTerm }: UseGlossaryListOptions) {
   const [glossaries, setGlossaries] = useState<GlossarySummary[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -16,6 +19,7 @@ export function useGlossaryList() {
     async function loadGlossaries() {
       try {
         setIsLoading(true)
+        setError(null)
         setGlossaries(await fetchGlossaries(controller.signal))
       } catch (loadError) {
         if (controller.signal.aborted) {
@@ -73,11 +77,9 @@ export function useGlossaryList() {
 
   return {
     filteredGlossaries,
-    searchTerm,
     isLoading,
     isDeleting,
     error,
-    setSearchTerm,
     handleDeleteGlossary,
   }
 }

@@ -4,7 +4,7 @@ import {
 } from "../../components/shared-table";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import { Box, InputAdornment, TextField, Typography } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import type { TranslationMemorySummary } from "../../app/types";
@@ -15,9 +15,22 @@ type TranslationMemoryListTableProps = {
   translationMemories: TranslationMemorySummary[];
   searchTerm: string;
   isLoading: boolean;
-  isDeleting: boolean;
   onSearchChange: (value: string) => void;
   onDeleteTranslationMemory: (translationMemoryId: string) => Promise<void>;
+  sortState: {
+    column: keyof TranslationMemorySummary;
+    direction: SortDirection;
+  } | null;
+  onSortChange: (
+    sortState: {
+      column: keyof TranslationMemorySummary;
+      direction: SortDirection;
+    } | null,
+  ) => void;
+  page: number;
+  rowsPerPage: number;
+  onPageChange: (page: number) => void;
+  onRowsPerPageChange: (rowsPerPage: number) => void;
 };
 
 function formatDateTime(value: string | null) {
@@ -48,15 +61,13 @@ export function TranslationMemoryListTable({
   isLoading,
   onSearchChange,
   onDeleteTranslationMemory,
+  sortState,
+  onSortChange,
+  page,
+  rowsPerPage,
+  onPageChange,
+  onRowsPerPageChange,
 }: TranslationMemoryListTableProps) {
-  const [sortState, setSortState] = useState<{
-    column: keyof TranslationMemorySummary;
-    direction: SortDirection;
-  } | null>({
-    column: "lastModifiedAt",
-    direction: "desc",
-  });
-
   const sortedTranslationMemories = useMemo(() => {
     if (!sortState) {
       return translationMemories;
@@ -76,7 +87,7 @@ export function TranslationMemoryListTable({
     pagination: true,
     sortState: sortState ?? undefined,
     onSortChange: (column, sortDirection) => {
-      setSortState(sortDirection ? { column, direction: sortDirection } : null);
+      onSortChange(sortDirection ? { column, direction: sortDirection } : null);
     },
     columns: [
       {
@@ -180,6 +191,12 @@ export function TranslationMemoryListTable({
         />
       }
       isLoading={isLoading}
+      controlledPagination={{
+        page,
+        rowsPerPage,
+        onPageChange,
+        onRowsPerPageChange,
+      }}
       emptyStateText="No translation memory matches this view."
       emptyStateSubtext="Create one to organize reusable translated terms and future lookup priority."
     />

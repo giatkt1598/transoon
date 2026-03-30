@@ -2,7 +2,8 @@ import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import { Box, InputAdornment, TextField, Typography } from '@mui/material'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { GlossarySummary } from '../../app/types'
 import { orderBy, orderByDescending, type SortDirection } from '../../app/linq'
 import { formatLanguageRoute } from '../../app/utils'
@@ -14,6 +15,20 @@ type GlossaryListTableProps = {
   isLoading: boolean
   onSearchChange: (value: string) => void
   onDeleteGlossary: (glossaryId: string) => Promise<void>
+  sortState: {
+    column: keyof GlossarySummary
+    direction: SortDirection
+  } | null
+  onSortChange: (
+    sortState: {
+      column: keyof GlossarySummary
+      direction: SortDirection
+    } | null,
+  ) => void
+  page: number
+  rowsPerPage: number
+  onPageChange: (page: number) => void
+  onRowsPerPageChange: (rowsPerPage: number) => void
 }
 
 function formatDateTime(value: string | null) {
@@ -44,15 +59,14 @@ export function GlossaryListTable({
   isLoading,
   onSearchChange,
   onDeleteGlossary,
+  sortState,
+  onSortChange,
+  page,
+  rowsPerPage,
+  onPageChange,
+  onRowsPerPageChange,
 }: GlossaryListTableProps) {
-  const [sortState, setSortState] = useState<{
-    column: keyof GlossarySummary
-    direction: SortDirection
-  } | null>({
-    column: 'lastModifiedAt',
-    direction: 'desc',
-  })
-
+  const navigate = useNavigate()
   const sortedGlossaries = useMemo(() => {
     if (!sortState) {
       return glossaries
@@ -71,7 +85,7 @@ export function GlossaryListTable({
     pagination: true,
     sortState: sortState ?? undefined,
     onSortChange: (column, direction) => {
-      setSortState(direction ? { column, direction } : null)
+      onSortChange(direction ? { column, direction } : null)
     },
     columns: [
       {
@@ -123,7 +137,7 @@ export function GlossaryListTable({
           label: 'Edit',
           icon: <EditOutlinedIcon fontSize="small" />,
           onClick: (row) => {
-            window.location.href = `/glossaries/${row.id}`
+            navigate(`/glossaries/${row.id}`)
           },
         },
         {
@@ -136,7 +150,7 @@ export function GlossaryListTable({
       ],
     },
     rowClick: (row) => {
-      window.location.href = `/glossaries/${row.id}`
+      navigate(`/glossaries/${row.id}`)
     },
   }
 
@@ -161,6 +175,12 @@ export function GlossaryListTable({
         />
       }
       isLoading={isLoading}
+      controlledPagination={{
+        page,
+        rowsPerPage,
+        onPageChange,
+        onRowsPerPageChange,
+      }}
       emptyStateText="No glossary matches this view."
       emptyStateSubtext="Create one to enforce preferred terminology before and after AI translation."
     />
