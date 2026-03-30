@@ -1,5 +1,14 @@
 import DeleteSweepRoundedIcon from "@mui/icons-material/DeleteSweepRounded";
-import { Box, Button, MenuItem, TextField, Typography } from "@mui/material";
+import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
+import {
+  Box,
+  Button,
+  IconButton,
+  InputAdornment,
+  MenuItem,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useAutoTranslateNotifications } from "../app/auto-translate-notifications-context";
 import { LoadingPageSkeleton } from "../components/loading-skeleton";
 import { ProjectPageHeader } from "../project-management/components/project-page-header";
@@ -41,10 +50,59 @@ export function SettingsPage() {
           <TextField
             select
             label="Inline Translate Provider (Ctrl + Space)"
-            value={formValues.inlineTranslateProvider}
-            onChange={(event) => handleInlineTranslateProviderChange(event.target.value)}
+            value={formValues.inlineTranslateProvider ?? ''}
+            onChange={(event) =>
+              handleInlineTranslateProviderChange(
+                event.target.value ? event.target.value : null,
+              )
+            }
             fullWidth
+            SelectProps={{
+              displayEmpty: true,
+              renderValue: (value) => {
+                const selectedValue = typeof value === "string" ? value : ""
+                return selectedValue ? (
+                  selectedValue
+                ) : (
+                  <span style={{ color: "rgba(89, 67, 45, 0.54)" }}>
+                    No provider selected
+                  </span>
+                )
+              },
+            }}
+            InputProps={{
+              endAdornment:
+                formValues.inlineTranslateProvider !== null ? (
+                  <InputAdornment position="end" sx={{ mr: 3 }}>
+                    <IconButton
+                      size="small"
+                      edge="end"
+                      aria-label="Clear inline translate provider"
+                      onMouseDown={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                      }}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        handleInlineTranslateProviderChange(null)
+                      }}
+                    >
+                      <ClearRoundedIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : undefined,
+            }}
+            InputLabelProps={{
+              shrink: true,
+            }}
+            helperText={
+              formValues.inlineTranslateProvider === null
+                ? 'Inline translate is disabled. Translation Memory suggestions still work with Ctrl + Space.'
+                : 'Choose which provider is used for inline translation shortcuts.'
+            }
           >
+            <MenuItem value="" sx={{ display: "none" }} />
             {translateProviders.map((provider) => (
               <MenuItem key={provider.name} value={provider.name}>
                 {provider.name}
@@ -67,6 +125,9 @@ export function SettingsPage() {
               handleTermFuzzyMatchThresholdChange(nextThresholdValue);
             }}
             fullWidth
+            InputLabelProps={{
+              shrink: true,
+            }}
             inputProps={{
               min: 0,
               max: 100,

@@ -1534,9 +1534,10 @@ function validateSettingsInput(body: unknown) {
 
   if (
     inlineTranslateProvider !== undefined &&
+    inlineTranslateProvider !== null &&
     (typeof inlineTranslateProvider !== "string" || inlineTranslateProvider.trim().length === 0)
   ) {
-    return "Inline translate provider must be a non-empty string.";
+    return "Inline translate provider must be null or a non-empty string.";
   }
 
   if (

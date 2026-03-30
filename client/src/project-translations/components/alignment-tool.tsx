@@ -64,7 +64,7 @@ type AlignmentToolProps = {
   activeSegmentExternalId: string | null;
   inlineTranslatingSegmentId: string | null;
   confirmingSegmentId: string | null;
-  inlineTranslateProviderName: string;
+  inlineTranslateProviderName: string | null;
   termFuzzyMatchThreshold: number;
   inlineCaretRestoreSegmentId: string | null;
   inlineCaretRestoreToken: number;
@@ -936,7 +936,7 @@ type RowData = {
   activeSegmentExternalId: string | null;
   inlineTranslatingSegmentId: string | null;
   confirmingSegmentId: string | null;
-  inlineTranslateProviderName: string;
+  inlineTranslateProviderName: string | null;
   termFuzzyMatchThreshold: number;
   registerTargetInput: (
     segmentId: string,
@@ -1278,6 +1278,10 @@ function AlignmentVirtualRow({
                 return;
               }
 
+              if (!inlineTranslateProviderName) {
+                return;
+              }
+
               flushSegmentDraft(segment.id);
               onInlineTranslateSegment(segment.id);
               return;
@@ -1369,24 +1373,26 @@ function AlignmentVirtualRow({
                 </Box>
               </MenuItem>
             ))}
-            <MenuItem
-              selected={
-                selectedInlineAssistIndex ===
-                (inlineAssistMenu?.matches.length ?? Number.POSITIVE_INFINITY)
-              }
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => {
-                setInlineAssistMenu(null);
-                setSelectedInlineAssistIndex(0);
-                flushSegmentDraft(segment.id);
-                onInlineTranslateSegment(segment.id);
-              }}
-              className="alignment-inline-assist-item alignment-inline-assist-translate"
-            >
-              <Typography component="span">
-                {`Translate with ${inlineTranslateProviderName || "Translation Provider"}`}
-              </Typography>
-            </MenuItem>
+            {inlineTranslateProviderName ? (
+              <MenuItem
+                selected={
+                  selectedInlineAssistIndex ===
+                  (inlineAssistMenu?.matches.length ?? Number.POSITIVE_INFINITY)
+                }
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setInlineAssistMenu(null);
+                  setSelectedInlineAssistIndex(0);
+                  flushSegmentDraft(segment.id);
+                  onInlineTranslateSegment(segment.id);
+                }}
+                className="alignment-inline-assist-item alignment-inline-assist-translate"
+              >
+                <Typography component="span">
+                  {`Translate with ${inlineTranslateProviderName}`}
+                </Typography>
+              </MenuItem>
+            ) : null}
           </MenuList>
         </Popover>
 

@@ -59,7 +59,7 @@ export function useProjectTranslations({
   const [savedSegmentTargets, setSavedSegmentTargets] = useState<Record<string, string>>({})
   const [inlineTranslatingSegmentId, setInlineTranslatingSegmentId] = useState<string | null>(null)
   const [confirmingSegmentId, setConfirmingSegmentId] = useState<string | null>(null)
-  const [inlineTranslateProviderName, setInlineTranslateProviderName] = useState<string>('')
+  const [inlineTranslateProviderName, setInlineTranslateProviderName] = useState<string | null>(null)
   const [termFuzzyMatchThreshold, setTermFuzzyMatchThreshold] = useState(0.9)
   const [inlineCaretRestoreSegmentId, setInlineCaretRestoreSegmentId] = useState<string | null>(null)
   const [inlineCaretRestoreToken, setInlineCaretRestoreToken] = useState(0)
@@ -74,6 +74,7 @@ export function useProjectTranslations({
   const projectStatus = projectDetail?.status
   const projectSegmentCount = projectDetail?.segmentCount ?? 0
   const hasProjectTranslationMemories = (projectDetail?.translationMemories.length ?? 0) > 0
+  const hasInlineTranslateProvider = Boolean(inlineTranslateProviderName)
   const projectSegmentCountRef = useRef(projectSegmentCount)
 
   useEffect(() => {
@@ -749,6 +750,7 @@ export function useProjectTranslations({
     inlineTranslatingSegmentId,
     confirmingSegmentId,
     inlineTranslateProviderName,
+    hasInlineTranslateProvider,
     termFuzzyMatchThreshold,
     inlineCaretRestoreSegmentId,
     inlineCaretRestoreToken,

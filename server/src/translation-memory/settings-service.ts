@@ -1,4 +1,3 @@
-import { appConfig } from "../config/app-config";
 import { TranslateProvider } from "../translation-service";
 import { createTranslationMemoryRepositories } from "./repositories/repository-service";
 
@@ -7,7 +6,7 @@ const TERM_FUZZY_MATCH_THRESHOLD_KEY = "termFuzzyMatchThreshold";
 const DEFAULT_TERM_FUZZY_MATCH_THRESHOLD = 0.9;
 
 export type AppSettings = {
-  inlineTranslateProvider: string;
+  inlineTranslateProvider: string | null;
   termFuzzyMatchThreshold: number;
 };
 
@@ -15,12 +14,17 @@ export function getAppSettings(): AppSettings {
   const repositories = createTranslationMemoryRepositories();
   const storedInlineTranslateProvider =
     repositories.appSettings.getByKey(INLINE_TRANSLATE_PROVIDER_KEY)?.value ??
-    appConfig.defaultTranslateProvider;
-  const inlineTranslateProvider = isTranslateProviderAvailable(
-    storedInlineTranslateProvider,
-  )
-    ? storedInlineTranslateProvider
-    : appConfig.defaultTranslateProvider;
+    null;
+  const normalizedInlineTranslateProvider =
+    typeof storedInlineTranslateProvider === "string" &&
+    storedInlineTranslateProvider.trim().length > 0
+      ? storedInlineTranslateProvider.trim()
+      : null;
+  const inlineTranslateProvider =
+    normalizedInlineTranslateProvider &&
+    isTranslateProviderAvailable(normalizedInlineTranslateProvider)
+      ? normalizedInlineTranslateProvider
+      : null;
   const storedTermFuzzyMatchThreshold =
     repositories.appSettings.getByKey(TERM_FUZZY_MATCH_THRESHOLD_KEY)?.value ??
     String(DEFAULT_TERM_FUZZY_MATCH_THRESHOLD);
@@ -43,16 +47,20 @@ export function updateAppSettings(input: Partial<AppSettings>) {
   const repositories = createTranslationMemoryRepositories();
   const currentSettings = getAppSettings();
   const nextInlineTranslateProvider =
-    input.inlineTranslateProvider ?? currentSettings.inlineTranslateProvider;
+    input.inlineTranslateProvider !== undefined
+      ? input.inlineTranslateProvider
+      : currentSettings.inlineTranslateProvider;
   const nextTermFuzzyMatchThreshold =
-    input.termFuzzyMatchThreshold ?? currentSettings.termFuzzyMatchThreshold;
+    input.termFuzzyMatchThreshold !== undefined
+      ? input.termFuzzyMatchThreshold
+      : currentSettings.termFuzzyMatchThreshold;
 
   assertTranslateProviderExists(nextInlineTranslateProvider);
   assertTermFuzzyMatchThresholdIsValid(nextTermFuzzyMatchThreshold);
 
   repositories.appSettings.upsert({
     key: INLINE_TRANSLATE_PROVIDER_KEY,
-    value: nextInlineTranslateProvider,
+    value: nextInlineTranslateProvider ?? "",
     updatedAt: new Date().toISOString(),
   });
   repositories.appSettings.upsert({
@@ -64,7 +72,11 @@ export function updateAppSettings(input: Partial<AppSettings>) {
   return getAppSettings();
 }
 
-function assertTranslateProviderExists(providerName: string) {
+function assertTranslateProviderExists(providerName: string | null) {
+  if (providerName === null) {
+    return;
+  }
+
   if (!isTranslateProviderAvailable(providerName)) {
     throw new Error("Inline translate provider is not available.");
   }

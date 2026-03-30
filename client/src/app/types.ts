@@ -20,7 +20,7 @@ export type TranslateProvidersResponse = {
 }
 
 export type AppSettings = {
-  inlineTranslateProvider: string
+  inlineTranslateProvider: string | null
   termFuzzyMatchThreshold: number
 }
 

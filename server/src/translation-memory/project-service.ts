@@ -897,6 +897,11 @@ export async function inlineTranslateProjectSegment(
   }
 
   const { inlineTranslateProvider } = getAppSettings();
+  if (!inlineTranslateProvider) {
+    throw new Error(
+      "Inline translate provider is not configured. Set one in Settings to enable inline translation.",
+    );
+  }
   const glossaryItems = listProjectGlossaryItems(projectId);
   const glossaryPreprocess = applyGlossaryPreprocess(
     segment.sourceText,

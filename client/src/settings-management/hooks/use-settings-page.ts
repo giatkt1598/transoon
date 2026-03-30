@@ -8,16 +8,15 @@ const SETTINGS_AUTO_SAVE_DELAY_MS = 150
 
 export function useSettingsPage() {
   const [translateProviders, setTranslateProviders] = useState<TranslateProviderOption[]>([])
-  const [defaultTranslateProvider, setDefaultTranslateProvider] = useState('Google Translate')
   const [formValues, setFormValues] = useState<SettingsFormValues>({
-    inlineTranslateProvider: 'Google Translate',
+    inlineTranslateProvider: null,
     termFuzzyMatchThreshold: 0.9,
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedFormValues, setSavedFormValues] = useState<SettingsFormValues>({
-    inlineTranslateProvider: 'Google Translate',
+    inlineTranslateProvider: null,
     termFuzzyMatchThreshold: 0.9,
   })
   const autoSaveTimeoutRef = useRef<number | null>(null)
@@ -34,14 +33,15 @@ export function useSettingsPage() {
           fetchSettings(controller.signal),
         ])
 
-        const resolvedInlineTranslateProvider = providersResponse.translateProviders.some(
-          (provider) => provider.name === settings.inlineTranslateProvider,
-        )
-          ? settings.inlineTranslateProvider
-          : providersResponse.defaultTranslateProvider
+        const resolvedInlineTranslateProvider =
+          settings.inlineTranslateProvider &&
+          providersResponse.translateProviders.some(
+            (provider) => provider.name === settings.inlineTranslateProvider,
+          )
+            ? settings.inlineTranslateProvider
+            : null
 
         setTranslateProviders(providersResponse.translateProviders)
-        setDefaultTranslateProvider(providersResponse.defaultTranslateProvider)
         const nextFormValues = {
           inlineTranslateProvider: resolvedInlineTranslateProvider,
           termFuzzyMatchThreshold: settings.termFuzzyMatchThreshold,
@@ -70,9 +70,8 @@ export function useSettingsPage() {
   const selectedProvider = useMemo(
     () =>
       translateProviders.find((provider) => provider.name === formValues.inlineTranslateProvider) ??
-      translateProviders.find((provider) => provider.name === defaultTranslateProvider) ??
       null,
-    [defaultTranslateProvider, formValues.inlineTranslateProvider, translateProviders],
+    [formValues.inlineTranslateProvider, translateProviders],
   )
   const hasPendingChanges = useMemo(
     () =>
@@ -81,7 +80,7 @@ export function useSettingsPage() {
     [formValues, savedFormValues],
   )
 
-  function handleInlineTranslateProviderChange(value: string) {
+  function handleInlineTranslateProviderChange(value: string | null) {
     setError(null)
     setFormValues((currentValues) => ({
       ...currentValues,
