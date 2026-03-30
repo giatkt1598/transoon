@@ -8,11 +8,9 @@ export function SettingsPage() {
     translateProviders,
     formValues,
     isLoading,
-    isSaving,
     error,
     handleInlineTranslateProviderChange,
     handleTermFuzzyMatchThresholdChange,
-    handleSaveSettings,
   } = useSettingsPage();
 
   if (isLoading) {
@@ -24,9 +22,6 @@ export function SettingsPage() {
       <ProjectPageHeader
         title="Settings"
         breadcrumbs={[{ label: "Dashboard", to: "/" }, { label: "Settings" }]}
-        actionLabel="Save"
-        onActionClick={() => void handleSaveSettings()}
-        actionDisabled={isLoading || isSaving || translateProviders.length === 0}
       />
 
       <Box className="project-editor-shell settings-shell">

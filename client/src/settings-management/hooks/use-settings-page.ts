@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-toastify'
 import type { AppSettings, TranslateProviderOption } from '../../app/types'
 import { fetchSettings, fetchTranslateProviders, saveSettings } from '../api'
 
 type SettingsFormValues = AppSettings
+const SETTINGS_AUTO_SAVE_DELAY_MS = 150
 
 export function useSettingsPage() {
   const [translateProviders, setTranslateProviders] = useState<TranslateProviderOption[]>([])
@@ -15,6 +16,12 @@ export function useSettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [savedFormValues, setSavedFormValues] = useState<SettingsFormValues>({
+    inlineTranslateProvider: 'Google Translate',
+    termFuzzyMatchThreshold: 0.9,
+  })
+  const autoSaveTimeoutRef = useRef<number | null>(null)
+  const latestSaveRequestIdRef = useRef(0)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -35,10 +42,13 @@ export function useSettingsPage() {
 
         setTranslateProviders(providersResponse.translateProviders)
         setDefaultTranslateProvider(providersResponse.defaultTranslateProvider)
-        setFormValues({
+        const nextFormValues = {
           inlineTranslateProvider: resolvedInlineTranslateProvider,
           termFuzzyMatchThreshold: settings.termFuzzyMatchThreshold,
-        })
+        }
+        setFormValues(nextFormValues)
+        setSavedFormValues(nextFormValues)
+        setError(null)
       } catch (loadError) {
         if (controller.signal.aborted) {
           return
@@ -64,8 +74,15 @@ export function useSettingsPage() {
       null,
     [defaultTranslateProvider, formValues.inlineTranslateProvider, translateProviders],
   )
+  const hasPendingChanges = useMemo(
+    () =>
+      formValues.inlineTranslateProvider !== savedFormValues.inlineTranslateProvider ||
+      formValues.termFuzzyMatchThreshold !== savedFormValues.termFuzzyMatchThreshold,
+    [formValues, savedFormValues],
+  )
 
   function handleInlineTranslateProviderChange(value: string) {
+    setError(null)
     setFormValues((currentValues) => ({
       ...currentValues,
       inlineTranslateProvider: value,
@@ -73,28 +90,69 @@ export function useSettingsPage() {
   }
 
   function handleTermFuzzyMatchThresholdChange(value: number) {
+    setError(null)
     setFormValues((currentValues) => ({
       ...currentValues,
       termFuzzyMatchThreshold: value,
     }))
   }
 
-  async function handleSaveSettings() {
+  async function persistSettings(nextFormValues: SettingsFormValues) {
+    const requestId = Date.now()
+    latestSaveRequestIdRef.current = requestId
     setIsSaving(true)
     setError(null)
 
     try {
-      const savedSettings = await saveSettings(formValues)
+      const savedSettings = await saveSettings(nextFormValues)
+      if (latestSaveRequestIdRef.current !== requestId) {
+        return
+      }
       setFormValues(savedSettings)
-      toast.success('Settings saved successfully.')
+      setSavedFormValues(savedSettings)
     } catch (saveError) {
+      if (latestSaveRequestIdRef.current !== requestId) {
+        return
+      }
       const message = saveError instanceof Error ? saveError.message : 'Could not save settings.'
       setError(message)
       toast.error(message)
     } finally {
-      setIsSaving(false)
+      if (latestSaveRequestIdRef.current === requestId) {
+        setIsSaving(false)
+      }
     }
   }
+
+  useEffect(() => {
+    if (isLoading || !translateProviders.length || !hasPendingChanges) {
+      return
+    }
+
+    if (autoSaveTimeoutRef.current) {
+      window.clearTimeout(autoSaveTimeoutRef.current)
+    }
+
+    autoSaveTimeoutRef.current = window.setTimeout(() => {
+      autoSaveTimeoutRef.current = null
+      void persistSettings(formValues)
+    }, SETTINGS_AUTO_SAVE_DELAY_MS)
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        window.clearTimeout(autoSaveTimeoutRef.current)
+        autoSaveTimeoutRef.current = null
+      }
+    }
+  }, [formValues, hasPendingChanges, isLoading, translateProviders.length])
+
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        window.clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+  }, [])
 
   return {
     translateProviders,
@@ -105,6 +163,5 @@ export function useSettingsPage() {
     error,
     handleInlineTranslateProviderChange,
     handleTermFuzzyMatchThresholdChange,
-    handleSaveSettings,
   }
 }
