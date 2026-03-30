@@ -11,6 +11,10 @@
 }
 
 @media (max-width: 920px) {
+  html {
+    font-size: 75%;
+  }
+
   .app-shell {
     --header-height: 72px;
   }
@@ -99,8 +103,57 @@
     display: none;
   }
 
+  .detail-memory-table-shell {
+    border-radius: 20px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.42);
+  }
+
+  .detail-memory-table-body {
+    gap: 12px;
+  }
+
   .detail-memory-table-row {
     grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 14px;
+    border-top: none;
+    border-radius: 16px;
+    border: 1px solid rgba(58, 44, 30, 0.08);
+    background: #fffaf4;
+    box-shadow: 0 8px 22px rgba(73, 52, 34, 0.08);
+  }
+
+  .detail-memory-table-row > [data-column-label]::before {
+    content: attr(data-column-label);
+    display: block;
+    margin-bottom: 4px;
+    color: #8b6b51;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .detail-drag-cell {
+    justify-content: flex-start;
+  }
+
+  .detail-memory-table-row .shared-primary-cell,
+  .detail-memory-table-row .shared-action-cell,
+  .detail-memory-table-row .detail-access-select {
+    min-width: 0;
+  }
+
+  .detail-memory-table-row .shared-row-title,
+  .detail-memory-table-row .shared-row-subtitle {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .detail-memory-table-row .detail-access-select .MuiOutlinedInput-root {
+    width: 100%;
   }
 
   .translations-tab-grid {

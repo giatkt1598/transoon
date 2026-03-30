@@ -219,15 +219,128 @@
 }
 
 @media (max-width: 920px) {
+  .shared-table-shell {
+    border-radius: 20px;
+  }
+
+  .shared-table-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px;
+  }
+
   .shared-table-head {
     display: none !important;
   }
 
+  .shared-table-body {
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.18);
+  }
+
   .shared-table-row {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px;
+    align-items: stretch;
+    padding: 14px;
+    border-top: none;
+    border-radius: 16px;
+    background: #fffaf4;
+    border: 1px solid rgba(58, 44, 30, 0.08);
+    box-shadow: 0 8px 22px rgba(73, 52, 34, 0.08);
+
+    > * {
+      white-space: normal;
+    }
+  }
+
+  .shared-table-body-cell {
+    grid-column: 1 / -1;
+    padding: 0;
+    min-width: 0;
+  }
+
+  .shared-table-body-cell[data-column-key="lastModifiedAt"],
+  .shared-table-body-cell[data-column-key="createdAt"],
+  .shared-table-body-cell[data-column-key="lastUsedAt"] {
+    grid-column: auto;
+  }
+
+  .shared-table-row-more-actions .shared-table-body-cell:first-child {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding-right: 56px;
+  }
+
+  .shared-table-body-cell::before {
+    content: attr(data-column-label);
+    display: block;
+    margin-bottom: 4px;
+    color: #8b6b51;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .shared-primary-cell,
+  .shared-created-cell,
+  .shared-progress-cell,
+  .shared-segment-cell {
+    padding: 0;
+  }
+
+  .shared-created-cell p,
+  .shared-created-cell span,
+  .shared-progress-cell p,
+  .shared-progress-cell span,
+  .shared-segment-cell p,
+  .shared-segment-cell span,
+  .shared-row-title,
+  .shared-row-subtitle {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .shared-action-cell {
+    grid-column: 1 / -1;
     justify-content: flex-start;
+    padding-top: 2px;
+    margin-top: 2px;
+    border-top: 1px solid rgba(58, 44, 30, 0.08);
+    padding-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  .shared-table-row-more-actions .shared-action-cell {
+    position: absolute;
+    top: 10px;
+    right: 8px;
+    grid-row: 1;
+    justify-content: flex-end;
+    align-self: start;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .shared-table-row-more-actions .shared-action-cell::before {
+    display: none;
+  }
+
+  .shared-table-row-more-actions {
+    position: relative;
+  }
+
+  .shared-table-pagination {
+    border-top: none;
+  }
+
+  .shared-table-pagination .MuiTablePagination-toolbar {
+    min-height: 52px;
+    padding-inline: 10px;
   }
 }

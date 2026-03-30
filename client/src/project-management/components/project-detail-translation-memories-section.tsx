@@ -163,11 +163,11 @@ export function ProjectDetailTranslationMemoriesSection({
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={() => onDropOnRow(config.translationMemoryId)}
               >
-                <Box className="detail-drag-cell">
+                <Box className="detail-drag-cell" data-column-label="Move">
                   <DragIndicatorRoundedIcon fontSize="small" />
                 </Box>
 
-                <Box className="shared-primary-cell">
+                <Box className="shared-primary-cell" data-column-label="Translation memory">
                   <Box>
                     <Typography component="p" className="shared-row-title">
                       {config.name}
@@ -181,6 +181,7 @@ export function ProjectDetailTranslationMemoriesSection({
                 <TextField
                   select
                   size="small"
+                  data-column-label="Access mode"
                   value={config.accessMode}
                   onChange={(event) =>
                     onAccessModeChange(config.translationMemoryId, event.target.value as "read" | "write")
@@ -192,7 +193,7 @@ export function ProjectDetailTranslationMemoriesSection({
                   <MenuItem value="write">Write</MenuItem>
                 </TextField>
 
-                <Box className="shared-action-cell">
+                <Box className="shared-action-cell" data-column-label="Actions">
                   <IconButton
                     size="small"
                     disabled={isSaving}

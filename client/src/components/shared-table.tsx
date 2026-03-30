@@ -206,7 +206,7 @@ export function SharedTable<T extends { id: string }>({
           {pagedRows.map((item, index) => (
             <Box
               key={item.id}
-              className={`shared-table-row ${tableDef.rowClick ? "shared-table-row-clickable" : ""}`}
+              className={`shared-table-row ${tableDef.rowClick ? "shared-table-row-clickable" : ""}${tableDef.action.useMoreActions ? " shared-table-row-more-actions" : ""}`}
               onClick={() => {
                 if (tableDef.rowClick) {
                   tableDef.rowClick(item, index);
@@ -221,6 +221,8 @@ export function SharedTable<T extends { id: string }>({
                 <Box
                   key={String(column.key)}
                   className={`shared-table-body-cell ${column.className ?? ""}`.trim()}
+                  data-column-label={column.label}
+                  data-column-key={String(column.key)}
                 >
                   {renderCellValue(column, item, index)}
                 </Box>
@@ -229,7 +231,11 @@ export function SharedTable<T extends { id: string }>({
               {!tableDef.action.useMoreActions ? (
                 <>
                   {hasActions && (
-                    <Box className="shared-table-body-cell shared-action-cell">
+                    <Box
+                      className="shared-table-body-cell shared-action-cell"
+                      data-column-label="Actions"
+                      data-column-key="actions"
+                    >
                       {tableDef.action.actions?.map((action, actionIndex) => (
                         <IconButton
                           key={actionIndex}
@@ -247,7 +253,11 @@ export function SharedTable<T extends { id: string }>({
                   )}
                 </>
               ) : (
-                <Box className="shared-table-body-cell shared-action-cell">
+                <Box
+                  className="shared-table-body-cell shared-action-cell"
+                  data-column-label="Actions"
+                  data-column-key="actions"
+                >
                   <IconButton
                     size="small"
                     aria-label={`More actions for ${item.id}`}

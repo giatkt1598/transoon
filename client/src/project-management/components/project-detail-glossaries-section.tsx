@@ -148,11 +148,11 @@ export function ProjectDetailGlossariesSection({
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={() => onDropOnRow(config.glossaryId)}
               >
-                <Box className="detail-drag-cell">
+                <Box className="detail-drag-cell" data-column-label="Move">
                   <DragIndicatorRoundedIcon fontSize="small" />
                 </Box>
 
-                <Box className="shared-primary-cell">
+                <Box className="shared-primary-cell" data-column-label="Glossary">
                   <Box>
                     <Typography component="p" className="shared-row-title">
                       {config.name}
@@ -163,7 +163,7 @@ export function ProjectDetailGlossariesSection({
                   </Box>
                 </Box>
 
-                <Box className="shared-action-cell">
+                <Box className="shared-action-cell" data-column-label="Actions">
                   <IconButton
                     size="small"
                     disabled={isSaving}
