@@ -156,7 +156,7 @@
   position: absolute;
   inset: -8px -6px;
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 8px;
   z-index: -1;
 }
 
@@ -170,8 +170,8 @@
 
 .project-upload-trigger.MuiButton-root {
   justify-content: flex-start;
-  min-height: 56px;
-  border-radius: 16px;
+  min-height: 40px;
+  border-radius: 8px;
   padding-inline: 16px;
   text-align: left;
   background: #ffffff;
@@ -186,8 +186,8 @@
 
 .project-upload-button.MuiButton-root {
   min-width: 164px;
-  min-height: 56px;
-  border-radius: 16px;
+  min-height: 40px;
+  border-radius: 8px;
   align-self: stretch;
   background: #ffffff;
   border-color: rgba(58, 44, 30, 0.14);

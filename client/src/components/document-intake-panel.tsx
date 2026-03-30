@@ -105,8 +105,8 @@ export function DocumentIntakePanel() {
             MenuProps={selectMenuProps}
             onChange={(event) => setSourceLanguage(event.target.value)}
             sx={{
-              borderRadius: "14px",
               backgroundColor: "#fff",
+              minHeight: 40,
               "& .MuiOutlinedInput-notchedOutline": {
                 borderColor: "#d8c2a8",
               },
@@ -138,8 +138,8 @@ export function DocumentIntakePanel() {
             MenuProps={selectMenuProps}
             onChange={(event) => setTargetLanguage(event.target.value)}
             sx={{
-              borderRadius: "14px",
               backgroundColor: "#fff",
+              minHeight: 40,
               "& .MuiOutlinedInput-notchedOutline": {
                 borderColor: "#d8c2a8",
               },
@@ -175,8 +175,8 @@ export function DocumentIntakePanel() {
           onChange={(event) => setProviderName(event.target.value)}
           disabled={translateProvidersData.translateProviders.length === 0}
           sx={{
-            borderRadius: "14px",
             backgroundColor: "#fff",
+            minHeight: 40,
             "& .MuiOutlinedInput-notchedOutline": {
               borderColor: "#d8c2a8",
             },

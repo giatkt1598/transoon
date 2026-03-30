@@ -125,13 +125,19 @@
   min-height: 0;
 }
 
+.field .MuiOutlinedInput-root {
+  min-height: 40px;
+  border-radius: 8px;
+  background: #fff;
+}
+
 .field .MuiOutlinedInput-input,
 .field .MuiSelect-select {
-  padding: 14px 16px;
+  padding: 8.5px 14px;
 }
 
 .field .MuiSelect-select {
-  min-height: 1.5em;
+  min-height: auto;
   display: flex;
   align-items: center;
 }
