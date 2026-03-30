@@ -1,4 +1,5 @@
-import { Box, LinearProgress, Paper, Typography } from '@mui/material'
+import { Box, LinearProgress, Link, Paper, Typography } from '@mui/material'
+import { apiBaseUrl } from '../../app/config'
 import type { ProjectDetail } from '../../app/types'
 import { formatLanguageRoute } from '../../app/utils'
 
@@ -7,6 +8,10 @@ type ProjectDetailInformationSectionProps = {
 }
 
 export function ProjectDetailInformationSection({ projectDetail }: ProjectDetailInformationSectionProps) {
+  const projectDocumentDownloadUrl = projectDetail.documentFileName
+    ? `${apiBaseUrl}/api/projects/${projectDetail.id}/document`
+    : null
+
   return (
     <Paper className="detail-section-card" elevation={0}>
       <Box className="panel-heading">
@@ -31,7 +36,20 @@ export function ProjectDetailInformationSection({ projectDetail }: ProjectDetail
         </Box>
         <Box className="detail-info-item">
           <span>Document</span>
-          <strong>{projectDetail.documentFileName ?? 'No document uploaded'}</strong>
+          {projectDetail.documentFileName ? (
+            <>
+              <strong>{projectDetail.documentFileName}</strong>
+              <Link
+                href={projectDocumentDownloadUrl ?? undefined}
+                underline="hover"
+                className="detail-document-download-link"
+              >
+                Download
+              </Link>
+            </>
+          ) : (
+            <strong>No document uploaded</strong>
+          )}
         </Box>
         <Box className="detail-info-item">
           <span>Created</span>

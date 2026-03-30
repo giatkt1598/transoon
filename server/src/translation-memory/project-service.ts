@@ -120,6 +120,11 @@ export type ExportProjectDocumentResult = {
   documentType: string | null;
 };
 
+export type DownloadProjectSourceDocumentResult = {
+  filePath: string;
+  downloadFileName: string;
+};
+
 export type ProjectDocumentPreviewResult =
   | Awaited<ReturnType<typeof buildDocxPreviewDocument>>
   | Awaited<ReturnType<typeof buildXlsxPreviewDocument>>
@@ -476,6 +481,32 @@ export function saveProjectSegments(
   return {
     project: getProjectDetailById(projectId),
     segments: listProjectSegments(projectId),
+  };
+}
+
+export function downloadProjectSourceDocument(
+  projectId: string,
+): DownloadProjectSourceDocumentResult {
+  const project = getProjectById(projectId);
+  const document = getPrimaryProjectDocument(projectId);
+
+  if (!project) {
+    throw new Error("Project not found.");
+  }
+
+  if (!document) {
+    throw new Error("No document is attached to this project.");
+  }
+
+  if (!document.storagePath) {
+    throw new Error("The project document is missing its storage path.");
+  }
+
+  const absoluteStoragePath = path.resolve(process.cwd(), document.storagePath);
+
+  return {
+    filePath: absoluteStoragePath,
+    downloadFileName: document.fileName,
   };
 }
 

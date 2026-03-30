@@ -16,6 +16,7 @@ import {
   listProjectSegments,
   listProjects,
   exportProjectDocument,
+  downloadProjectSourceDocument,
   getProjectDocumentPreview,
   saveProjectSegments,
   mergeProjectSegments,
@@ -675,6 +676,24 @@ export function createApiRouter() {
 
       const { outputPath, downloadFileName } = await exportProjectDocument(projectId);
       res.download(outputPath, downloadFileName);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.get("/api/projects/:projectId/document", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
+
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      const { filePath, downloadFileName } = downloadProjectSourceDocument(projectId);
+      res.download(filePath, downloadFileName);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });

@@ -350,6 +350,19 @@
   font-size: 0.95rem;
 }
 
+.detail-document-download-link.MuiLink-root {
+  display: inline-block;
+  margin-top: 6px;
+  color: #1976d2;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.detail-document-download-link.MuiLink-root:hover {
+  text-decoration: underline;
+}
+
 .detail-description-block p,
 .detail-progress-copy p {
   margin: 6px 0 0;
