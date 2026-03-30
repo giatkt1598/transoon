@@ -12,14 +12,12 @@ import {
   attachProjectAutoTranslateSocket,
   registerProjectAutoTranslateSocketHandlers,
 } from "./project-auto-translate-progress";
-import {
-  attachTranslationProgressSocket,
-  registerTranslationProgressSocketHandlers,
-} from "./translation-progress";
+import { attachTranslationProgressSocket, registerTranslationProgressSocketHandlers } from "./translation-progress";
 
 const app = express();
 const httpServer = createServer(app);
-const shouldServeClientStatic = process.argv.includes("--serve-static");
+const shouldServeClientStatic = process.env.SERVE_STATIC === "true" || process.argv.includes("--serve-static");
+console.log("🚀 ~ shouldServeClientStatic:", shouldServeClientStatic);
 const io = new SocketIOServer(httpServer, {
   cors: {
     origin: "*",
@@ -53,9 +51,7 @@ if (shouldServeClientStatic) {
       res.sendFile(clientIndexPath);
     });
   } else {
-    console.warn(
-      `Client build was not found at ${clientIndexPath}. Run the client build before using yarn serve.`,
-    );
+    console.warn(`Client build was not found at ${clientIndexPath}. Run the client build before using yarn serve.`);
   }
 }
 

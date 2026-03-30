@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: express-react-app
+    ports:
+      - "5203:3000"
+    environment:
+      - NODE_ENV=production
+      - VITE_API_BASE_URL=http://localhost:5203
+      - SERVE_STATIC=true
+    restart: unless-stopped
+    volumes:
+      - ./server/storage:/app/server/storage

@@ -57,22 +57,16 @@ import {
   updateProjectTranslationMemory,
   updateTranslationMemory,
 } from "../translation-memory/translation-memory-service";
-import {
-  getAppSettings,
-  updateAppSettings,
-} from "../translation-memory/settings-service";
+import { getAppSettings, updateAppSettings } from "../translation-memory/settings-service";
 import { TranslateProvider } from "../translation-service";
 import { translateDocument } from "../translation/document-translation-service";
-import {
-  getTranslationProgress,
-  setTranslationProgress,
-} from "../translation-progress";
+import { getTranslationProgress, setTranslationProgress } from "../translation-progress";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 export function createApiRouter() {
   const router = Router();
-  const shouldServeClientStatic = process.argv.includes("--serve-static");
+  const shouldServeClientStatic = process.env.SERVE_STATIC === "true" || process.argv.includes("--serve-static");
 
   if (!shouldServeClientStatic) {
     router.get("/", (_req, res) => {
@@ -98,8 +92,7 @@ export function createApiRouter() {
     try {
       res.json(getAppSettings());
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -114,8 +107,7 @@ export function createApiRouter() {
 
       res.json(updateAppSettings(req.body));
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -126,8 +118,7 @@ export function createApiRouter() {
         projects: listProjects(),
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -143,8 +134,7 @@ export function createApiRouter() {
 
       res.json(project);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -160,8 +150,7 @@ export function createApiRouter() {
 
       res.json(project);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -180,8 +169,7 @@ export function createApiRouter() {
         segments: listProjectSegments(projectId),
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -200,8 +188,7 @@ export function createApiRouter() {
         terms: listProjectTerms(projectId),
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -219,8 +206,7 @@ export function createApiRouter() {
       const preview = await getProjectDocumentPreview(projectId);
       res.json(preview);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -245,8 +231,7 @@ export function createApiRouter() {
       const result = saveProjectSegments(projectId, req.body.segments);
       res.json(result);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -271,8 +256,7 @@ export function createApiRouter() {
       const result = await mergeProjectSegments(projectId, req.body.segmentIds);
       res.json(result);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -298,62 +282,49 @@ export function createApiRouter() {
       const result = await splitProjectSegment(projectId, segmentId, req.body.splitIndex);
       res.json(result);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
 
-  router.post(
-    "/api/projects/:projectId/segments/:segmentId/inline-translate",
-    async (req, res) => {
-      try {
-        const projectId = String(req.params.projectId);
-        const segmentId = String(req.params.segmentId);
-        const existingProject = getProjectById(projectId);
+  router.post("/api/projects/:projectId/segments/:segmentId/inline-translate", async (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const segmentId = String(req.params.segmentId);
+      const existingProject = getProjectById(projectId);
 
-        if (!existingProject) {
-          res.status(404).json({ error: "Project not found." });
-          return;
-        }
-
-        const result = await inlineTranslateProjectSegment(
-          projectId,
-          segmentId,
-        );
-        res.json(result);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unexpected server error.";
-        res.status(500).json({ error: message });
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
       }
-    },
-  );
 
-  router.post(
-    "/api/projects/:projectId/segments/:segmentId/confirm",
-    (req, res) => {
-      try {
-        const projectId = String(req.params.projectId);
-        const segmentId = String(req.params.segmentId);
-        const existingProject = getProjectById(projectId);
+      const result = await inlineTranslateProjectSegment(projectId, segmentId);
+      res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
 
-        if (!existingProject) {
-          res.status(404).json({ error: "Project not found." });
-          return;
-        }
+  router.post("/api/projects/:projectId/segments/:segmentId/confirm", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const segmentId = String(req.params.segmentId);
+      const existingProject = getProjectById(projectId);
 
-        const targetText =
-          typeof req.body?.targetText === "string" ? req.body.targetText : undefined;
-        const result = confirmProjectSegment(projectId, segmentId, targetText);
-        res.json(result);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unexpected server error.";
-        res.status(500).json({ error: message });
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
       }
-    },
-  );
+
+      const targetText = typeof req.body?.targetText === "string" ? req.body.targetText : undefined;
+      const result = confirmProjectSegment(projectId, segmentId, targetText);
+      res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
 
   router.post("/api/projects", upload.single("file"), async (req, res) => {
     try {
@@ -373,8 +344,7 @@ export function createApiRouter() {
       });
       res.status(201).json(project);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -399,8 +369,7 @@ export function createApiRouter() {
       const project = updateProject(projectId, req.body);
       res.json(project);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -419,34 +388,29 @@ export function createApiRouter() {
       deleteProject(projectId);
       res.status(204).send();
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
 
-  router.post(
-    "/api/projects/:projectId/generate-segments",
-    async (req, res) => {
-      try {
-        const projectId = String(req.params.projectId);
-        const existingProject = getProjectById(projectId);
+  router.post("/api/projects/:projectId/generate-segments", async (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const existingProject = getProjectById(projectId);
 
-        if (!existingProject) {
-          res.status(404).json({ error: "Project not found." });
-          return;
-        }
-
-        assertProjectIsEditable(projectId);
-        const result = await generateProjectSegments(projectId);
-        res.json(result);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unexpected server error.";
-        res.status(500).json({ error: message });
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
       }
-    },
-  );
+
+      assertProjectIsEditable(projectId);
+      const result = await generateProjectSegments(projectId);
+      res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
 
   router.post("/api/projects/:projectId/translation-memories", (req, res) => {
     try {
@@ -465,9 +429,7 @@ export function createApiRouter() {
         return;
       }
 
-      const translationMemory = getTranslationMemoryById(
-        String(req.body.translationMemoryId),
-      );
+      const translationMemory = getTranslationMemoryById(String(req.body.translationMemoryId));
       if (!translationMemory) {
         res.status(404).json({ error: "Translation memory not found." });
         return;
@@ -481,95 +443,80 @@ export function createApiRouter() {
       });
       res.status(201).json(created);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
 
-  router.put(
-    "/api/projects/:projectId/translation-memories/:translationMemoryId",
-    (req, res) => {
-      try {
-        const projectId = String(req.params.projectId);
-        const translationMemoryId = String(req.params.translationMemoryId);
+  router.put("/api/projects/:projectId/translation-memories/:translationMemoryId", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const translationMemoryId = String(req.params.translationMemoryId);
 
-        const existingProject = getProjectById(projectId);
-        if (!existingProject) {
-          res.status(404).json({ error: "Project not found." });
-          return;
-        }
-
-        assertProjectIsEditable(projectId);
-        const existingLink = getProjectTranslationMemory(
-          projectId,
-          translationMemoryId,
-        );
-        if (!existingLink) {
-          res.status(404).json({
-            error: "Project translation memory configuration not found.",
-          });
-          return;
-        }
-
-        const validationError = validateProjectTranslationMemoryInput({
-          ...req.body,
-          translationMemoryId,
-        });
-        if (validationError) {
-          res.status(400).json({ error: validationError });
-          return;
-        }
-
-        const updated = updateProjectTranslationMemory({
-          projectId,
-          translationMemoryId,
-          accessMode: req.body.accessMode,
-          priority: Number(req.body.priority),
-        });
-        res.json(updated);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unexpected server error.";
-        res.status(500).json({ error: message });
+      const existingProject = getProjectById(projectId);
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
       }
-    },
-  );
 
-  router.delete(
-    "/api/projects/:projectId/translation-memories/:translationMemoryId",
-    (req, res) => {
-      try {
-        const projectId = String(req.params.projectId);
-        const translationMemoryId = String(req.params.translationMemoryId);
-
-        const existingProject = getProjectById(projectId);
-        if (!existingProject) {
-          res.status(404).json({ error: "Project not found." });
-          return;
-        }
-
-        assertProjectIsEditable(projectId);
-        const existingLink = getProjectTranslationMemory(
-          projectId,
-          translationMemoryId,
-        );
-        if (!existingLink) {
-          res.status(404).json({
-            error: "Project translation memory configuration not found.",
-          });
-          return;
-        }
-
-        deleteProjectTranslationMemory(projectId, translationMemoryId);
-        res.status(204).send();
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unexpected server error.";
-        res.status(500).json({ error: message });
+      assertProjectIsEditable(projectId);
+      const existingLink = getProjectTranslationMemory(projectId, translationMemoryId);
+      if (!existingLink) {
+        res.status(404).json({
+          error: "Project translation memory configuration not found.",
+        });
+        return;
       }
-    },
-  );
+
+      const validationError = validateProjectTranslationMemoryInput({
+        ...req.body,
+        translationMemoryId,
+      });
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const updated = updateProjectTranslationMemory({
+        projectId,
+        translationMemoryId,
+        accessMode: req.body.accessMode,
+        priority: Number(req.body.priority),
+      });
+      res.json(updated);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.delete("/api/projects/:projectId/translation-memories/:translationMemoryId", (req, res) => {
+    try {
+      const projectId = String(req.params.projectId);
+      const translationMemoryId = String(req.params.translationMemoryId);
+
+      const existingProject = getProjectById(projectId);
+      if (!existingProject) {
+        res.status(404).json({ error: "Project not found." });
+        return;
+      }
+
+      assertProjectIsEditable(projectId);
+      const existingLink = getProjectTranslationMemory(projectId, translationMemoryId);
+      if (!existingLink) {
+        res.status(404).json({
+          error: "Project translation memory configuration not found.",
+        });
+        return;
+      }
+
+      deleteProjectTranslationMemory(projectId, translationMemoryId);
+      res.status(204).send();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
 
   router.post("/api/projects/:projectId/glossaries", (req, res) => {
     try {
@@ -601,8 +548,7 @@ export function createApiRouter() {
       });
       res.status(201).json(created);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -642,8 +588,7 @@ export function createApiRouter() {
       });
       res.json(updated);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -670,8 +615,7 @@ export function createApiRouter() {
       deleteProjectGlossary(projectId, glossaryId);
       res.status(204).send();
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -686,17 +630,14 @@ export function createApiRouter() {
         return;
       }
 
-      const providerName = String(
-        req.body?.providerName ?? appConfig.defaultTranslateProvider,
-      );
+      const providerName = String(req.body?.providerName ?? appConfig.defaultTranslateProvider);
       const project = await startProjectAutoTranslate(projectId, providerName);
       res.status(202).json({
         message: "Auto translate started.",
         project,
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -717,8 +658,7 @@ export function createApiRouter() {
         project,
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -733,12 +673,10 @@ export function createApiRouter() {
         return;
       }
 
-      const { outputPath, downloadFileName } =
-        await exportProjectDocument(projectId);
+      const { outputPath, downloadFileName } = await exportProjectDocument(projectId);
       res.download(outputPath, downloadFileName);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -749,17 +687,14 @@ export function createApiRouter() {
         translationMemories: listTranslationMemories(),
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
 
   router.get("/api/translation-memories/:translationMemoryId", (req, res) => {
     try {
-      const translationMemory = getTranslationMemoryById(
-        String(req.params.translationMemoryId),
-      );
+      const translationMemory = getTranslationMemoryById(String(req.params.translationMemoryId));
 
       if (!translationMemory) {
         res.status(404).json({ error: "Translation memory not found." });
@@ -768,8 +703,7 @@ export function createApiRouter() {
 
       res.json(translationMemory);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -788,8 +722,7 @@ export function createApiRouter() {
         terms: listTranslationMemoryTerms(translationMemoryId),
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -814,8 +747,7 @@ export function createApiRouter() {
         terms: saveTranslationMemoryTermsChanges(translationMemoryId, req.body),
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -831,8 +763,7 @@ export function createApiRouter() {
       const translationMemory = createTranslationMemory(req.body);
       res.status(201).json(translationMemory);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -840,8 +771,7 @@ export function createApiRouter() {
   router.put("/api/translation-memories/:translationMemoryId", (req, res) => {
     try {
       const translationMemoryId = String(req.params.translationMemoryId);
-      const existingTranslationMemory =
-        getTranslationMemoryById(translationMemoryId);
+      const existingTranslationMemory = getTranslationMemoryById(translationMemoryId);
 
       if (!existingTranslationMemory) {
         res.status(404).json({ error: "Translation memory not found." });
@@ -854,78 +784,66 @@ export function createApiRouter() {
         return;
       }
 
-      const translationMemory = updateTranslationMemory(
-        translationMemoryId,
-        req.body,
-      );
+      const translationMemory = updateTranslationMemory(translationMemoryId, req.body);
       res.json(translationMemory);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
 
-  router.put(
-    "/api/translation-memories/:translationMemoryId/terms/:termId",
-    (req, res) => {
-      try {
-        const translationMemoryId = String(req.params.translationMemoryId);
-        const termId = String(req.params.termId);
-        const translationMemory = getTranslationMemoryById(translationMemoryId);
+  router.put("/api/translation-memories/:translationMemoryId/terms/:termId", (req, res) => {
+    try {
+      const translationMemoryId = String(req.params.translationMemoryId);
+      const termId = String(req.params.termId);
+      const translationMemory = getTranslationMemoryById(translationMemoryId);
 
-        if (!translationMemory) {
-          res.status(404).json({ error: "Translation memory not found." });
-          return;
-        }
-
-        const validationError = validateTranslationMemoryTermInput(req.body);
-        if (validationError) {
-          res.status(400).json({ error: validationError });
-          return;
-        }
-
-        const term = updateTranslationMemoryTerm(translationMemoryId, termId, {
-          sourceTerm: String(req.body.sourceTerm),
-          targetTerm: String(req.body.targetTerm),
-        });
-
-        if (!term) {
-          res.status(404).json({ error: "Translation memory term not found." });
-          return;
-        }
-
-        res.json(term);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unexpected server error.";
-        res.status(500).json({ error: message });
+      if (!translationMemory) {
+        res.status(404).json({ error: "Translation memory not found." });
+        return;
       }
-    },
-  );
 
-  router.delete(
-    "/api/translation-memories/:translationMemoryId/terms/:termId",
-    (req, res) => {
-      try {
-        const translationMemoryId = String(req.params.translationMemoryId);
-        const termId = String(req.params.termId);
-        const translationMemory = getTranslationMemoryById(translationMemoryId);
-
-        if (!translationMemory) {
-          res.status(404).json({ error: "Translation memory not found." });
-          return;
-        }
-
-        deleteTranslationMemoryTerm(translationMemoryId, termId);
-        res.status(204).send();
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unexpected server error.";
-        res.status(500).json({ error: message });
+      const validationError = validateTranslationMemoryTermInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
       }
-    },
-  );
+
+      const term = updateTranslationMemoryTerm(translationMemoryId, termId, {
+        sourceTerm: String(req.body.sourceTerm),
+        targetTerm: String(req.body.targetTerm),
+      });
+
+      if (!term) {
+        res.status(404).json({ error: "Translation memory term not found." });
+        return;
+      }
+
+      res.json(term);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.delete("/api/translation-memories/:translationMemoryId/terms/:termId", (req, res) => {
+    try {
+      const translationMemoryId = String(req.params.translationMemoryId);
+      const termId = String(req.params.termId);
+      const translationMemory = getTranslationMemoryById(translationMemoryId);
+
+      if (!translationMemory) {
+        res.status(404).json({ error: "Translation memory not found." });
+        return;
+      }
+
+      deleteTranslationMemoryTerm(translationMemoryId, termId);
+      res.status(204).send();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
 
   router.get("/api/glossaries", (_req, res) => {
     try {
@@ -933,8 +851,7 @@ export function createApiRouter() {
         glossaries: listGlossaries(),
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -953,8 +870,7 @@ export function createApiRouter() {
         glossaries: listProjectGlossaries(projectId),
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -969,8 +885,7 @@ export function createApiRouter() {
 
       res.json(glossary);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -988,8 +903,7 @@ export function createApiRouter() {
         items: listGlossaryItems(glossaryId),
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -1012,8 +926,7 @@ export function createApiRouter() {
       const items = saveGlossaryItemsChanges(glossaryId, req.body);
       res.json({ items });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -1029,8 +942,7 @@ export function createApiRouter() {
       const glossary = createGlossary(req.body);
       res.status(201).json(glossary);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -1052,8 +964,7 @@ export function createApiRouter() {
 
       res.json(updateGlossary(glossaryId, req.body));
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -1075,8 +986,7 @@ export function createApiRouter() {
 
       res.status(201).json(createGlossaryItem(glossaryId, req.body));
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -1105,8 +1015,7 @@ export function createApiRouter() {
 
       res.json(item);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -1123,8 +1032,7 @@ export function createApiRouter() {
       deleteGlossaryItem(glossaryId, String(req.params.glossaryItemId));
       res.status(204).send();
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
@@ -1141,34 +1049,28 @@ export function createApiRouter() {
       deleteGlossary(glossaryId);
       res.status(204).send();
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected server error.";
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
       res.status(500).json({ error: message });
     }
   });
 
-  router.delete(
-    "/api/translation-memories/:translationMemoryId",
-    (req, res) => {
-      try {
-        const translationMemoryId = String(req.params.translationMemoryId);
-        const existingTranslationMemory =
-          getTranslationMemoryById(translationMemoryId);
+  router.delete("/api/translation-memories/:translationMemoryId", (req, res) => {
+    try {
+      const translationMemoryId = String(req.params.translationMemoryId);
+      const existingTranslationMemory = getTranslationMemoryById(translationMemoryId);
 
-        if (!existingTranslationMemory) {
-          res.status(404).json({ error: "Translation memory not found." });
-          return;
-        }
-
-        deleteTranslationMemory(translationMemoryId);
-        res.status(204).send();
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unexpected server error.";
-        res.status(500).json({ error: message });
+      if (!existingTranslationMemory) {
+        res.status(404).json({ error: "Translation memory not found." });
+        return;
       }
-    },
-  );
+
+      deleteTranslationMemory(translationMemoryId);
+      res.status(204).send();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
 
   router.get("/api/translation-progress/:requestId", (req, res) => {
     const requestId = String(req.params.requestId);
@@ -1182,109 +1084,83 @@ export function createApiRouter() {
     res.json(progress);
   });
 
-  router.post(
-    "/api/translate-providers/:providerName/prompt-preview",
-    upload.single("file"),
-    async (req, res) => {
-      try {
-        const providerName = String(req.params.providerName);
-        const sourceLanguage = String(
-          req.body.sourceLanguage ?? appConfig.defaultSourceLanguage,
-        );
-        const targetLanguage = String(
-          req.body.targetLanguage ?? appConfig.defaultTargetLanguage,
-        );
-        const file = req.file;
+  router.post("/api/translate-providers/:providerName/prompt-preview", upload.single("file"), async (req, res) => {
+    try {
+      const providerName = String(req.params.providerName);
+      const sourceLanguage = String(req.body.sourceLanguage ?? appConfig.defaultSourceLanguage);
+      const targetLanguage = String(req.body.targetLanguage ?? appConfig.defaultTargetLanguage);
+      const file = req.file;
 
-        if (!file) {
-          res.status(400).json({
-            error: "A document file is required to preview buildPrompt.",
-          });
-          return;
-        }
-
-        const extractedDocument = await extractDocument(
-          file.originalname,
-          file.buffer,
-        );
-        const preview = TranslateProvider.resolve(
-          providerName,
-        ).getPromptPreview({
-          segments: extractedDocument.segments.map((segment) => segment.text),
-          sourceLanguage,
-          targetLanguage,
+      if (!file) {
+        res.status(400).json({
+          error: "A document file is required to preview buildPrompt.",
         });
-
-        if (preview.supported && !preview.content) {
-          res.status(400).json({
-            error:
-              "The selected document does not contain any non-empty text chunk to preview.",
-          });
-          return;
-        }
-
-        res.json({
-          providerName,
-          sourceLanguage,
-          targetLanguage,
-          ...preview,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unexpected server error.";
-        res.status(500).json({ error: message });
+        return;
       }
-    },
-  );
 
-  router.post(
-    "/api/translate-document",
-    upload.single("file"),
-    async (req, res) => {
-      const requestId = String(req.body.requestId ?? randomUUID());
+      const extractedDocument = await extractDocument(file.originalname, file.buffer);
+      const preview = TranslateProvider.resolve(providerName).getPromptPreview({
+        segments: extractedDocument.segments.map((segment) => segment.text),
+        sourceLanguage,
+        targetLanguage,
+      });
 
-      try {
-        const sourceLanguage = String(
-          req.body.sourceLanguage ?? appConfig.defaultSourceLanguage,
-        );
-        const targetLanguage = String(
-          req.body.targetLanguage ?? appConfig.defaultTargetLanguage,
-        );
-        const providerName = String(
-          req.body.providerName ?? appConfig.defaultTranslateProvider,
-        );
-        const file = req.file;
-
-        if (!file) {
-          res.status(400).json({ error: "A document file is required." });
-          return;
-        }
-
-        const result = await translateDocument({
-          requestId,
-          fileName: file.originalname,
-          fileBuffer: file.buffer,
-          sourceLanguage,
-          targetLanguage,
-          providerName,
-          onProgress: (progress) => setTranslationProgress(requestId, progress),
+      if (preview.supported && !preview.content) {
+        res.status(400).json({
+          error: "The selected document does not contain any non-empty text chunk to preview.",
         });
-
-        res.json(result);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unexpected server error.";
-        setTranslationProgress(requestId, {
-          phase: "failed",
-          totalChunks: 0,
-          completedChunks: 0,
-          progressPercent: 100,
-          message,
-        });
-        res.status(500).json({ error: message });
+        return;
       }
-    },
-  );
+
+      res.json({
+        providerName,
+        sourceLanguage,
+        targetLanguage,
+        ...preview,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.post("/api/translate-document", upload.single("file"), async (req, res) => {
+    const requestId = String(req.body.requestId ?? randomUUID());
+
+    try {
+      const sourceLanguage = String(req.body.sourceLanguage ?? appConfig.defaultSourceLanguage);
+      const targetLanguage = String(req.body.targetLanguage ?? appConfig.defaultTargetLanguage);
+      const providerName = String(req.body.providerName ?? appConfig.defaultTranslateProvider);
+      const file = req.file;
+
+      if (!file) {
+        res.status(400).json({ error: "A document file is required." });
+        return;
+      }
+
+      const result = await translateDocument({
+        requestId,
+        fileName: file.originalname,
+        fileBuffer: file.buffer,
+        sourceLanguage,
+        targetLanguage,
+        providerName,
+        onProgress: (progress) => setTranslationProgress(requestId, progress),
+      });
+
+      res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      setTranslationProgress(requestId, {
+        phase: "failed",
+        totalChunks: 0,
+        completedChunks: 0,
+        progressPercent: 100,
+        message,
+      });
+      res.status(500).json({ error: message });
+    }
+  });
 
   return router;
 }
@@ -1294,10 +1170,7 @@ function validateProjectInput(body: unknown) {
     return "A project payload is required.";
   }
 
-  const { name, sourceLang, targetLang, description } = body as Record<
-    string,
-    unknown
-  >;
+  const { name, sourceLang, targetLang, description } = body as Record<string, unknown>;
 
   if (typeof name !== "string" || name.trim().length === 0) {
     return "Project name is required.";
@@ -1391,26 +1264,17 @@ function validateTranslationMemoryInput(body: unknown) {
     return "A translation memory payload is required.";
   }
 
-  const { name, sourceLanguage, targetLanguage } = body as Record<
-    string,
-    unknown
-  >;
+  const { name, sourceLanguage, targetLanguage } = body as Record<string, unknown>;
 
   if (typeof name !== "string" || name.trim().length === 0) {
     return "Translation memory name is required.";
   }
 
-  if (
-    typeof sourceLanguage !== "string" ||
-    sourceLanguage.trim().length === 0
-  ) {
+  if (typeof sourceLanguage !== "string" || sourceLanguage.trim().length === 0) {
     return "Source language is required.";
   }
 
-  if (
-    typeof targetLanguage !== "string" ||
-    targetLanguage.trim().length === 0
-  ) {
+  if (typeof targetLanguage !== "string" || targetLanguage.trim().length === 0) {
     return "Target language is required.";
   }
 
@@ -1422,15 +1286,9 @@ function validateProjectTranslationMemoryInput(body: unknown) {
     return "A project translation memory payload is required.";
   }
 
-  const { translationMemoryId, accessMode, priority } = body as Record<
-    string,
-    unknown
-  >;
+  const { translationMemoryId, accessMode, priority } = body as Record<string, unknown>;
 
-  if (
-    typeof translationMemoryId !== "string" ||
-    translationMemoryId.trim().length === 0
-  ) {
+  if (typeof translationMemoryId !== "string" || translationMemoryId.trim().length === 0) {
     return "Translation memory is required.";
   }
 
@@ -1438,10 +1296,7 @@ function validateProjectTranslationMemoryInput(body: unknown) {
     return "Access mode must be read or write.";
   }
 
-  if (
-    typeof priority !== "number" &&
-    !(typeof priority === "string" && priority.trim().length > 0)
-  ) {
+  if (typeof priority !== "number" && !(typeof priority === "string" && priority.trim().length > 0)) {
     return "Priority is required.";
   }
 
@@ -1464,10 +1319,7 @@ function validateProjectGlossaryInput(body: unknown) {
     return "Glossary is required.";
   }
 
-  if (
-    typeof priority !== "number" &&
-    !(typeof priority === "string" && priority.trim().length > 0)
-  ) {
+  if (typeof priority !== "number" && !(typeof priority === "string" && priority.trim().length > 0)) {
     return "Priority is required.";
   }
 
@@ -1501,10 +1353,7 @@ function validateTranslationMemoryTermsChangesInput(body: unknown) {
     return "A translation memory terms changes payload is required.";
   }
 
-  const { createdItems, updatedItems, deletedItemIds } = body as Record<
-    string,
-    unknown
-  >;
+  const { createdItems, updatedItems, deletedItemIds } = body as Record<string, unknown>;
 
   if (!Array.isArray(createdItems)) {
     return "createdItems must be an array.";
@@ -1578,13 +1427,7 @@ function validateGlossaryItemInput(body: unknown) {
     return "A glossary item payload is required.";
   }
 
-  const {
-    source,
-    target,
-    caseSensitive,
-    wholeWord,
-    priority,
-  } = body as Record<string, unknown>;
+  const { source, target, caseSensitive, wholeWord, priority } = body as Record<string, unknown>;
 
   if (typeof source !== "string" || source.trim().length === 0) {
     return "Glossary source is required.";
@@ -1602,10 +1445,7 @@ function validateGlossaryItemInput(body: unknown) {
     return "wholeWord must be a boolean.";
   }
 
-  if (
-    priority !== undefined &&
-    (typeof priority !== "number" || !Number.isFinite(priority))
-  ) {
+  if (priority !== undefined && (typeof priority !== "number" || !Number.isFinite(priority))) {
     return "priority must be a valid number.";
   }
 
@@ -1617,10 +1457,7 @@ function validateGlossaryItemsChangesInput(body: unknown) {
     return "A glossary items changes payload is required.";
   }
 
-  const { createdItems, updatedItems, deletedItemIds } = body as Record<
-    string,
-    unknown
-  >;
+  const { createdItems, updatedItems, deletedItemIds } = body as Record<string, unknown>;
 
   if (!Array.isArray(createdItems)) {
     return "createdItems must be an array.";
@@ -1678,8 +1515,7 @@ function validateSettingsInput(body: unknown) {
 
   if (
     inlineTranslateProvider !== undefined &&
-    (typeof inlineTranslateProvider !== "string" ||
-      inlineTranslateProvider.trim().length === 0)
+    (typeof inlineTranslateProvider !== "string" || inlineTranslateProvider.trim().length === 0)
   ) {
     return "Inline translate provider must be a non-empty string.";
   }
