@@ -3,7 +3,7 @@ version: "3.9"
 services:
   app:
     build: .
-    container_name: express-react-app
+    container_name: transoon-web
     ports:
       - "5203:3000"
     environment:

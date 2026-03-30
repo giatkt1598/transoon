@@ -17,7 +17,6 @@ import { attachTranslationProgressSocket, registerTranslationProgressSocketHandl
 const app = express();
 const httpServer = createServer(app);
 const shouldServeClientStatic = process.env.SERVE_STATIC === "true" || process.argv.includes("--serve-static");
-console.log("🚀 ~ shouldServeClientStatic:", shouldServeClientStatic);
 const io = new SocketIOServer(httpServer, {
   cors: {
     origin: "*",
