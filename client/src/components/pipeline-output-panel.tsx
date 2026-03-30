@@ -1,9 +1,13 @@
 import { Box, Button, Link, Paper, Typography } from "@mui/material";
+import { apiBaseUrl } from "../app/config";
 import { useTranslationApp } from "../app/translation-app-context";
 import { formatProcessingTime } from "../app/utils";
 
 export function PipelineOutputPanel() {
   const { result } = useTranslationApp();
+  const resolvedDownloadUrl = result
+    ? new URL(result.downloadUrl, `${apiBaseUrl.replace(/\/$/, "")}/`).toString()
+    : "";
 
   return (
     <Paper className="panel result-panel" elevation={0}>
@@ -38,7 +42,7 @@ export function PipelineOutputPanel() {
             className="download-link"
             component={Link}
             variant="contained"
-            href={result.downloadUrl}
+            href={resolvedDownloadUrl}
             underline="none"
           >
             Download translated file

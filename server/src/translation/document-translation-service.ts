@@ -1,4 +1,3 @@
-import { appConfig } from "../config/app-config";
 import { extractDocument, writeOutputFile } from "../document-service";
 import { type TranslateProgress } from "../translate-provider";
 import { translateSegments } from "../translation-service";
@@ -90,7 +89,7 @@ export async function translateDocument(
     segmentCount: extractedDocument.segments.length,
     processingTimeMs: Math.round(performance.now() - startedAt),
     preview: buildPreviewSegments(extractedDocument.segments, translatedSegments),
-    downloadUrl: `http://localhost:${appConfig.port}/api/downloads/${outputFileName}`,
+    downloadUrl: `/api/downloads/${outputFileName}`,
   };
 }
 
