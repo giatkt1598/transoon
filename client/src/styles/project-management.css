@@ -155,7 +155,6 @@
   content: "";
   position: absolute;
   inset: -8px -6px;
-  background: #ffffff;
   border-radius: 8px;
   z-index: -1;
 }
