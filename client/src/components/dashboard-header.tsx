@@ -1,3 +1,4 @@
+import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
@@ -13,15 +14,30 @@ import {
 
 type DashboardHeaderProps = {
   sidebarCollapsed: boolean;
+  isMobileNavigation?: boolean;
+  onOpenMobileNavigation?: () => void;
 };
 
-export function DashboardHeader({ sidebarCollapsed }: DashboardHeaderProps) {
+export function DashboardHeader({
+  sidebarCollapsed,
+  isMobileNavigation = false,
+  onOpenMobileNavigation,
+}: DashboardHeaderProps) {
   return (
     <Box
       component="header"
       className={`topbar${sidebarCollapsed ? " sidebar-collapsed" : ""}`}
     >
       <Stack direction="row" spacing={1.5} alignItems="center">
+        {isMobileNavigation ? (
+          <IconButton
+            className="topbar-icon-button topbar-menu-button"
+            onClick={onOpenMobileNavigation}
+            aria-label="Open navigation menu"
+          >
+            <MenuRoundedIcon fontSize="small" />
+          </IconButton>
+        ) : null}
         <Chip label="Workspace" className="team-chip" />
         <Typography className="topbar-title">Translation Studio</Typography>
       </Stack>

@@ -1,6 +1,6 @@
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import TranslateRoundedIcon from "@mui/icons-material/TranslateRounded";
-import { Box, Chip, IconButton, Typography } from "@mui/material";
+import { Box, Chip, Drawer, IconButton, Typography } from "@mui/material";
 import { NavLink } from "react-router-dom";
 import {
   managementNavItems,
@@ -16,6 +16,9 @@ type NavItemProps = {
 type NavigationSidebarProps = {
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
+  isMobile?: boolean;
 };
 
 function NavItem({ item, collapsed }: NavItemProps) {
@@ -39,25 +42,30 @@ function NavItem({ item, collapsed }: NavItemProps) {
 export function NavigationSidebar({
   collapsed,
   onToggleCollapsed,
+  mobileOpen = false,
+  onCloseMobile,
+  isMobile = false,
 }: NavigationSidebarProps) {
-  return (
+  const sidebarContent = (
     <Box
       component="aside"
-      className={`sidebar${collapsed ? " collapsed" : ""}`}
+      className={`sidebar${collapsed && !isMobile ? " collapsed" : ""}${isMobile ? " mobile" : ""}`}
     >
-      <IconButton
-        className={`sidebar-toggle${collapsed ? " collapsed" : ""}`}
-        onClick={onToggleCollapsed}
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      >
-        <ChevronLeftRoundedIcon fontSize="small" />
-      </IconButton>
+      {isMobile ? null : (
+        <IconButton
+          className={`sidebar-toggle${collapsed ? " collapsed" : ""}`}
+          onClick={onToggleCollapsed}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <ChevronLeftRoundedIcon fontSize="small" />
+        </IconButton>
+      )}
 
       <Box className="brand-mark">
         <Box className="brand-glyph">
           <TranslateRoundedIcon fontSize="small" />
         </Box>
-        {collapsed ? null : (
+        {collapsed && !isMobile ? null : (
           <Box>
             <Typography className="brand-name">TranSoon</Typography>
             <Typography className="brand-subtitle">Translate Tool</Typography>
@@ -68,11 +76,13 @@ export function NavigationSidebar({
       <Box className="sidebar-scroll">
         <Box className="nav-section">
           {primaryNavItems.map((item) => (
-            <NavItem key={item.to} item={item} collapsed={collapsed} />
+            <Box key={item.to} onClick={isMobile ? onCloseMobile : undefined}>
+              <NavItem item={item} collapsed={collapsed && !isMobile} />
+            </Box>
           ))}
         </Box>
 
-        {collapsed ? null : (
+        {collapsed && !isMobile ? null : (
           <Box className="nav-group-label">
             <Typography>Management</Typography>
           </Box>
@@ -80,13 +90,15 @@ export function NavigationSidebar({
 
         <Box className="nav-section secondary">
           {managementNavItems.map((item) => (
-            <NavItem key={item.to} item={item} collapsed={collapsed} />
+            <Box key={item.to} onClick={isMobile ? onCloseMobile : undefined}>
+              <NavItem item={item} collapsed={collapsed && !isMobile} />
+            </Box>
           ))}
         </Box>
 
         <Box sx={{ flex: 1 }} />
 
-        {collapsed ? null : (
+        {collapsed && !isMobile ? null : (
           <Box className="sidebar-card">
             <Typography className="sidebar-card-title">
               Translation flow
@@ -100,4 +112,24 @@ export function NavigationSidebar({
       </Box>
     </Box>
   );
+
+  if (isMobile) {
+    return (
+      <Drawer
+        open={mobileOpen}
+        onClose={onCloseMobile}
+        anchor="left"
+        ModalProps={{ keepMounted: true }}
+        slotProps={{
+          paper: {
+            className: "sidebar-drawer-paper",
+          },
+        }}
+      >
+        {sidebarContent}
+      </Drawer>
+    );
+  }
+
+  return sidebarContent;
 }

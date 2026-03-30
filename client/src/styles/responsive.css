@@ -1,8 +1,4 @@
 @media (max-width: 1180px) {
-  .sidebar {
-    display: none;
-  }
-
   .dashboard-shell,
   .dashboard-shell.sidebar-collapsed {
     margin-left: 0;
@@ -15,8 +11,12 @@
 }
 
 @media (max-width: 920px) {
+  .app-shell {
+    --header-height: 72px;
+  }
+
   .dashboard-content {
-    padding: calc(var(--header-height) + 18px) 14px 24px;
+    padding: calc(var(--header-height) + 14px) 14px 24px;
   }
 
   .hero-panel,
@@ -25,17 +25,35 @@
   }
 
   .topbar {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 14px;
+    gap: 10px;
   }
 
   .topbar-actions {
-    width: 100%;
+    width: auto;
+    min-width: 0;
+    gap: 8px;
   }
 
   .search-shell {
     min-width: 0;
     flex: 1;
+    max-width: 240px;
+    padding: 8px 12px;
+    border-radius: 12px;
+  }
+
+  .topbar-icon-button.MuiIconButton-root,
+  .user-avatar.MuiAvatar-root {
+    width: 36px;
+    height: 36px;
+  }
+
+  .team-chip.MuiChip-root,
+  .topbar-title {
+    display: none;
   }
 
   .field-grid,
@@ -124,7 +142,25 @@
 
 @media (max-width: 640px) {
   .topbar {
-    padding-inline: 14px;
+    padding: 10px 12px;
+  }
+
+  .dashboard-content {
+    padding: calc(var(--header-height) + 12px) 12px 20px;
+  }
+
+  .search-shell {
+    max-width: none;
+    flex: 1;
+    padding: 7px 10px;
+  }
+
+  .search-shell input {
+    font-size: 0.92rem;
+  }
+
+  .topbar-actions {
+    flex: 1;
   }
 
   .hero-panel,

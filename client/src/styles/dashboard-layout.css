@@ -24,6 +24,21 @@
   transition: width 220ms ease, padding 220ms ease;
 }
 
+.sidebar.mobile {
+  position: static;
+  width: min(320px, 82vw);
+  height: 100%;
+  padding: 24px 18px 18px;
+  border-right: none;
+  background: rgba(255, 252, 247, 0.98);
+}
+
+.sidebar-drawer-paper.MuiDrawer-paper {
+  width: min(320px, 82vw);
+  background: transparent;
+  box-shadow: none;
+}
+
 .sidebar.collapsed {
   width: var(--sidebar-collapsed-width);
   padding-left: 12px;
@@ -203,6 +218,10 @@
   margin-left: var(--sidebar-collapsed-width);
 }
 
+.dashboard-shell.mobile-nav {
+  margin-left: 0;
+}
+
 .dashboard-content {
   padding: calc(var(--header-height) + 22px) 24px 32px;
 }
@@ -227,6 +246,10 @@
 
 .topbar.sidebar-collapsed {
   left: var(--sidebar-collapsed-width);
+}
+
+.topbar-menu-button.MuiIconButton-root {
+  margin-right: 4px;
 }
 
 .team-chip.MuiChip-root {
