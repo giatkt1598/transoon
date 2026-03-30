@@ -65,6 +65,7 @@ export function useProjectTranslations({
   const [inlineCaretRestoreToken, setInlineCaretRestoreToken] = useState(0)
   const [confirmFocusSegmentId, setConfirmFocusSegmentId] = useState<string | null>(null)
   const [confirmFocusToken, setConfirmFocusToken] = useState(0)
+  const handledTerminalProgressRef = useRef<string | null>(null)
   const inlineTranslationRef = useRef<{
     segmentId: string
     requestId: number
@@ -187,6 +188,13 @@ export function useProjectTranslations({
       })
 
       if (progress.phase === 'completed' || progress.phase === 'failed' || progress.phase === 'cancelled') {
+        const terminalProgressKey = `${progress.projectId}:${progress.phase}:${progress.updatedAt}`
+        if (handledTerminalProgressRef.current === terminalProgressKey) {
+          return
+        }
+
+        handledTerminalProgressRef.current = terminalProgressKey
+
         try {
           const [nextProjectDetail, nextSegments] = await Promise.all([
             fetchProjectDetail(resolvedProjectId),
@@ -218,6 +226,14 @@ export function useProjectTranslations({
       socket.off('project-auto-translate-progress', handleProgress)
     }
   }, [onProjectDetailChange, projectId, projectStatus])
+
+  useEffect(() => {
+    if (projectStatus === 'auto-translate-processing') {
+      return
+    }
+
+    handledTerminalProgressRef.current = null
+  }, [projectStatus])
 
   const hasSegments = useMemo(() => segments.length > 0, [segments])
   const isReadOnly = projectStatus === 'auto-translate-processing'

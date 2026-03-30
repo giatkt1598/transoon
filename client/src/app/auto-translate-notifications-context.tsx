@@ -11,7 +11,8 @@ import {
 
 const PROJECT_AUTO_TRANSLATE_STARTED_EVENT =
   "transoon:auto-translate-started";
-const PROJECT_AUTO_TRANSLATE_REFRESH_MS = 15000;
+const PROJECT_AUTO_TRANSLATE_IDLE_REFRESH_MS = 15000;
+const PROJECT_AUTO_TRANSLATE_ACTIVE_REFRESH_MS = 2000;
 
 export type AutoTranslateNotification = {
   id: string;
@@ -68,6 +69,10 @@ export function AutoTranslateNotificationsProvider({
     string | null
   >(null);
   const startedAtRef = useRef(new Map<string, string>());
+  const refreshIntervalMs =
+    processingProjectIds.length > 0 || manuallyTrackedProjectIds.length > 0
+      ? PROJECT_AUTO_TRANSLATE_ACTIVE_REFRESH_MS
+      : PROJECT_AUTO_TRANSLATE_IDLE_REFRESH_MS;
 
   useEffect(() => {
     let isDisposed = false;
@@ -87,6 +92,9 @@ export function AutoTranslateNotificationsProvider({
             .filter((project) => project.status === "auto-translate-processing")
             .map((project) => project.id),
         );
+        setNotifications((currentNotifications) =>
+          syncNotificationsWithProjects(currentNotifications, projects),
+        );
       } catch {
         // Notification center should fail quietly.
       }
@@ -95,14 +103,14 @@ export function AutoTranslateNotificationsProvider({
     void loadProjects();
     const intervalId = window.setInterval(
       () => void loadProjects(),
-      PROJECT_AUTO_TRANSLATE_REFRESH_MS,
+      refreshIntervalMs,
     );
 
     return () => {
       isDisposed = true;
       window.clearInterval(intervalId);
     };
-  }, []);
+  }, [refreshIntervalMs]);
 
   useEffect(() => {
     const handleAutoTranslateStarted = (event: Event) => {
@@ -334,6 +342,7 @@ function upsertNotification(
   nextNotifications[existingNotificationIndex] = {
     ...previousNotification,
     ...nextNotification,
+    providerName: nextNotification.providerName ?? previousNotification.providerName,
     unread: previousNotification.unread || nextNotification.unread,
   };
   return nextNotifications.sort(
@@ -362,4 +371,54 @@ export function dispatchAutoTranslateStartedNotification(
       { detail },
     ),
   );
+}
+
+function syncNotificationsWithProjects(
+  currentNotifications: AutoTranslateNotification[],
+  projects: ProjectSummary[],
+) {
+  const projectLookup = new Map(
+    projects.map((project) => [project.id, project] as const),
+  );
+
+  return currentNotifications.map((notification) => {
+    const project = projectLookup.get(notification.projectId);
+    if (!project) {
+      return notification;
+    }
+
+    const isActiveNotification =
+      notification.phase === "queued" || notification.phase === "translating";
+    if (!isActiveNotification) {
+      return notification;
+    }
+
+    const totalSegments = Math.max(notification.totalSegments, project.segmentCount);
+    const completedSegments = Math.max(
+      notification.completedSegments,
+      project.translatedSegmentCount,
+    );
+    const progressPercent =
+      totalSegments <= 0
+        ? 0
+        : Math.max(
+            notification.progressPercent,
+            project.progressPercent,
+            Math.round((completedSegments / totalSegments) * 100),
+          );
+
+    return {
+      ...notification,
+      phase:
+        project.status === "auto-translate-processing"
+          ? completedSegments > 0 || progressPercent > 0
+            ? "translating"
+            : "queued"
+          : notification.phase,
+      completedSegments,
+      totalSegments,
+      progressPercent,
+      updatedAt: project.lastModifiedAt ?? notification.updatedAt,
+    };
+  });
 }

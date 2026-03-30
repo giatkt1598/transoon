@@ -4,7 +4,7 @@ import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import { Box, Button, Chip, Divider, IconButton, LinearProgress, Popover, Tooltip, Typography } from "@mui/material";
+import { Box, Button, Chip, Divider, IconButton, Popover, Tooltip, Typography } from "@mui/material";
 import type { AutoTranslateNotification } from "../app/auto-translate-notifications-context";
 
 type AutoTranslateNotificationsPopoverProps = {
@@ -136,19 +136,14 @@ export function AutoTranslateNotificationsPopover({
                     {buildNotificationMeta(notification)}
                   </Typography>
                   {isActive ? (
-                    <LinearProgress
-                      variant={
-                        notification.phase === "queued"
-                          ? "indeterminate"
-                          : "determinate"
-                      }
-                      value={
-                        notification.phase === "queued"
-                          ? undefined
-                          : notification.progressPercent
-                      }
-                      className="auto-translate-notification-progress"
-                    />
+                    <Box className="auto-translate-notification-progress">
+                      <Box
+                        className={`auto-translate-notification-progress-bar${clampProgressPercent(notification.progressPercent) >= 100 ? " is-complete" : ""}`}
+                        sx={{
+                          width: `${clampProgressPercent(notification.progressPercent)}%`,
+                        }}
+                      />
+                    </Box>
                   ) : null}
                 </Box>
               </Box>
@@ -212,7 +207,18 @@ function buildNotificationMeta(notification: AutoTranslateNotification) {
       notification.phase === "cancelled") &&
     notification.durationMs !== null
   ) {
-    return `${notification.completedSegments}/${notification.totalSegments} segments • ${formatDuration(notification.durationMs)} • ${relativeTime}`;
+    const metaParts = [
+      `${notification.completedSegments}/${notification.totalSegments} segments`,
+    ];
+
+    if (notification.providerName) {
+      metaParts.push(notification.providerName);
+    }
+
+    metaParts.push(formatDuration(notification.durationMs));
+    metaParts.push(relativeTime);
+
+    return metaParts.join(" • ");
   }
 
   return `${notification.completedSegments}/${notification.totalSegments} segments • ${notification.progressPercent}% • ${relativeTime}`;
@@ -228,4 +234,8 @@ function formatDuration(durationMs: number) {
   }
 
   return `${minutes}m ${seconds}s`;
+}
+
+function clampProgressPercent(progressPercent: number) {
+  return Math.max(0, Math.min(100, Number.isFinite(progressPercent) ? progressPercent : 0));
 }
