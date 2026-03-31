@@ -34,12 +34,14 @@ import type { ProjectSegment } from "../../app/types";
 import type { ProjectGlossaryConfig, ProjectTerm } from "../../app/types";
 import {
   getAppliedTermMatchScore,
+  normalizeTermSourceText,
   searchFuzzyProjectTerms,
   type FuzzyMatchedProjectTerm,
 } from "../term-fuzzy-search";
 import { TERM_FUZZY_MATCH_THRESHOLD } from "../constants";
 import { AlignmentToolToolbar } from "./alignment-tool-toolbar";
 import { AlignmentAddGlossaryPopover } from "./alignment-add-glossary-popover";
+import { AlignmentTermConflictDialog } from "./alignment-term-conflict-dialog";
 import {
   AlignmentFindPopover,
   type AlignmentFindStatusOption,
@@ -80,7 +82,7 @@ type AlignmentToolProps = {
   onTargetChange: (segmentId: string, targetText: string) => void;
   onActiveSegmentChange: (segmentExternalId: string | null) => void;
   onInlineTranslateSegment: (segmentId: string) => void;
-  onConfirmSegment: (segmentId: string, targetText?: string) => void;
+  onConfirmSegment: (segmentId: string, targetText?: string) => Promise<void> | void;
   onSplitSegment?: (segmentId: string, splitIndex: number) => void;
   onSaveAll: () => void;
   onJoinSelected?: (segmentIds: string[]) => void;
@@ -259,8 +261,24 @@ export function AlignmentTool({
     [filteredSegments, listRef],
   );
 
+  const focusSegmentById = useCallback(
+    (segmentId: string) => {
+      const nextIndex = filteredSegments.findIndex(
+        (segment) => segment.id === segmentId,
+      );
+      if (nextIndex < 0) {
+        toast.error("Segment is hidden by the current find filters.");
+        return;
+      }
+
+      focusSegmentAtIndex(nextIndex);
+    },
+    [filteredSegments, focusSegmentAtIndex],
+  );
+
   const rowData: RowData = {
     segments: filteredSegments,
+    allSegments: segments,
     savedSegmentTargets,
     draftTargets,
     projectTerms,
@@ -335,6 +353,7 @@ export function AlignmentTool({
       });
     },
     focusSegmentAtIndex,
+    focusSegmentById,
   };
   const activeSegment = segments.find(
     (segment) => segment.externalSegmentId === activeSegmentExternalId,
@@ -927,6 +946,7 @@ export function AlignmentTool({
 
 type RowData = {
   segments: ProjectSegment[];
+  allSegments: ProjectSegment[];
   savedSegmentTargets: Record<string, string>;
   draftTargets: Record<string, string>;
   projectTerms: ProjectTerm[];
@@ -946,16 +966,18 @@ type RowData = {
   onActiveSegmentChange: (segmentExternalId: string | null) => void;
   onInlineTranslateSegment: (segmentId: string) => void;
   onOpenSplitDialog: () => void;
-  onConfirmSegment: (segmentId: string, targetText?: string) => void;
+  onConfirmSegment: (segmentId: string, targetText?: string) => Promise<void> | void;
   flushSegmentDraft: (segmentId: string) => void;
   onSelectSegmentRange: (segmentId: string) => void;
   focusSegmentAtIndex: (index: number) => void;
+  focusSegmentById: (segmentId: string) => void;
 };
 
 function AlignmentVirtualRow({
   index,
   style,
   segments,
+  allSegments,
   savedSegmentTargets,
   draftTargets,
   projectTerms,
@@ -976,6 +998,7 @@ function AlignmentVirtualRow({
   flushSegmentDraft,
   onSelectSegmentRange,
   focusSegmentAtIndex,
+  focusSegmentById,
 }: RowComponentProps<RowData>) {
   const segment = segments[index];
   const inputElementRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(
@@ -1022,6 +1045,21 @@ function AlignmentVirtualRow({
       ),
     [projectTerms, segment.sourceText, termFuzzyMatchThreshold],
   );
+  const exactSourceTermMatches = useMemo(
+    () => sourceTermMatches.filter((match) => match.score === 1),
+    [sourceTermMatches],
+  );
+  const exactMatchedTranslationMemoryTerm =
+    exactSourceTermMatches[0]?.term ?? null;
+  const normalizedSourceText = useMemo(
+    () => normalizeTermSourceText(segment.sourceText).toLocaleLowerCase(),
+    [segment.sourceText],
+  );
+  const normalizedTranslationMemoryTarget = exactMatchedTranslationMemoryTerm
+    ? normalizeTermSourceText(
+        exactMatchedTranslationMemoryTerm.targetTerm,
+      ).toLocaleLowerCase()
+    : "";
   const exactMatchedTerm =
     fuzzyMatches[0]?.score === 1 ? fuzzyMatches[0].term : null;
   const appliedTermMatchScore = useMemo(
@@ -1045,6 +1083,38 @@ function AlignmentVirtualRow({
   const inlinePlaceholder = isInlineTranslating
     ? `Translating (by ${inlineTranslateProviderName || "translate provider"})...`
     : exactMatchedTerm?.targetTerm || "Type target translation...";
+  const conflictingSegments = useMemo(() => {
+    if (!normalizedTranslationMemoryTarget) {
+      return [];
+    }
+
+    return allSegments.filter((currentSegment) => {
+      if (
+        normalizeTermSourceText(currentSegment.sourceText).toLocaleLowerCase() !==
+        normalizedSourceText
+      ) {
+        return false;
+      }
+
+      const normalizedCurrentTarget = normalizeTermSourceText(
+        draftTargets[currentSegment.id] ?? currentSegment.targetText,
+      ).toLocaleLowerCase();
+      if (!normalizedCurrentTarget) {
+        return false;
+      }
+
+      return normalizedCurrentTarget !== normalizedTranslationMemoryTarget;
+    });
+  }, [
+    allSegments,
+    draftTargets,
+    normalizedSourceText,
+    normalizedTranslationMemoryTarget,
+  ]);
+  const hasTermConflict =
+    normalizedTargetValue.length > 0 &&
+    normalizedTranslationMemoryTarget.length > 0 &&
+    conflictingSegments.length > 0;
   const highlightedSourceFragments = useMemo(
     () => buildHighlightedSourceFragments(segment),
     [segment],
@@ -1092,6 +1162,57 @@ function AlignmentVirtualRow({
     },
     [],
   );
+
+  const handleApplyTranslationMemoryTarget = useCallback(() => {
+    if (!exactMatchedTranslationMemoryTerm) {
+      return;
+    }
+
+    allSegments.forEach((currentSegment) => {
+      if (
+        normalizeTermSourceText(currentSegment.sourceText).toLocaleLowerCase() !==
+        normalizedSourceText
+      ) {
+        return;
+      }
+
+      onTargetDraftChange(
+        currentSegment.id,
+        exactMatchedTranslationMemoryTerm.targetTerm,
+      );
+    });
+  }, [
+    allSegments,
+    exactMatchedTranslationMemoryTerm,
+    normalizedSourceText,
+    onTargetDraftChange,
+  ]);
+
+  const handleApplyAndConfirmTranslationMemoryTarget = useCallback(async () => {
+    if (!exactMatchedTranslationMemoryTerm) {
+      return;
+    }
+
+    const matchingSegments = [...allSegments]
+      .filter(
+        (currentSegment) =>
+          normalizeTermSourceText(currentSegment.sourceText).toLocaleLowerCase() ===
+          normalizedSourceText,
+      )
+      .sort((left, right) => left.position - right.position);
+
+    for (const currentSegment of matchingSegments) {
+      await onConfirmSegment(
+        currentSegment.id,
+        exactMatchedTranslationMemoryTerm.targetTerm,
+      );
+    }
+  }, [
+    allSegments,
+    exactMatchedTranslationMemoryTerm,
+    normalizedSourceText,
+    onConfirmSegment,
+  ]);
 
   return (
     <div style={style}>
@@ -1397,17 +1518,35 @@ function AlignmentVirtualRow({
         </Popover>
 
         <Box className="alignment-score-cell">
-          <AlignmentScoreCell
-            translationStatus={displayTranslationStatus}
-            isInlineTranslating={isInlineTranslating}
-            isConfirming={isConfirming}
-            termMatchScore={appliedTermMatchScore}
-            termFuzzyMatchThreshold={termFuzzyMatchThreshold}
-            hasEmptyTarget={hasEmptyTarget}
-            hasNoTermAvailable={hasNoTermAvailable}
-            hasUnmatchedTermSuggestion={hasUnmatchedTermSuggestion}
-            hasLowTermMatchScore={hasLowTermMatchScore}
-          />
+          <Stack sx={{ alignSelf: "start", width: "100%" }} direction="column">
+            <AlignmentScoreCell
+              translationStatus={displayTranslationStatus}
+              isInlineTranslating={isInlineTranslating}
+              isConfirming={isConfirming}
+              termMatchScore={appliedTermMatchScore}
+              termFuzzyMatchThreshold={termFuzzyMatchThreshold}
+              hasEmptyTarget={hasEmptyTarget}
+              hasNoTermAvailable={hasNoTermAvailable}
+              hasUnmatchedTermSuggestion={hasUnmatchedTermSuggestion}
+              hasLowTermMatchScore={hasLowTermMatchScore}
+            />
+            {hasTermConflict && exactMatchedTranslationMemoryTerm ? (
+              <AlignmentTermConflictDialog
+                currentSegmentId={segment.id}
+                translationMemoryTarget={
+                  exactMatchedTranslationMemoryTerm.targetTerm
+                }
+                conflictingSegments={conflictingSegments}
+                onGoToSegment={focusSegmentById}
+                onApplyTranslationMemoryTargetToMatchingSourceSegments={
+                  handleApplyTranslationMemoryTarget
+                }
+                onApplyAndConfirmTranslationMemoryTargetToMatchingSourceSegments={
+                  handleApplyAndConfirmTranslationMemoryTarget
+                }
+              />
+            ) : null}
+          </Stack>
         </Box>
 
         <Box className="alignment-status-cell">
