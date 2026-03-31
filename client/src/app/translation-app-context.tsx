@@ -8,7 +8,6 @@ import {
 } from 'react'
 import {
   dispatchDocumentTranslationStartedNotification,
-  dispatchDocumentTranslationUpdatedNotification,
 } from './auto-translate-notifications-context'
 import { apiBaseUrl } from './config'
 import { getAppSocket } from './socket'
@@ -261,19 +260,6 @@ export function TranslationAppProvider({ children }: PropsWithChildren) {
       }
 
       setResult(data)
-      dispatchDocumentTranslationUpdatedNotification({
-        requestId: data.requestId,
-        providerName: data.provider,
-        message: 'Translation completed.',
-        progressPercent: 100,
-        completedChunks: progress?.totalChunks ?? progress?.completedChunks ?? 0,
-        totalChunks: progress?.totalChunks ?? progress?.completedChunks ?? 0,
-        updatedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        durationMs: data.processingTimeMs,
-        phase: 'completed',
-        downloadUrl: data.downloadUrl,
-      })
       setProgress((currentProgress) => ({
         requestId: data.requestId,
         phase: 'completed',
@@ -284,18 +270,6 @@ export function TranslationAppProvider({ children }: PropsWithChildren) {
         updatedAt: new Date().toISOString(),
       }))
     } catch (submitError) {
-      dispatchDocumentTranslationUpdatedNotification({
-        requestId,
-        message:
-          submitError instanceof Error
-            ? submitError.message
-            : 'Something went wrong while uploading the document.',
-        progressPercent: 100,
-        updatedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        durationMs: submitStartedAt === null ? null : Date.now() - submitStartedAt,
-        phase: 'failed',
-      })
       setProgress((currentProgress) =>
         currentProgress
           ? {

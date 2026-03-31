@@ -673,7 +673,7 @@ body.pane-resizing {
   flex-direction: column;
   align-items: flex-start;
   gap: 12px;
-  min-height: min(68vh, 780px);
+  min-height: min(76vh, 780px);
   padding: 18px;
   border-radius: 8px;
   background: linear-gradient(180deg, #fffdf8 0%, #f6ecde 100%);
@@ -691,7 +691,7 @@ body.pane-resizing {
 }
 
 .document-preview-docx {
-  height: min(68vh, 780px);
+  height: min(76vh, 780px);
   min-height: 360px;
   overflow: auto;
   min-width: 0;
@@ -705,7 +705,7 @@ body.pane-resizing {
   display: flex;
   flex-direction: column;
   gap: 0;
-  height: min(68vh, 780px);
+  height: min(76vh, 780px);
   min-height: 360px;
 }
 

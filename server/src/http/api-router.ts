@@ -64,11 +64,14 @@ import {
   listNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
-  upsertNotification,
 } from "../translation-memory/notification-service";
 import { TranslateProvider } from "../translation-service";
 import { translateDocument } from "../translation/document-translation-service";
-import { getTranslationProgress, setTranslationProgress } from "../translation-progress";
+import {
+  getTranslationProgress,
+  registerTranslationNotificationMetadata,
+  setTranslationProgress,
+} from "../translation-progress";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -700,27 +703,6 @@ export function createApiRouter() {
     }
   });
 
-  router.put("/api/notifications/:notificationId", (req, res) => {
-    try {
-      const validationError = validateNotificationInput(req.body);
-      if (validationError) {
-        res.status(400).json({ error: validationError });
-        return;
-      }
-
-      const notificationId = String(req.params.notificationId);
-      if (notificationId !== req.body.id) {
-        res.status(400).json({ error: "Notification id mismatch." });
-        return;
-      }
-
-      res.json(upsertNotification(req.body));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unexpected server error.";
-      res.status(500).json({ error: message });
-    }
-  });
-
   router.post("/api/notifications/:notificationId/read", (req, res) => {
     try {
       markNotificationAsRead(String(req.params.notificationId));
@@ -1214,17 +1196,28 @@ export function createApiRouter() {
 
   router.post("/api/translate-document", upload.single("file"), async (req, res) => {
     const requestId = String(req.body.requestId ?? randomUUID());
+    const sourceLanguage = String(req.body.sourceLanguage ?? appConfig.defaultSourceLanguage);
+    const targetLanguage = String(req.body.targetLanguage ?? appConfig.defaultTargetLanguage);
+    const providerName = String(req.body.providerName ?? appConfig.defaultTranslateProvider);
+    const file = req.file;
 
     try {
-      const sourceLanguage = String(req.body.sourceLanguage ?? appConfig.defaultSourceLanguage);
-      const targetLanguage = String(req.body.targetLanguage ?? appConfig.defaultTargetLanguage);
-      const providerName = String(req.body.providerName ?? appConfig.defaultTranslateProvider);
-      const file = req.file;
-
       if (!file) {
         res.status(400).json({ error: "A document file is required." });
         return;
       }
+
+       registerTranslationNotificationMetadata(requestId, {
+        fileName: file.originalname,
+        providerName,
+      });
+      setTranslationProgress(requestId, {
+        phase: "queued",
+        totalChunks: 0,
+        completedChunks: 0,
+        progressPercent: 0,
+        message: "Preparing translation request.",
+      });
 
       const result = await translateDocument({
         requestId,
@@ -1236,15 +1229,40 @@ export function createApiRouter() {
         onProgress: (progress) => setTranslationProgress(requestId, progress),
       });
 
+      const latestProgress = getTranslationProgress(requestId);
+      setTranslationProgress(
+        requestId,
+        {
+          phase: "completed",
+          totalChunks: latestProgress?.totalChunks ?? 0,
+          completedChunks:
+            latestProgress?.totalChunks ?? latestProgress?.completedChunks ?? 0,
+          progressPercent: 100,
+          message: "Translation completed.",
+        },
+        {
+          fileName: file.originalname,
+          providerName: result.provider,
+          downloadUrl: result.downloadUrl,
+          durationMs: result.processingTimeMs,
+          completedAt: new Date().toISOString(),
+        },
+      );
+
       res.json(result);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unexpected server error.";
+      const latestProgress = getTranslationProgress(requestId);
       setTranslationProgress(requestId, {
         phase: "failed",
-        totalChunks: 0,
-        completedChunks: 0,
+        totalChunks: latestProgress?.totalChunks ?? 0,
+        completedChunks: latestProgress?.completedChunks ?? 0,
         progressPercent: 100,
         message,
+      }, {
+        fileName: file?.originalname,
+        providerName,
+        completedAt: new Date().toISOString(),
       });
       res.status(500).json({ error: message });
     }
@@ -1274,71 +1292,6 @@ function validateProjectInput(body: unknown) {
 
   if (description !== undefined && typeof description !== "string") {
     return "Description must be a string.";
-  }
-
-  return null;
-}
-
-function validateNotificationInput(body: unknown) {
-  if (!body || typeof body !== "object") {
-    return "A notification payload is required.";
-  }
-
-  const {
-    id,
-    kind,
-    projectName,
-    phase,
-    message,
-    progressPercent,
-    completedSegments,
-    totalSegments,
-    unitLabel,
-    updatedAt,
-    unread,
-  } = body as Record<string, unknown>;
-
-  if (typeof id !== "string" || id.trim().length === 0) {
-    return "Notification id is required.";
-  }
-
-  if (
-    kind !== "project-auto-translate" &&
-    kind !== "document-translation"
-  ) {
-    return "Notification kind is invalid.";
-  }
-
-  if (typeof projectName !== "string" || projectName.trim().length === 0) {
-    return "Notification title is required.";
-  }
-
-  if (typeof phase !== "string" || phase.trim().length === 0) {
-    return "Notification phase is required.";
-  }
-
-  if (typeof message !== "string") {
-    return "Notification message is required.";
-  }
-
-  if (!Number.isFinite(progressPercent)) {
-    return "Notification progressPercent is invalid.";
-  }
-
-  if (!Number.isFinite(completedSegments) || !Number.isFinite(totalSegments)) {
-    return "Notification counters are invalid.";
-  }
-
-  if (unitLabel !== "segments" && unitLabel !== "chunks") {
-    return "Notification unitLabel is invalid.";
-  }
-
-  if (typeof updatedAt !== "string" || updatedAt.trim().length === 0) {
-    return "Notification updatedAt is required.";
-  }
-
-  if (typeof unread !== "boolean") {
-    return "Notification unread is required.";
   }
 
   return null;

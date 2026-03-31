@@ -21,7 +21,9 @@
   border-right: 1px solid rgba(58, 44, 30, 0.08);
   background: rgba(255, 252, 247, 0.86);
   backdrop-filter: blur(16px);
-  transition: width 220ms ease, padding 220ms ease;
+  transition:
+    width 220ms ease,
+    padding 220ms ease;
 }
 
 .sidebar.mobile {
@@ -434,7 +436,6 @@
 }
 
 .auto-translate-notification-copy span {
-  display: block;
   margin-top: 6px;
   color: #8a705c;
   font-size: 0.8rem;

@@ -5,11 +5,12 @@ import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import { Box, Button, Chip, Divider, IconButton, Popover, Tooltip, Typography } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AutoTranslateNotification } from "../app/auto-translate-notifications-context";
 import { apiBaseUrl } from "../app/config";
 
 const NOTIFICATIONS_PAGE_SIZE = 4;
+const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
 type AutoTranslateNotificationsPopoverProps = {
   anchorEl: HTMLElement | null;
@@ -37,11 +38,30 @@ export function AutoTranslateNotificationsPopover({
   onOpenNotification,
 }: AutoTranslateNotificationsPopoverProps) {
   const [visibleCount, setVisibleCount] = useState(NOTIFICATIONS_PAGE_SIZE);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const visibleNotifications = useMemo(
     () => notifications.slice(0, visibleCount),
     [notifications, visibleCount],
   );
   const hasMoreNotifications = notifications.length > visibleCount;
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setNowMs(Date.now());
+    }, 0);
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
+    };
+  }, [open]);
 
   return (
     <Popover
@@ -156,8 +176,8 @@ export function AutoTranslateNotificationsPopover({
                   <Typography component="p">
                     {notification.message}
                   </Typography>
-                  <Typography component="span">
-                    {buildNotificationMeta(notification)}
+                  <Typography component="span" className="auto-translate-notification-meta">
+                    <NotificationMeta notification={notification} nowMs={nowMs} />
                   </Typography>
                   {notification.kind === "document-translation" &&
                   notification.phase === "completed" &&
@@ -263,14 +283,7 @@ function getPhaseLabel(phase: AutoTranslateNotification["phase"]) {
   }
 }
 
-function buildNotificationMeta(notification: AutoTranslateNotification) {
-  const relativeTime = new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(notification.updatedAt));
-
+function buildNotificationMetaParts(notification: AutoTranslateNotification) {
   if (
     (notification.phase === "completed" ||
       notification.phase === "failed" ||
@@ -289,9 +302,8 @@ function buildNotificationMeta(notification: AutoTranslateNotification) {
     }
 
     metaParts.push(formatDuration(notification.durationMs));
-    metaParts.push(relativeTime);
 
-    return metaParts.join(" • ");
+    return metaParts;
   }
 
   const runningMetaParts: string[] = [];
@@ -300,9 +312,83 @@ function buildNotificationMeta(notification: AutoTranslateNotification) {
       `${notification.completedSegments}/${notification.totalSegments} ${notification.unitLabel}`,
     );
   }
-  runningMetaParts.push(`${notification.progressPercent}%`, relativeTime);
+  runningMetaParts.push(`${notification.progressPercent}%`);
 
-  return runningMetaParts.join(" • ");
+  return runningMetaParts;
+}
+
+function NotificationMeta({
+  notification,
+  nowMs,
+}: {
+  notification: AutoTranslateNotification;
+  nowMs: number;
+}) {
+  const timestamp = getNotificationDisplayTimestamp(notification);
+  const relativeTime = formatRelativeTime(timestamp, nowMs);
+  const exactTime = formatAbsoluteTime(timestamp);
+  const metaParts = buildNotificationMetaParts(notification);
+  const metaPrefix = metaParts.length > 0 ? `${metaParts.join(" • ")} • ` : "";
+
+  return (
+    <>
+      {metaPrefix}
+      <Tooltip title={exactTime}>
+        <Box component="span" className="auto-translate-notification-time">
+          {relativeTime}
+        </Box>
+      </Tooltip>
+    </>
+  );
+}
+
+function getNotificationDisplayTimestamp(notification: AutoTranslateNotification) {
+  return notification.startedAt ?? notification.completedAt ?? notification.updatedAt;
+}
+
+function formatAbsoluteTime(timestamp: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+function formatRelativeTime(timestamp: string, nowMs: number) {
+  const timestampMs = new Date(timestamp).getTime();
+  const diffSeconds = Math.round((timestampMs - nowMs) / 1000);
+  const absoluteSeconds = Math.abs(diffSeconds);
+
+  if (absoluteSeconds < 60) {
+    return RELATIVE_TIME_FORMATTER.format(diffSeconds, "second");
+  }
+
+  const diffMinutes = Math.round(diffSeconds / 60);
+  const absoluteMinutes = Math.abs(diffMinutes);
+  if (absoluteMinutes < 60) {
+    return RELATIVE_TIME_FORMATTER.format(diffMinutes, "minute");
+  }
+
+  const diffHours = Math.round(diffMinutes / 60);
+  const absoluteHours = Math.abs(diffHours);
+  if (absoluteHours < 24) {
+    return RELATIVE_TIME_FORMATTER.format(diffHours, "hour");
+  }
+
+  const diffDays = Math.round(diffHours / 24);
+  const absoluteDays = Math.abs(diffDays);
+  if (absoluteDays < 30) {
+    return RELATIVE_TIME_FORMATTER.format(diffDays, "day");
+  }
+
+  const diffMonths = Math.round(diffDays / 30);
+  const absoluteMonths = Math.abs(diffMonths);
+  if (absoluteMonths < 12) {
+    return RELATIVE_TIME_FORMATTER.format(diffMonths, "month");
+  }
+
+  return RELATIVE_TIME_FORMATTER.format(Math.round(diffMonths / 12), "year");
 }
 
 function formatDuration(durationMs: number) {

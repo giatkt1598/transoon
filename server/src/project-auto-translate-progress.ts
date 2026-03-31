@@ -1,5 +1,9 @@
 import { Log } from "./logger";
 import type { Server as SocketIOServer } from "socket.io";
+import {
+  getNotificationById,
+  upsertNotification,
+} from "./translation-memory/notification-service";
 
 export type ProjectAutoTranslateProgress = {
   projectId: string;
@@ -12,6 +16,10 @@ export type ProjectAutoTranslateProgress = {
 };
 
 const progressStore = new Map<string, ProjectAutoTranslateProgress>();
+const notificationMetadataStore = new Map<
+  string,
+  { projectName: string; providerName: string | null }
+>();
 const ttlMs = 30 * 60 * 1000;
 let io: SocketIOServer | null = null;
 
@@ -32,12 +40,23 @@ export function setProjectAutoTranslateProgress(
   };
 
   progressStore.set(projectId, nextState);
+  persistProjectAutoTranslateNotification(nextState);
   io?.to(projectId).emit("project-auto-translate-progress", nextState);
 }
 
 export function getProjectAutoTranslateProgress(projectId: string) {
   cleanupExpiredProgress();
   return progressStore.get(projectId) ?? null;
+}
+
+export function registerProjectAutoTranslateNotificationMetadata(
+  projectId: string,
+  metadata: {
+    projectName: string;
+    providerName: string | null;
+  },
+) {
+  notificationMetadataStore.set(projectId, metadata);
 }
 
 export function registerProjectAutoTranslateSocketHandlers(
@@ -76,6 +95,54 @@ function cleanupExpiredProgress() {
   for (const [projectId, state] of progressStore.entries()) {
     if (now - Date.parse(state.updatedAt) > ttlMs) {
       progressStore.delete(projectId);
+      notificationMetadataStore.delete(projectId);
     }
+  }
+}
+
+function persistProjectAutoTranslateNotification(
+  progress: ProjectAutoTranslateProgress,
+) {
+  const notificationId = `project-auto-translate:${progress.projectId}`;
+  const existingNotification = getNotificationById(notificationId);
+  const metadata = notificationMetadataStore.get(progress.projectId);
+  const startedAt =
+    existingNotification?.startedAt ?? progress.updatedAt;
+  const completedAt =
+    progress.phase === "completed" ||
+    progress.phase === "failed" ||
+    progress.phase === "cancelled"
+      ? progress.updatedAt
+      : null;
+  const durationMs =
+    completedAt && startedAt
+      ? Math.max(0, Date.parse(completedAt) - Date.parse(startedAt))
+      : existingNotification?.durationMs ?? null;
+
+  upsertNotification({
+    id: notificationId,
+    kind: "project-auto-translate",
+    projectId: progress.projectId,
+    requestId: null,
+    projectName:
+      existingNotification?.projectName ?? metadata?.projectName ?? "Project",
+    providerName:
+      existingNotification?.providerName ?? metadata?.providerName ?? null,
+    phase: progress.phase,
+    message: progress.message,
+    progressPercent: progress.progressPercent,
+    completedSegments: progress.completedSegments,
+    totalSegments: progress.totalSegments,
+    unitLabel: "segments",
+    updatedAt: progress.updatedAt,
+    startedAt,
+    completedAt,
+    durationMs,
+    downloadUrl: null,
+    unread: true,
+  });
+
+  if (completedAt) {
+    notificationMetadataStore.delete(progress.projectId);
   }
 }

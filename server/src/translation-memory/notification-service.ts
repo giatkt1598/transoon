@@ -145,7 +145,7 @@ export function clearAllNotifications() {
   database.prepare(`DELETE FROM notifications`).run();
 }
 
-function getNotificationById(notificationId: string) {
+export function getNotificationById(notificationId: string) {
   const database = getTranslationMemoryDatabase();
   const row = database
     .prepare(

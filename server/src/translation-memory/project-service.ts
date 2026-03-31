@@ -8,7 +8,10 @@ import { buildXlsxPreviewDocument } from "../documents/xlsx-preview-service";
 import { PPTX_REMOVE_SEGMENT_SENTINEL } from "../documents/handlers/pptx-document-handler";
 import { extractDocument, writeOutputFile } from "../document-service";
 import { Log } from "../logger";
-import { setProjectAutoTranslateProgress } from "../project-auto-translate-progress";
+import {
+  registerProjectAutoTranslateNotificationMetadata,
+  setProjectAutoTranslateProgress,
+} from "../project-auto-translate-progress";
 import { TranslateProvider } from "../translate-provider";
 import { getTranslationMemoryDatabase } from "./database";
 import type {
@@ -1014,6 +1017,10 @@ export async function startProjectAutoTranslate(
   const translatedSegmentCount = segments.filter(isSegmentAlreadyTranslated).length;
 
   setProjectStatus(projectId, "auto-translate-processing");
+  registerProjectAutoTranslateNotificationMetadata(projectId, {
+    projectName: project.name,
+    providerName: providerName,
+  });
   setProjectAutoTranslateProgress(projectId, {
     phase: "queued",
     completedSegments: translatedSegmentCount,
