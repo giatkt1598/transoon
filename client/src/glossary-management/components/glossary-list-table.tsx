@@ -1,56 +1,56 @@
-import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
-import { Box, InputAdornment, TextField, Typography } from '@mui/material'
-import { useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import type { GlossarySummary } from '../../app/types'
-import { orderBy, orderByDescending, type SortDirection } from '../../app/linq'
-import { formatLanguageRoute } from '../../app/utils'
-import { SharedTable, type TableDefinition } from '../../components/shared-table'
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import { Box, InputAdornment, TextField, Typography } from "@mui/material";
+import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import type { GlossarySummary } from "../../app/types";
+import { orderBy, orderByDescending, type SortDirection } from "../../app/linq";
+import { formatLanguageRoute } from "../../app/utils";
+import { SharedTable, type TableDefinition } from "../../components/shared-table";
 
 type GlossaryListTableProps = {
-  glossaries: GlossarySummary[]
-  searchTerm: string
-  isLoading: boolean
-  onSearchChange: (value: string) => void
-  onDeleteGlossary: (glossaryId: string) => Promise<void>
+  glossaries: GlossarySummary[];
+  searchTerm: string;
+  isLoading: boolean;
+  onSearchChange: (value: string) => void;
+  onDeleteGlossary: (glossaryId: string) => Promise<void>;
   sortState: {
-    column: keyof GlossarySummary
-    direction: SortDirection
-  } | null
+    column: keyof GlossarySummary;
+    direction: SortDirection;
+  } | null;
   onSortChange: (
     sortState: {
-      column: keyof GlossarySummary
-      direction: SortDirection
+      column: keyof GlossarySummary;
+      direction: SortDirection;
     } | null,
-  ) => void
-  page: number
-  rowsPerPage: number
-  onPageChange: (page: number) => void
-  onRowsPerPageChange: (rowsPerPage: number) => void
-}
+  ) => void;
+  page: number;
+  rowsPerPage: number;
+  onPageChange: (page: number) => void;
+  onRowsPerPageChange: (rowsPerPage: number) => void;
+};
 
 function formatDateTime(value: string | null) {
   if (!value) {
     return {
-      date: 'Never used',
-      time: 'No activity yet',
-    }
+      date: "Never used",
+      time: "No activity yet",
+    };
   }
 
-  const date = new Date(value)
+  const date = new Date(value);
   return {
-    date: date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
+    date: date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     }),
-    time: date.toLocaleTimeString('en-GB', {
-      hour: 'numeric',
-      minute: '2-digit',
+    time: date.toLocaleTimeString("en-GB", {
+      hour: "numeric",
+      minute: "2-digit",
     }),
-  }
+  };
 }
 
 export function GlossaryListTable({
@@ -66,17 +66,15 @@ export function GlossaryListTable({
   onPageChange,
   onRowsPerPageChange,
 }: GlossaryListTableProps) {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const sortedGlossaries = useMemo(() => {
     if (!sortState) {
-      return glossaries
+      return glossaries;
     }
 
-    const selector = (glossary: GlossarySummary) => glossary[sortState.column]
-    return sortState.direction === 'asc'
-      ? orderBy(glossaries, selector)
-      : orderByDescending(glossaries, selector)
-  }, [glossaries, sortState])
+    const selector = (glossary: GlossarySummary) => glossary[sortState.column];
+    return sortState.direction === "asc" ? orderBy(glossaries, selector) : orderByDescending(glossaries, selector);
+  }, [glossaries, sortState]);
 
   const tableDef: TableDefinition<GlossarySummary> = {
     sortable: true,
@@ -85,13 +83,13 @@ export function GlossaryListTable({
     pagination: true,
     sortState: sortState ?? undefined,
     onSortChange: (column, direction) => {
-      onSortChange(direction ? { column, direction } : null)
+      onSortChange(direction ? { column, direction } : null);
     },
     columns: [
       {
-        key: 'name',
-        label: 'Glossary',
-        gridTemplateColumn: 'minmax(140px, 0.8fr)',
+        key: "name",
+        label: "Glossary",
+        gridTemplateColumn: "minmax(140px, 0.8fr)",
         customRender: (row) => (
           <Box className="shared-primary-cell">
             <Box>
@@ -106,23 +104,23 @@ export function GlossaryListTable({
         ),
       },
       {
-        key: 'lastModifiedAt',
-        label: 'Last modified',
-        gridTemplateColumn: 'minmax(120px, 0.6fr)',
+        key: "lastModifiedAt",
+        label: "Last modified",
+        gridTemplateColumn: "minmax(120px, 0.6fr)",
         customRender: (row) => {
-          const modified = formatDateTime(row.lastModifiedAt)
+          const modified = formatDateTime(row.lastModifiedAt);
           return (
             <Box className="shared-created-cell">
               <Typography component="p">{modified.date}</Typography>
               <Typography component="span">{modified.time}</Typography>
             </Box>
-          )
+          );
         },
       },
       {
-        key: 'itemCount',
-        label: 'Items',
-        gridTemplateColumn: 'minmax(100px, 0.4fr)',
+        key: "itemCount",
+        label: "Items",
+        gridTemplateColumn: "minmax(100px, 0.4fr)",
         customRender: (row) => (
           <Box className="shared-segment-cell">
             <Typography component="p">{row.itemCount}</Typography>
@@ -134,25 +132,25 @@ export function GlossaryListTable({
     action: {
       actions: [
         {
-          label: 'Edit',
+          label: "Edit",
           icon: <EditOutlinedIcon fontSize="small" />,
           onClick: (row) => {
-            navigate(`/glossaries/${row.id}`)
+            navigate(`/glossaries/${row.id}`);
           },
         },
         {
-          label: 'Delete',
+          label: "Delete",
           icon: <DeleteOutlineRoundedIcon fontSize="small" />,
           onClick: (row) => {
-            void onDeleteGlossary(row.id)
+            void onDeleteGlossary(row.id);
           },
         },
       ],
     },
     rowClick: (row) => {
-      navigate(`/glossaries/${row.id}`)
+      navigate(`/glossaries/${row.id}`);
     },
-  }
+  };
 
   return (
     <SharedTable
@@ -172,6 +170,7 @@ export function GlossaryListTable({
               </InputAdornment>
             ),
           }}
+          sx={{ maxWidth: 400 }}
         />
       }
       isLoading={isLoading}
@@ -184,5 +183,5 @@ export function GlossaryListTable({
       emptyStateText="No glossary matches this view."
       emptyStateSubtext="Create one to enforce preferred terminology before and after AI translation."
     />
-  )
+  );
 }

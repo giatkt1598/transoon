@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type P
 import type {
   ProjectAutoTranslateProgressResponse,
   ProjectSummary,
+  TranslationProgressResponse,
 } from "./types";
 import { getAppSocket } from "./socket";
 import {
@@ -11,23 +12,33 @@ import {
 
 const PROJECT_AUTO_TRANSLATE_STARTED_EVENT =
   "transoon:auto-translate-started";
+const DOCUMENT_TRANSLATION_STARTED_EVENT =
+  "transoon:document-translation-started";
+const DOCUMENT_TRANSLATION_UPDATED_EVENT =
+  "transoon:document-translation-updated";
 const PROJECT_AUTO_TRANSLATE_IDLE_REFRESH_MS = 15000;
 const PROJECT_AUTO_TRANSLATE_ACTIVE_REFRESH_MS = 2000;
 
 export type AutoTranslateNotification = {
+  kind: "project-auto-translate" | "document-translation";
   id: string;
-  projectId: string;
+  projectId: string | null;
+  requestId: string | null;
   projectName: string;
   providerName: string | null;
-  phase: ProjectAutoTranslateProgressResponse["phase"];
+  phase:
+    | ProjectAutoTranslateProgressResponse["phase"]
+    | TranslationProgressResponse["phase"];
   message: string;
   progressPercent: number;
   completedSegments: number;
   totalSegments: number;
+  unitLabel: "segments" | "chunks";
   updatedAt: string;
   startedAt: string | null;
   completedAt: string | null;
   durationMs: number | null;
+  downloadUrl: string | null;
   unread: boolean;
 };
 
@@ -36,6 +47,26 @@ type AutoTranslateStartedDetail = {
   projectName: string;
   providerName: string;
   totalSegments: number;
+};
+
+type DocumentTranslationStartedDetail = {
+  requestId: string;
+  fileName: string;
+  providerName: string;
+};
+
+type DocumentTranslationUpdatedDetail = {
+  requestId: string;
+  providerName?: string | null;
+  message?: string;
+  progressPercent?: number;
+  completedChunks?: number;
+  totalChunks?: number;
+  updatedAt?: string;
+  completedAt?: string | null;
+  durationMs?: number | null;
+  phase?: TranslationProgressResponse["phase"];
+  downloadUrl?: string | null;
 };
 
 type AutoTranslateNotificationsContextValue = {
@@ -65,12 +96,16 @@ export function AutoTranslateNotificationsProvider({
   const [manuallyTrackedProjectIds, setManuallyTrackedProjectIds] = useState<
     string[]
   >([]);
+  const [manuallyTrackedRequestIds, setManuallyTrackedRequestIds] = useState<
+    string[]
+  >([]);
   const [isCancellingProjectId, setIsCancellingProjectId] = useState<
     string | null
   >(null);
   const startedAtRef = useRef(new Map<string, string>());
   const refreshIntervalMs =
-    processingProjectIds.length > 0 || manuallyTrackedProjectIds.length > 0
+    processingProjectIds.length > 0 ||
+    manuallyTrackedProjectIds.length > 0
       ? PROJECT_AUTO_TRANSLATE_ACTIVE_REFRESH_MS
       : PROJECT_AUTO_TRANSLATE_IDLE_REFRESH_MS;
 
@@ -130,7 +165,9 @@ export function AutoTranslateNotificationsProvider({
       setNotifications((currentNotifications) =>
         upsertNotification(currentNotifications, {
           id: buildNotificationId(detail.projectId),
+          kind: "project-auto-translate",
           projectId: detail.projectId,
+          requestId: null,
           projectName: detail.projectName,
           providerName: detail.providerName,
           phase: "queued",
@@ -138,10 +175,12 @@ export function AutoTranslateNotificationsProvider({
           progressPercent: 0,
           completedSegments: 0,
           totalSegments: detail.totalSegments,
+          unitLabel: "segments",
           updatedAt: startedAt,
           startedAt,
           completedAt: null,
           durationMs: null,
+          downloadUrl: null,
           unread: true,
         }),
       );
@@ -159,10 +198,124 @@ export function AutoTranslateNotificationsProvider({
     };
   }, []);
 
+  useEffect(() => {
+    const handleDocumentTranslationUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<DocumentTranslationUpdatedDetail>;
+      const detail = customEvent.detail;
+      if (!detail?.requestId) {
+        return;
+      }
+
+      setNotifications((currentNotifications) => {
+        const currentNotification = currentNotifications.find(
+          (notification) => notification.requestId === detail.requestId,
+        );
+        if (!currentNotification) {
+          return currentNotifications;
+        }
+
+        return upsertNotification(currentNotifications, {
+          ...currentNotification,
+          providerName:
+            detail.providerName === undefined
+              ? currentNotification.providerName
+              : detail.providerName,
+          message: detail.message ?? currentNotification.message,
+          progressPercent:
+            detail.progressPercent ?? currentNotification.progressPercent,
+          completedSegments:
+            detail.completedChunks ?? currentNotification.completedSegments,
+          totalSegments: detail.totalChunks ?? currentNotification.totalSegments,
+          updatedAt: detail.updatedAt ?? currentNotification.updatedAt,
+          completedAt:
+            detail.completedAt === undefined
+              ? currentNotification.completedAt
+              : detail.completedAt,
+          durationMs:
+            detail.durationMs === undefined
+              ? currentNotification.durationMs
+              : detail.durationMs,
+          phase: detail.phase ?? currentNotification.phase,
+          downloadUrl:
+            detail.downloadUrl === undefined
+              ? currentNotification.downloadUrl
+              : detail.downloadUrl,
+          unread: true,
+        });
+      });
+    };
+
+    window.addEventListener(
+      DOCUMENT_TRANSLATION_UPDATED_EVENT,
+      handleDocumentTranslationUpdated as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        DOCUMENT_TRANSLATION_UPDATED_EVENT,
+        handleDocumentTranslationUpdated as EventListener,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleDocumentTranslationStarted = (event: Event) => {
+      const customEvent = event as CustomEvent<DocumentTranslationStartedDetail>;
+      const detail = customEvent.detail;
+      if (!detail?.requestId) {
+        return;
+      }
+
+      const startedAt = new Date().toISOString();
+      startedAtRef.current.set(detail.requestId, startedAt);
+      setManuallyTrackedRequestIds((currentValue) =>
+        currentValue.includes(detail.requestId)
+          ? currentValue
+          : [...currentValue, detail.requestId],
+      );
+      setNotifications((currentNotifications) =>
+        upsertNotification(currentNotifications, {
+          id: buildDocumentTranslationNotificationId(detail.requestId),
+          kind: "document-translation",
+          projectId: null,
+          requestId: detail.requestId,
+          projectName: detail.fileName,
+          providerName: detail.providerName,
+          phase: "queued",
+          message: "Preparing background document translation.",
+          progressPercent: 0,
+          completedSegments: 0,
+          totalSegments: 0,
+          unitLabel: "chunks",
+          updatedAt: startedAt,
+          startedAt,
+          completedAt: null,
+          durationMs: null,
+          downloadUrl: null,
+          unread: true,
+        }),
+      );
+    };
+
+    window.addEventListener(
+      DOCUMENT_TRANSLATION_STARTED_EVENT,
+      handleDocumentTranslationStarted as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        DOCUMENT_TRANSLATION_STARTED_EVENT,
+        handleDocumentTranslationStarted as EventListener,
+      );
+    };
+  }, []);
+
   const subscribedProjectIds = useMemo(
     () =>
       Array.from(new Set([...processingProjectIds, ...manuallyTrackedProjectIds])),
     [manuallyTrackedProjectIds, processingProjectIds],
+  );
+  const subscribedRequestIds = useMemo(
+    () => Array.from(new Set(manuallyTrackedRequestIds)),
+    [manuallyTrackedRequestIds],
   );
 
   useEffect(() => {
@@ -203,7 +356,9 @@ export function AutoTranslateNotificationsProvider({
       setNotifications((currentNotifications) =>
         upsertNotification(currentNotifications, {
           id: buildNotificationId(progress.projectId),
+          kind: "project-auto-translate",
           projectId: progress.projectId,
+          requestId: null,
           projectName: existingProject?.name ?? "Project",
           providerName: null,
           phase: progress.phase,
@@ -211,10 +366,12 @@ export function AutoTranslateNotificationsProvider({
           progressPercent: progress.progressPercent,
           completedSegments: progress.completedSegments,
           totalSegments: progress.totalSegments,
+          unitLabel: "segments",
           updatedAt: progress.updatedAt,
           startedAt,
           completedAt,
           durationMs,
+          downloadUrl: null,
           unread: true,
         }),
       );
@@ -243,12 +400,92 @@ export function AutoTranslateNotificationsProvider({
     };
   }, [projectLookup, subscribedProjectIds]);
 
+  useEffect(() => {
+    if (subscribedRequestIds.length === 0) {
+      return;
+    }
+
+    const socket = getAppSocket();
+    const subscribedRequestIdSet = new Set(subscribedRequestIds);
+
+    const handleProgress = (progress: TranslationProgressResponse) => {
+      if (!subscribedRequestIdSet.has(progress.requestId)) {
+        return;
+      }
+
+      const startedAt =
+        startedAtRef.current.get(progress.requestId) ?? progress.updatedAt;
+
+      if (
+        progress.phase === "queued" ||
+        progress.phase === "extracting" ||
+        progress.phase === "translating" ||
+        progress.phase === "merging"
+      ) {
+        startedAtRef.current.set(progress.requestId, startedAt);
+      }
+
+      const completedAt =
+        progress.phase === "completed" || progress.phase === "failed"
+          ? progress.updatedAt
+          : null;
+      const durationMs =
+        completedAt && startedAt
+          ? Math.max(0, Date.parse(completedAt) - Date.parse(startedAt))
+          : null;
+
+      setNotifications((currentNotifications) =>
+        upsertNotification(currentNotifications, {
+          id: buildDocumentTranslationNotificationId(progress.requestId),
+          kind: "document-translation",
+          projectId: null,
+          requestId: progress.requestId,
+          projectName:
+            currentNotifications.find(
+              (notification) =>
+                notification.requestId === progress.requestId,
+            )?.projectName ?? "Document translation",
+          providerName: null,
+          phase: progress.phase,
+          message: progress.message,
+          progressPercent: progress.progressPercent,
+          completedSegments: progress.completedChunks,
+          totalSegments: progress.totalChunks,
+          unitLabel: "chunks",
+          updatedAt: progress.updatedAt,
+          startedAt,
+          completedAt,
+          durationMs,
+          downloadUrl: null,
+          unread: true,
+        }),
+      );
+
+      if (progress.phase === "completed" || progress.phase === "failed") {
+        setManuallyTrackedRequestIds((currentValue) =>
+          currentValue.filter((requestId) => requestId !== progress.requestId),
+        );
+      }
+    };
+
+    socket.on("translation-progress", handleProgress);
+    subscribedRequestIds.forEach((requestId) => {
+      socket.emit("translation-progress:subscribe", requestId);
+    });
+
+    return () => {
+      subscribedRequestIds.forEach((requestId) => {
+        socket.emit("translation-progress:unsubscribe", requestId);
+      });
+      socket.off("translation-progress", handleProgress);
+    };
+  }, [subscribedRequestIds]);
+
   const unreadCount = notifications.filter(
     (notification) => notification.unread,
   ).length;
   const activeJobCount = notifications.filter(
-    (notification) =>
-      notification.phase === "queued" || notification.phase === "translating",
+    (notification) => isNotificationActive(notification.phase),
   ).length;
 
   async function cancelProjectJob(projectId: string) {
@@ -299,6 +536,7 @@ export function AutoTranslateNotificationsProvider({
         clearAllNotifications: () => {
           setNotifications([]);
           setManuallyTrackedProjectIds([]);
+          setManuallyTrackedRequestIds([]);
         },
         markNotificationAsRead: (notificationId: string) => {
           setNotifications((currentNotifications) =>
@@ -319,6 +557,10 @@ export function AutoTranslateNotificationsProvider({
 
 function buildNotificationId(projectId: string) {
   return `project-auto-translate:${projectId}`;
+}
+
+function buildDocumentTranslationNotificationId(requestId: string) {
+  return `document-translation:${requestId}`;
 }
 
 function upsertNotification(
@@ -382,13 +624,16 @@ function syncNotificationsWithProjects(
   );
 
   return currentNotifications.map((notification) => {
+    if (notification.kind !== "project-auto-translate" || !notification.projectId) {
+      return notification;
+    }
+
     const project = projectLookup.get(notification.projectId);
     if (!project) {
       return notification;
     }
 
-    const isActiveNotification =
-      notification.phase === "queued" || notification.phase === "translating";
+    const isActiveNotification = isNotificationActive(notification.phase);
     if (!isActiveNotification) {
       return notification;
     }
@@ -421,4 +666,37 @@ function syncNotificationsWithProjects(
       updatedAt: project.lastModifiedAt ?? notification.updatedAt,
     };
   });
+}
+
+function isNotificationActive(
+  phase: AutoTranslateNotification["phase"],
+) {
+  return (
+    phase === "queued" ||
+    phase === "extracting" ||
+    phase === "translating" ||
+    phase === "merging"
+  );
+}
+
+export function dispatchDocumentTranslationStartedNotification(
+  detail: DocumentTranslationStartedDetail,
+) {
+  window.dispatchEvent(
+    new CustomEvent<DocumentTranslationStartedDetail>(
+      DOCUMENT_TRANSLATION_STARTED_EVENT,
+      { detail },
+    ),
+  );
+}
+
+export function dispatchDocumentTranslationUpdatedNotification(
+  detail: DocumentTranslationUpdatedDetail,
+) {
+  window.dispatchEvent(
+    new CustomEvent<DocumentTranslationUpdatedDetail>(
+      DOCUMENT_TRANSLATION_UPDATED_EVENT,
+      { detail },
+    ),
+  );
 }

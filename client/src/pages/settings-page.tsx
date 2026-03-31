@@ -144,7 +144,7 @@ export function SettingsPage() {
             Notifications
           </Typography>
           <Typography component="p" className="project-editor-copy">
-            Manage auto translate notifications shown in the header notification center.
+            Manage background translation notifications shown in the header notification center.
           </Typography>
         </Box>
 

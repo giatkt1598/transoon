@@ -6,6 +6,7 @@ import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneR
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import { Box, Button, Chip, Divider, IconButton, Popover, Tooltip, Typography } from "@mui/material";
 import type { AutoTranslateNotification } from "../app/auto-translate-notifications-context";
+import { apiBaseUrl } from "../app/config";
 
 type AutoTranslateNotificationsPopoverProps = {
   anchorEl: HTMLElement | null;
@@ -52,8 +53,8 @@ export function AutoTranslateNotificationsPopover({
           </Typography>
           <Typography component="p" className="auto-translate-notifications-subtitle">
             {activeJobCount > 0
-              ? `${activeJobCount} auto translate job(s) running`
-              : "Auto translate activity"}
+              ? `${activeJobCount} background job(s) running`
+              : "Background translation activity"}
           </Typography>
         </Box>
         <Box className="auto-translate-notifications-header-actions">
@@ -79,14 +80,16 @@ export function AutoTranslateNotificationsPopover({
           <Box className="auto-translate-notifications-empty">
             <NotificationsNoneRoundedIcon fontSize="small" />
             <Typography component="p">
-              No auto translate notifications yet.
+              No background notifications yet.
             </Typography>
           </Box>
         ) : (
           notifications.map((notification) => {
             const isActive =
               notification.phase === "queued" ||
-              notification.phase === "translating";
+              notification.phase === "extracting" ||
+              notification.phase === "translating" ||
+              notification.phase === "merging";
             return (
               <Box
                 key={notification.id}
@@ -110,14 +113,14 @@ export function AutoTranslateNotificationsPopover({
                       className={`auto-translate-notification-chip ${notification.phase}`}
                     />
                   </Box>
-                  {isActive ? (
+                  {isActive && notification.kind === "project-auto-translate" && notification.projectId ? (
                     <Button
                       variant="outlined"
                       size="small"
                       className="auto-translate-notification-cancel"
                       onClick={(event) => {
                         event.stopPropagation();
-                        onCancelJob(notification.projectId);
+                        onCancelJob(notification.projectId!);
                       }}
                       disabled={isCancellingProjectId === notification.projectId}
                       startIcon={<CancelOutlinedIcon fontSize="small" />}
@@ -135,6 +138,26 @@ export function AutoTranslateNotificationsPopover({
                   <Typography component="span">
                     {buildNotificationMeta(notification)}
                   </Typography>
+                  {notification.kind === "document-translation" &&
+                  notification.phase === "completed" &&
+                  notification.downloadUrl ? (
+                    <Box sx={{ mt: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        component="a"
+                        href={new URL(
+                          notification.downloadUrl,
+                          `${apiBaseUrl.replace(/\/$/, "")}/`,
+                        ).toString()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                        }}
+                      >
+                        Download
+                      </Button>
+                    </Box>
+                  ) : null}
                   {isActive ? (
                     <Box className="auto-translate-notification-progress">
                       <Box
@@ -169,6 +192,15 @@ function NotificationStatusIcon({
     );
   }
 
+  if (phase === "extracting" || phase === "merging") {
+    return (
+      <AutorenewRoundedIcon
+        fontSize="small"
+        className="auto-translate-notification-spin"
+      />
+    );
+  }
+
   if (phase === "completed") {
     return <CheckCircleRoundedIcon fontSize="small" />;
   }
@@ -182,6 +214,10 @@ function getPhaseLabel(phase: AutoTranslateNotification["phase"]) {
       return "Queued";
     case "translating":
       return "Running";
+    case "extracting":
+      return "Extracting";
+    case "merging":
+      return "Merging";
     case "completed":
       return "Completed";
     case "cancelled":
@@ -207,9 +243,12 @@ function buildNotificationMeta(notification: AutoTranslateNotification) {
       notification.phase === "cancelled") &&
     notification.durationMs !== null
   ) {
-    const metaParts = [
-      `${notification.completedSegments}/${notification.totalSegments} segments`,
-    ];
+    const metaParts =
+      notification.totalSegments > 0
+        ? [
+            `${notification.completedSegments}/${notification.totalSegments} ${notification.unitLabel}`,
+          ]
+        : [];
 
     if (notification.providerName) {
       metaParts.push(notification.providerName);
@@ -221,7 +260,15 @@ function buildNotificationMeta(notification: AutoTranslateNotification) {
     return metaParts.join(" • ");
   }
 
-  return `${notification.completedSegments}/${notification.totalSegments} segments • ${notification.progressPercent}% • ${relativeTime}`;
+  const runningMetaParts: string[] = [];
+  if (notification.totalSegments > 0) {
+    runningMetaParts.push(
+      `${notification.completedSegments}/${notification.totalSegments} ${notification.unitLabel}`,
+    );
+  }
+  runningMetaParts.push(`${notification.progressPercent}%`, relativeTime);
+
+  return runningMetaParts.join(" • ");
 }
 
 function formatDuration(durationMs: number) {

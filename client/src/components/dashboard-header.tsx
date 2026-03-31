@@ -48,7 +48,9 @@ export function DashboardHeader({
   ) {
     markNotificationAsRead(notification.id);
     setNotificationAnchorEl(null);
-    navigate(`/projects/${notification.projectId}?tab=translations`);
+    if (notification.kind === "project-auto-translate" && notification.projectId) {
+      navigate(`/projects/${notification.projectId}?tab=translations`);
+    }
   }
 
   return (

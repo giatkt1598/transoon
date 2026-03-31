@@ -1,7 +1,4 @@
-import {
-  SharedTable,
-  type TableDefinition,
-} from "../../components/shared-table";
+import { SharedTable, type TableDefinition } from "../../components/shared-table";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import { Box, InputAdornment, TextField, Typography } from "@mui/material";
 import { useMemo } from "react";
@@ -73,8 +70,7 @@ export function TranslationMemoryListTable({
       return translationMemories;
     }
 
-    const selector = (translationMemory: TranslationMemorySummary) =>
-      translationMemory[sortState.column];
+    const selector = (translationMemory: TranslationMemorySummary) => translationMemory[sortState.column];
     return sortState.direction === "asc"
       ? orderBy(translationMemories, selector)
       : orderByDescending(translationMemories, selector);
@@ -188,6 +184,7 @@ export function TranslationMemoryListTable({
               </InputAdornment>
             ),
           }}
+          sx={{ maxWidth: 400 }}
         />
       }
       isLoading={isLoading}
