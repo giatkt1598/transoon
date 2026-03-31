@@ -396,7 +396,9 @@ export function upsertTranslationMemoryTerm(
       lastModifiedAt: now,
       lastUsedAt: now,
     });
-    touchTranslationMemory(input.translationMemoryId, now);
+    touchTranslationMemory(input.translationMemoryId, now, {
+      includeLastUsedAt: true,
+    });
     const updatedTerm = repositories.terms.getById(existingTerm.id) ?? {
       ...existingTerm,
       sourceTerm,
@@ -426,7 +428,9 @@ export function upsertTranslationMemoryTerm(
   };
 
   repositories.terms.insert(entity);
-  touchTranslationMemory(input.translationMemoryId, now);
+  touchTranslationMemory(input.translationMemoryId, now, {
+    includeLastUsedAt: true,
+  });
   return {
     term: repositories.terms.getById(entity.id) ?? entity,
     inserted: true,
@@ -477,7 +481,9 @@ export function upsertTranslationMemoryUnit(input: UpsertTranslationUnitInput) {
       lastUsedAt: now,
       updatedAt: now,
     });
-    touchTranslationMemory(input.translationMemoryId, now);
+    touchTranslationMemory(input.translationMemoryId, now, {
+      includeLastUsedAt: true,
+    });
     return repositories.translationUnits.getById(existingUnit.id);
   }
 
@@ -505,7 +511,9 @@ export function upsertTranslationMemoryUnit(input: UpsertTranslationUnitInput) {
   };
 
   repositories.translationUnits.insert(entity);
-  touchTranslationMemory(input.translationMemoryId, now);
+  touchTranslationMemory(input.translationMemoryId, now, {
+    includeLastUsedAt: true,
+  });
   return repositories.translationUnits.getById(entity.id);
 }
 
@@ -665,12 +673,20 @@ export function getProjectTranslationMemory(
 function touchTranslationMemory(
   translationMemoryId: string,
   timestamp = new Date().toISOString(),
+  options?: {
+    includeLastUsedAt?: boolean;
+  },
 ) {
   createTranslationMemoryRepositories().translationMemories.updateById(
     translationMemoryId,
-    {
-      lastModifiedAt: timestamp,
-    },
+    options?.includeLastUsedAt
+      ? {
+          lastModifiedAt: timestamp,
+          lastUsedAt: timestamp,
+        }
+      : {
+          lastModifiedAt: timestamp,
+        },
   );
 }
 
