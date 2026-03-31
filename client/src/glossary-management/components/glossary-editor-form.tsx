@@ -2,6 +2,7 @@ import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import { Box, Button, MenuItem, Paper, TextField, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import type { LanguagesResponse } from '../../app/types'
+import { LanguageSwapButton } from '../../components/language-swap-button'
 import type { GlossaryFormValues } from '../types'
 
 type GlossaryEditorFormProps = {
@@ -48,7 +49,7 @@ export function GlossaryEditorForm({
           disabled={isLoading || isSaving}
         />
 
-        <Box className="project-editor-grid">
+        <Box className="language-pair-grid">
           <TextField
             select
             label="Source language"
@@ -56,12 +57,25 @@ export function GlossaryEditorForm({
             onChange={(event) => onFieldChange('sourceLanguage', event.target.value)}
             disabled={isLoading || isSaving}
           >
-            {languagesData.languages.map((language) => (
+            {languagesData.languages
+              .filter(
+                (language) => language.code !== formValues.targetLanguage,
+              )
+              .map((language) => (
               <MenuItem key={language.code} value={language.code}>
                 {language.label}
               </MenuItem>
-            ))}
+              ))}
           </TextField>
+
+          <LanguageSwapButton
+            disabled={formValues.sourceLanguage === 'auto'}
+            disabledReason="Auto detect cannot be used as the target language."
+            onClick={() => {
+              onFieldChange('sourceLanguage', formValues.targetLanguage)
+              onFieldChange('targetLanguage', formValues.sourceLanguage)
+            }}
+          />
 
           <TextField
             select
@@ -71,7 +85,11 @@ export function GlossaryEditorForm({
             disabled={isLoading || isSaving}
           >
             {languagesData.languages
-              .filter((language) => language.code !== 'auto')
+              .filter(
+                (language) =>
+                  language.code !== 'auto' &&
+                  language.code !== formValues.sourceLanguage,
+              )
               .map((language) => (
                 <MenuItem key={language.code} value={language.code}>
                   {language.label}

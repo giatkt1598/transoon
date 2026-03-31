@@ -12,6 +12,7 @@ import { useTranslationApp } from "../app/translation-app-context";
 import { formatTimer } from "../app/utils";
 import { ProgressCard } from "./progress-card";
 import { ProjectDocumentUploadField } from "../project-management/components/project-document-upload-field";
+import { LanguageSwapButton } from "./language-swap-button";
 
 const showCopyBuildPrompt =
   import.meta.env.VITE_SHOW_COPY_BUILD_PROMPT !== "false";
@@ -53,6 +54,7 @@ export function DocumentIntakePanel() {
     handleSubmit,
     handleCopyBuildPrompt,
   } = useTranslationApp();
+  const isLanguageSwapDisabled = sourceLanguage === "auto";
 
   return (
     <Paper
@@ -89,7 +91,7 @@ export function DocumentIntakePanel() {
         />
       </Box>
 
-      <Box className="field-grid">
+      <Box className="language-pair-grid">
         <FormControl className="field" fullWidth>
           <InputLabel
             id="source-language-label"
@@ -115,13 +117,26 @@ export function DocumentIntakePanel() {
               },
             }}
           >
-            {languagesData.languages.map((language) => (
+            {languagesData.languages
+              .filter((language) => language.code !== targetLanguage)
+              .map((language) => (
               <MenuItem key={language.code} value={language.code}>
                 {language.label}
               </MenuItem>
-            ))}
+              ))}
           </Select>
         </FormControl>
+        <LanguageSwapButton
+          disabled={isLanguageSwapDisabled}
+          disabledReason="Auto detect cannot be used as the target language."
+          onClick={() => {
+            const nextSourceLanguage = targetLanguage;
+            const nextTargetLanguage = sourceLanguage;
+
+            setSourceLanguage(nextSourceLanguage);
+            setTargetLanguage(nextTargetLanguage);
+          }}
+        />
 
         <FormControl className="field" fullWidth>
           <InputLabel
@@ -149,7 +164,10 @@ export function DocumentIntakePanel() {
             }}
           >
             {languagesData.languages
-              .filter((language) => language.code !== "auto")
+              .filter(
+                (language) =>
+                  language.code !== "auto" && language.code !== sourceLanguage,
+              )
               .map((language) => (
                 <MenuItem key={language.code} value={language.code}>
                   {language.label}

@@ -21,6 +21,7 @@ import { useEffect, useRef, useState } from "react";
 import { useBlocker, useParams } from "react-router-dom";
 import type { SortDirection } from "../app/linq";
 import { LoadingPageSkeleton } from "../components/loading-skeleton";
+import { LanguageSwapButton } from "../components/language-swap-button";
 import { GlossaryItemsTable } from "../glossary-management/components/glossary-items-table";
 import { useGlossaryDetails } from "../glossary-management/hooks/use-glossary-details";
 import { ProjectPageHeader } from "../project-management/components/project-page-header";
@@ -255,52 +256,72 @@ export function GlossaryDetailPage() {
                   </Box>
 
                   <Box className="detail-info-grid">
-                    <Box className="detail-info-item">
-                      <Typography component="span">Source language</Typography>
-                      <TextField
-                        select
-                        fullWidth
-                        value={formValues.sourceLanguage}
-                        onChange={(event) =>
-                          handleFieldChange(
-                            "sourceLanguage",
-                            event.target.value,
-                          )
-                        }
-                        disabled={isSaving}
-                        sx={{ mt: 1.5 }}
-                      >
-                        {languagesData.languages.map((language) => (
-                          <MenuItem key={language.code} value={language.code}>
-                            {language.label}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    </Box>
-
-                    <Box className="detail-info-item">
-                      <Typography component="span">Target language</Typography>
-                      <TextField
-                        select
-                        fullWidth
-                        value={formValues.targetLanguage}
-                        onChange={(event) =>
-                          handleFieldChange(
-                            "targetLanguage",
-                            event.target.value,
-                          )
-                        }
-                        disabled={isSaving}
-                        sx={{ mt: 1.5 }}
-                      >
-                        {languagesData.languages
-                          .filter((language) => language.code !== "auto")
-                          .map((language) => (
-                            <MenuItem key={language.code} value={language.code}>
-                              {language.label}
-                            </MenuItem>
-                          ))}
-                      </TextField>
+                    <Box className="detail-info-item detail-language-pair-item">
+                      <Box className="detail-language-pair-grid">
+                        <TextField
+                          select
+                          fullWidth
+                          label="Source language"
+                          value={formValues.sourceLanguage}
+                          onChange={(event) =>
+                            handleFieldChange(
+                              "sourceLanguage",
+                              event.target.value,
+                            )
+                          }
+                          disabled={isSaving}
+                        >
+                          {languagesData.languages
+                            .filter(
+                              (language) =>
+                                language.code !== formValues.targetLanguage,
+                            )
+                            .map((language) => (
+                              <MenuItem key={language.code} value={language.code}>
+                                {language.label}
+                              </MenuItem>
+                            ))}
+                        </TextField>
+                        <LanguageSwapButton
+                          disabled={formValues.sourceLanguage === "auto"}
+                          disabledReason="Auto detect cannot be used as the target language."
+                          onClick={() => {
+                            handleFieldChange(
+                              "sourceLanguage",
+                              formValues.targetLanguage,
+                            );
+                            handleFieldChange(
+                              "targetLanguage",
+                              formValues.sourceLanguage,
+                            );
+                          }}
+                        />
+                        <TextField
+                          select
+                          fullWidth
+                          label="Target language"
+                          value={formValues.targetLanguage}
+                          onChange={(event) =>
+                            handleFieldChange(
+                              "targetLanguage",
+                              event.target.value,
+                            )
+                          }
+                          disabled={isSaving}
+                        >
+                          {languagesData.languages
+                            .filter(
+                              (language) =>
+                                language.code !== "auto" &&
+                                language.code !== formValues.sourceLanguage,
+                            )
+                            .map((language) => (
+                              <MenuItem key={language.code} value={language.code}>
+                                {language.label}
+                              </MenuItem>
+                            ))}
+                        </TextField>
+                      </Box>
                     </Box>
 
                     <Box className="detail-info-item">

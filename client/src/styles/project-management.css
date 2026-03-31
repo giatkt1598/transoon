@@ -308,6 +308,17 @@
   gap: 12px;
 }
 
+.detail-language-pair-item {
+  grid-column: 1 / -1;
+}
+
+.detail-language-pair-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
 .detail-info-item,
 .detail-description-block,
 .detail-progress-block,

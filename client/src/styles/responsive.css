@@ -61,10 +61,12 @@
   }
 
   .field-grid,
+  .language-pair-grid,
   .result-metrics,
   .hero-stat-row,
   .project-upload-field,
   .project-editor-grid,
+  .detail-language-pair-grid,
   .detail-info-grid,
   .detail-home-summary-grid,
   .detail-home-linked-resources-grid {

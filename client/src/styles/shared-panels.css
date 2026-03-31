@@ -153,6 +153,40 @@
   gap: 18px;
 }
 
+.language-pair-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0px;
+  align-items: center;
+}
+
+.language-swap-button-shell {
+  display: inline-flex;
+  justify-content: center;
+  align-self: center;
+}
+
+.language-swap-button.MuiIconButton-root {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #7c5b41;
+  box-shadow: none;
+}
+
+.language-swap-button.MuiIconButton-root:hover {
+  background: transparent;
+}
+
+.language-swap-button.MuiIconButton-root:focus-visible {
+  outline: none;
+  background: transparent;
+}
+
 .result-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
