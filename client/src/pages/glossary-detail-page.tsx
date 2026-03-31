@@ -225,7 +225,7 @@ export function GlossaryDetailPage() {
                 : "detail-tab-panel detail-tab-panel-hidden"
             }
           >
-            <Box className="detail-home-grid">
+            <Box className="detail-home-grid detail-home-grid-narrow">
               <Box className="detail-section-card">
                 <Box className="project-editor-section-head">
                   <Box>

@@ -37,7 +37,7 @@ export function ProjectEditorForm({
   onSave,
 }: ProjectEditorFormProps) {
   return (
-    <Paper className="project-editor-shell" elevation={0}>
+    <Paper className="project-editor-shell project-editor-shell-narrow" elevation={0}>
       <Box className="project-editor-section-head">
         <Box>
           <Typography component="h2" className="project-editor-title">
