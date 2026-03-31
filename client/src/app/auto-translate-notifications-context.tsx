@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
+import { apiBaseUrl } from "./config";
 import type {
   ProjectAutoTranslateProgressResponse,
   ProjectSummary,
@@ -105,9 +106,55 @@ export function AutoTranslateNotificationsProvider({
   const startedAtRef = useRef(new Map<string, string>());
   const refreshIntervalMs =
     processingProjectIds.length > 0 ||
-    manuallyTrackedProjectIds.length > 0
+    manuallyTrackedProjectIds.length > 0 ||
+    manuallyTrackedRequestIds.length > 0
       ? PROJECT_AUTO_TRANSLATE_ACTIVE_REFRESH_MS
       : PROJECT_AUTO_TRANSLATE_IDLE_REFRESH_MS;
+
+  useEffect(() => {
+    let isDisposed = false;
+
+    async function loadPersistedNotifications() {
+      try {
+        const nextNotifications = await fetchNotifications();
+        if (isDisposed) {
+          return;
+        }
+
+        setNotifications(nextNotifications);
+        setManuallyTrackedProjectIds(
+          nextNotifications
+            .filter(
+              (notification) =>
+                notification.kind === "project-auto-translate" &&
+                notification.projectId &&
+                isNotificationActive(notification.phase),
+            )
+            .map((notification) => notification.projectId!)
+            .filter((projectId, index, currentValue) => currentValue.indexOf(projectId) === index),
+        );
+        setManuallyTrackedRequestIds(
+          nextNotifications
+            .filter(
+              (notification) =>
+                notification.kind === "document-translation" &&
+                notification.requestId &&
+                isNotificationActive(notification.phase),
+            )
+            .map((notification) => notification.requestId!)
+            .filter((requestId, index, currentValue) => currentValue.indexOf(requestId) === index),
+        );
+      } catch {
+        // Notification center should fail quietly.
+      }
+    }
+
+    void loadPersistedNotifications();
+
+    return () => {
+      isDisposed = true;
+    };
+  }, []);
 
   useEffect(() => {
     let isDisposed = false;
@@ -127,9 +174,14 @@ export function AutoTranslateNotificationsProvider({
             .filter((project) => project.status === "auto-translate-processing")
             .map((project) => project.id),
         );
-        setNotifications((currentNotifications) =>
-          syncNotificationsWithProjects(currentNotifications, projects),
-        );
+        setNotifications((currentNotifications) => {
+          const nextNotifications = syncNotificationsWithProjects(
+            currentNotifications,
+            projects,
+          );
+          void persistAllNotifications(nextNotifications);
+          return nextNotifications;
+        });
       } catch {
         // Notification center should fail quietly.
       }
@@ -163,7 +215,7 @@ export function AutoTranslateNotificationsProvider({
           : [...currentValue, detail.projectId],
       );
       setNotifications((currentNotifications) =>
-        upsertNotification(currentNotifications, {
+        persistUpsertAndMergeNotification(currentNotifications, {
           id: buildNotificationId(detail.projectId),
           kind: "project-auto-translate",
           projectId: detail.projectId,
@@ -214,7 +266,7 @@ export function AutoTranslateNotificationsProvider({
           return currentNotifications;
         }
 
-        return upsertNotification(currentNotifications, {
+        return persistUpsertAndMergeNotification(currentNotifications, {
           ...currentNotification,
           providerName:
             detail.providerName === undefined
@@ -273,7 +325,7 @@ export function AutoTranslateNotificationsProvider({
           : [...currentValue, detail.requestId],
       );
       setNotifications((currentNotifications) =>
-        upsertNotification(currentNotifications, {
+        persistUpsertAndMergeNotification(currentNotifications, {
           id: buildDocumentTranslationNotificationId(detail.requestId),
           kind: "document-translation",
           projectId: null,
@@ -354,7 +406,7 @@ export function AutoTranslateNotificationsProvider({
           : null;
 
       setNotifications((currentNotifications) =>
-        upsertNotification(currentNotifications, {
+        persistUpsertAndMergeNotification(currentNotifications, {
           id: buildNotificationId(progress.projectId),
           kind: "project-auto-translate",
           projectId: progress.projectId,
@@ -435,7 +487,7 @@ export function AutoTranslateNotificationsProvider({
           : null;
 
       setNotifications((currentNotifications) =>
-        upsertNotification(currentNotifications, {
+        persistUpsertAndMergeNotification(currentNotifications, {
           id: buildDocumentTranslationNotificationId(progress.requestId),
           kind: "document-translation",
           projectId: null,
@@ -492,8 +544,8 @@ export function AutoTranslateNotificationsProvider({
     try {
       setIsCancellingProjectId(projectId);
       await cancelAutoTranslateProject(projectId);
-      setNotifications((currentNotifications) =>
-        currentNotifications.map((notification) =>
+      setNotifications((currentNotifications) => {
+        const nextNotifications: AutoTranslateNotification[] = currentNotifications.map((notification) =>
           notification.projectId === projectId
             ? {
                 ...notification,
@@ -506,10 +558,12 @@ export function AutoTranslateNotificationsProvider({
                     ? null
                     : Date.now() - Date.parse(notification.startedAt),
                 unread: true,
-              }
+              } as AutoTranslateNotification
             : notification,
-        ),
-      );
+        );
+        void persistAllNotifications(nextNotifications);
+        return nextNotifications;
+      });
       setManuallyTrackedProjectIds((currentValue) =>
         currentValue.filter((trackedProjectId) => trackedProjectId !== projectId),
       );
@@ -526,26 +580,31 @@ export function AutoTranslateNotificationsProvider({
         activeJobCount,
         isCancellingProjectId,
         markAllAsRead: () => {
-          setNotifications((currentNotifications) =>
-            currentNotifications.map((notification) => ({
+          setNotifications((currentNotifications) => {
+            const nextNotifications = currentNotifications.map((notification) => ({
               ...notification,
               unread: false,
-            })),
-          );
+            }));
+            void markAllNotificationsAsReadRequest();
+            return nextNotifications;
+          });
         },
         clearAllNotifications: () => {
           setNotifications([]);
           setManuallyTrackedProjectIds([]);
           setManuallyTrackedRequestIds([]);
+          void clearAllNotificationsRequest();
         },
         markNotificationAsRead: (notificationId: string) => {
-          setNotifications((currentNotifications) =>
-            currentNotifications.map((notification) =>
+          setNotifications((currentNotifications) => {
+            const nextNotifications = currentNotifications.map((notification) =>
               notification.id === notificationId
                 ? { ...notification, unread: false }
                 : notification,
-            ),
-          );
+            );
+            void markNotificationAsReadRequest(notificationId);
+            return nextNotifications;
+          });
         },
         cancelProjectJob,
       }}
@@ -698,5 +757,75 @@ export function dispatchDocumentTranslationUpdatedNotification(
       DOCUMENT_TRANSLATION_UPDATED_EVENT,
       { detail },
     ),
+  );
+}
+
+async function fetchNotifications() {
+  const response = await fetch(`${apiBaseUrl}/api/notifications`);
+  const data = (await response.json()) as
+    | { notifications: AutoTranslateNotification[] }
+    | { error?: string };
+
+  if (!response.ok || !("notifications" in data)) {
+    throw new Error(
+      "error" in data
+        ? data.error ?? "Could not load notifications."
+        : "Could not load notifications.",
+    );
+  }
+
+  return data.notifications;
+}
+
+function persistUpsertAndMergeNotification(
+  currentNotifications: AutoTranslateNotification[],
+  nextNotification: AutoTranslateNotification,
+) {
+  const nextNotifications = upsertNotification(
+    currentNotifications,
+    nextNotification,
+  );
+  void upsertNotificationRequest(nextNotification);
+  return nextNotifications;
+}
+
+async function upsertNotificationRequest(
+  notification: AutoTranslateNotification,
+) {
+  await fetch(`${apiBaseUrl}/api/notifications/${encodeURIComponent(notification.id)}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(notification),
+  });
+}
+
+async function markNotificationAsReadRequest(notificationId: string) {
+  await fetch(
+    `${apiBaseUrl}/api/notifications/${encodeURIComponent(notificationId)}/read`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+async function markAllNotificationsAsReadRequest() {
+  await fetch(`${apiBaseUrl}/api/notifications/read-all`, {
+    method: "POST",
+  });
+}
+
+async function clearAllNotificationsRequest() {
+  await fetch(`${apiBaseUrl}/api/notifications`, {
+    method: "DELETE",
+  });
+}
+
+async function persistAllNotifications(
+  notifications: AutoTranslateNotification[],
+) {
+  await Promise.all(
+    notifications.map((notification) => upsertNotificationRequest(notification)),
   );
 }

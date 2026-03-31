@@ -33,6 +33,34 @@ export type AppSettingEntity = {
   updatedAt: string;
 };
 
+export type NotificationEntity = {
+  id: string;
+  kind: "project-auto-translate" | "document-translation";
+  projectId: string | null;
+  requestId: string | null;
+  projectName: string;
+  providerName: string | null;
+  phase:
+    | "queued"
+    | "extracting"
+    | "translating"
+    | "merging"
+    | "completed"
+    | "failed"
+    | "cancelled";
+  message: string;
+  progressPercent: number;
+  completedSegments: number;
+  totalSegments: number;
+  unitLabel: "segments" | "chunks";
+  updatedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  durationMs: number | null;
+  downloadUrl: string | null;
+  unread: 0 | 1;
+};
+
 export type ProjectEntity = {
   id: string;
   name: string;

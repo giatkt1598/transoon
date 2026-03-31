@@ -5,8 +5,11 @@ import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import { Box, Button, Chip, Divider, IconButton, Popover, Tooltip, Typography } from "@mui/material";
+import { useMemo, useState } from "react";
 import type { AutoTranslateNotification } from "../app/auto-translate-notifications-context";
 import { apiBaseUrl } from "../app/config";
+
+const NOTIFICATIONS_PAGE_SIZE = 4;
 
 type AutoTranslateNotificationsPopoverProps = {
   anchorEl: HTMLElement | null;
@@ -33,11 +36,21 @@ export function AutoTranslateNotificationsPopover({
   onCancelJob,
   onOpenNotification,
 }: AutoTranslateNotificationsPopoverProps) {
+  const [visibleCount, setVisibleCount] = useState(NOTIFICATIONS_PAGE_SIZE);
+  const visibleNotifications = useMemo(
+    () => notifications.slice(0, visibleCount),
+    [notifications, visibleCount],
+  );
+  const hasMoreNotifications = notifications.length > visibleCount;
+
   return (
     <Popover
       open={open}
       anchorEl={anchorEl}
-      onClose={onClose}
+      onClose={() => {
+        setVisibleCount(NOTIFICATIONS_PAGE_SIZE);
+        onClose();
+      }}
       anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       transformOrigin={{ vertical: "top", horizontal: "right" }}
       slotProps={{
@@ -84,7 +97,7 @@ export function AutoTranslateNotificationsPopover({
             </Typography>
           </Box>
         ) : (
-          notifications.map((notification) => {
+          visibleNotifications.map((notification) => {
             const isActive =
               notification.phase === "queued" ||
               notification.phase === "extracting" ||
@@ -93,7 +106,15 @@ export function AutoTranslateNotificationsPopover({
             return (
               <Box
                 key={notification.id}
-                className={`auto-translate-notification-item${notification.unread ? " unread" : ""}`}
+                className={`auto-translate-notification-item${notification.unread ? " unread" : ""}${
+                  notification.phase === "completed"
+                    ? " is-completed"
+                    : notification.phase === "failed"
+                      ? " is-failed"
+                      : notification.phase === "cancelled"
+                        ? " is-cancelled"
+                        : ""
+                }`}
                 onClick={() => onOpenNotification(notification)}
               >
                 <Box className="auto-translate-notification-head">
@@ -173,6 +194,19 @@ export function AutoTranslateNotificationsPopover({
             );
           })
         )}
+        {hasMoreNotifications ? (
+          <Box sx={{ display: "flex", justifyContent: "center", pt: 0.5 }}>
+            <Button
+              variant="text"
+              size="small"
+              onClick={() =>
+                setVisibleCount((currentValue) => currentValue + NOTIFICATIONS_PAGE_SIZE)
+              }
+            >
+              View more
+            </Button>
+          </Box>
+        ) : null}
       </Box>
     </Popover>
   );

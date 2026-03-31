@@ -11,6 +11,7 @@ import { segmentSplitSupportMigration } from "./202603210009_segment-split-suppo
 import { segmentOriginExternalIdsMigration } from "./202603210010_segment-origin-external-ids";
 import { glossaryManagementMigration } from "./202603210011_glossary-management";
 import { projectGlossaryLinkMigration } from "./202603210012_project-glossary-link";
+import { notificationsMigration } from "./202603210013_notifications";
 
 export const migrations: MigrationDefinition[] = [
   initialTranslationMemoryMigration,
@@ -25,4 +26,5 @@ export const migrations: MigrationDefinition[] = [
   segmentOriginExternalIdsMigration,
   glossaryManagementMigration,
   projectGlossaryLinkMigration,
+  notificationsMigration,
 ];

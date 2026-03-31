@@ -366,6 +366,26 @@
   box-shadow: inset 3px 0 0 #0d67c8;
 }
 
+.auto-translate-notification-item.is-completed {
+  background: #eef9ee;
+  border-color: rgba(34, 197, 94, 0.18);
+}
+
+.auto-translate-notification-item.is-completed:hover {
+  background: #e6f6e7;
+}
+
+.auto-translate-notification-item.is-failed,
+.auto-translate-notification-item.is-cancelled {
+  background: #fff0ef;
+  border-color: rgba(180, 35, 24, 0.16);
+}
+
+.auto-translate-notification-item.is-failed:hover,
+.auto-translate-notification-item.is-cancelled:hover {
+  background: #ffe7e5;
+}
+
 .auto-translate-notification-head {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

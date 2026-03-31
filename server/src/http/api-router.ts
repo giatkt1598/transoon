@@ -59,6 +59,13 @@ import {
   updateTranslationMemory,
 } from "../translation-memory/translation-memory-service";
 import { getAppSettings, updateAppSettings } from "../translation-memory/settings-service";
+import {
+  clearAllNotifications,
+  listNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+  upsertNotification,
+} from "../translation-memory/notification-service";
 import { TranslateProvider } from "../translation-service";
 import { translateDocument } from "../translation/document-translation-service";
 import { getTranslationProgress, setTranslationProgress } from "../translation-progress";
@@ -682,6 +689,68 @@ export function createApiRouter() {
     }
   });
 
+  router.get("/api/notifications", (_req, res) => {
+    try {
+      res.json({
+        notifications: listNotifications(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.put("/api/notifications/:notificationId", (req, res) => {
+    try {
+      const validationError = validateNotificationInput(req.body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+
+      const notificationId = String(req.params.notificationId);
+      if (notificationId !== req.body.id) {
+        res.status(400).json({ error: "Notification id mismatch." });
+        return;
+      }
+
+      res.json(upsertNotification(req.body));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.post("/api/notifications/:notificationId/read", (req, res) => {
+    try {
+      markNotificationAsRead(String(req.params.notificationId));
+      res.json({ success: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.post("/api/notifications/read-all", (_req, res) => {
+    try {
+      markAllNotificationsAsRead();
+      res.json({ success: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  router.delete("/api/notifications", (_req, res) => {
+    try {
+      clearAllNotifications();
+      res.json({ success: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected server error.";
+      res.status(500).json({ error: message });
+    }
+  });
+
   router.get("/api/projects/:projectId/document", (req, res) => {
     try {
       const projectId = String(req.params.projectId);
@@ -1205,6 +1274,71 @@ function validateProjectInput(body: unknown) {
 
   if (description !== undefined && typeof description !== "string") {
     return "Description must be a string.";
+  }
+
+  return null;
+}
+
+function validateNotificationInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return "A notification payload is required.";
+  }
+
+  const {
+    id,
+    kind,
+    projectName,
+    phase,
+    message,
+    progressPercent,
+    completedSegments,
+    totalSegments,
+    unitLabel,
+    updatedAt,
+    unread,
+  } = body as Record<string, unknown>;
+
+  if (typeof id !== "string" || id.trim().length === 0) {
+    return "Notification id is required.";
+  }
+
+  if (
+    kind !== "project-auto-translate" &&
+    kind !== "document-translation"
+  ) {
+    return "Notification kind is invalid.";
+  }
+
+  if (typeof projectName !== "string" || projectName.trim().length === 0) {
+    return "Notification title is required.";
+  }
+
+  if (typeof phase !== "string" || phase.trim().length === 0) {
+    return "Notification phase is required.";
+  }
+
+  if (typeof message !== "string") {
+    return "Notification message is required.";
+  }
+
+  if (!Number.isFinite(progressPercent)) {
+    return "Notification progressPercent is invalid.";
+  }
+
+  if (!Number.isFinite(completedSegments) || !Number.isFinite(totalSegments)) {
+    return "Notification counters are invalid.";
+  }
+
+  if (unitLabel !== "segments" && unitLabel !== "chunks") {
+    return "Notification unitLabel is invalid.";
+  }
+
+  if (typeof updatedAt !== "string" || updatedAt.trim().length === 0) {
+    return "Notification updatedAt is required.";
+  }
+
+  if (typeof unread !== "boolean") {
+    return "Notification unread is required.";
   }
 
   return null;
