@@ -1,6 +1,8 @@
 import { extractDocument, writeOutputFile } from "../document-service";
+import { languageCatalog } from "../config/language-catalog";
 import { type TranslateProgress } from "../translate-provider";
 import { translateSegments } from "../translation-service";
+import path from "path";
 
 export type TranslateDocumentInput = {
   requestId: string;
@@ -67,6 +69,10 @@ export async function translateDocument(
 
   const outputBuffer = await extractedDocument.replaceSegments(translatedSegments);
   const { outputFileName } = await writeOutputFile(input.fileName, outputBuffer);
+  const downloadFileName = buildDocumentDownloadFileName(
+    input.fileName,
+    input.targetLanguage,
+  );
 
   await input.onProgress?.({
     phase: "completed",
@@ -89,7 +95,7 @@ export async function translateDocument(
     segmentCount: extractedDocument.segments.length,
     processingTimeMs: Math.round(performance.now() - startedAt),
     preview: buildPreviewSegments(extractedDocument.segments, translatedSegments),
-    downloadUrl: `/api/downloads/${outputFileName}`,
+    downloadUrl: `/api/downloads/${outputFileName}?downloadFileName=${encodeURIComponent(downloadFileName)}`,
   };
 }
 
@@ -113,4 +119,17 @@ function buildPreviewSegments(
     })
     .slice(0, 8)
     .map((segment) => segment.text);
+}
+
+function buildDocumentDownloadFileName(
+  sourceFileName: string,
+  targetLanguage: string,
+) {
+  const extension = path.extname(sourceFileName);
+  const baseName = path.basename(sourceFileName, extension);
+  const targetLanguageLabel =
+    languageCatalog.languages.find((language) => language.code === targetLanguage)
+      ?.label ?? targetLanguage;
+
+  return `${baseName} (${targetLanguageLabel})${extension}`;
 }

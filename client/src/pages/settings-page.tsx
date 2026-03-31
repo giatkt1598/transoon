@@ -1,14 +1,17 @@
 import DeleteSweepRoundedIcon from "@mui/icons-material/DeleteSweepRounded";
 import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import {
   Box,
   Button,
   IconButton,
   InputAdornment,
   MenuItem,
+  Popover,
   TextField,
   Typography,
 } from "@mui/material";
+import { useState } from "react";
 import { useAutoTranslateNotifications } from "../app/auto-translate-notifications-context";
 import { LoadingPageSkeleton } from "../components/loading-skeleton";
 import { ProjectPageHeader } from "../project-management/components/project-page-header";
@@ -16,6 +19,8 @@ import { useSettingsPage } from "../settings-management/hooks/use-settings-page"
 
 export function SettingsPage() {
   const { notifications, clearAllNotifications } = useAutoTranslateNotifications();
+  const [clearAnchorEl, setClearAnchorEl] = useState<HTMLElement | null>(null);
+  const [showClearSuccess, setShowClearSuccess] = useState(false);
   const {
     translateProviders,
     formValues,
@@ -158,16 +163,87 @@ export function SettingsPage() {
           <Typography component="p" className="project-editor-copy">
             Stored notifications: {notifications.length}
           </Typography>
-          <Button
-            type="button"
-            variant="contained"
-            color="primary"
-            disabled={notifications.length === 0}
-            onClick={clearAllNotifications}
-            startIcon={<DeleteSweepRoundedIcon fontSize="small" />}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              flexWrap: "wrap",
+            }}
           >
-            Clear all notifications
-          </Button>
+            <Button
+              type="button"
+              variant="contained"
+              color="primary"
+              disabled={notifications.length === 0}
+              onClick={(event) => {
+                setShowClearSuccess(false);
+                setClearAnchorEl(event.currentTarget);
+              }}
+              startIcon={<DeleteSweepRoundedIcon fontSize="small" />}
+            >
+              Clear all notifications
+            </Button>
+            {showClearSuccess ? (
+              <Box
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                  color: "#2e7d32",
+                }}
+              >
+                <CheckCircleRoundedIcon fontSize="small" />
+                <Typography component="span" sx={{ color: "inherit", fontSize: "0.9rem", fontWeight: 600 }}>
+                  Cleared successfully
+                </Typography>
+              </Box>
+            ) : null}
+          </Box>
+          <Popover
+            open={Boolean(clearAnchorEl)}
+            anchorEl={clearAnchorEl}
+            onClose={() => setClearAnchorEl(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            transformOrigin={{ vertical: "top", horizontal: "left" }}
+          >
+            <Box
+              sx={{
+                display: "grid",
+                gap: 1.5,
+                p: 2,
+                maxWidth: 280,
+              }}
+            >
+              <Typography component="p" sx={{ fontWeight: 600, color: "#24170f" }}>
+                Clear all notifications?
+              </Typography>
+              <Typography component="p" sx={{ color: "#7d634f", fontSize: "0.9rem" }}>
+                This will remove all stored notifications from the notification center.
+              </Typography>
+              <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+                <Button
+                  type="button"
+                  variant="outlined"
+                  onClick={() => setClearAnchorEl(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="contained"
+                  color="primary"
+                  onClick={() => {
+                    clearAllNotifications();
+                    setClearAnchorEl(null);
+                    setShowClearSuccess(true);
+                  }}
+                >
+                  Clear
+                </Button>
+              </Box>
+            </Box>
+          </Popover>
         </Box>
       </Box>
 
