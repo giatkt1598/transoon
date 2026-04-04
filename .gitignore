@@ -2,3 +2,5 @@ node_modules
 dist
 server/logs
 server/storage
+__pycache__
+hf_cache
