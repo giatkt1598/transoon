@@ -23,7 +23,7 @@ export function TranslatorHero() {
         <Box className="hero-stat-row">
           <Box>
             <Typography className="hero-stat-kicker">Active provider</Typography>
-            <Typography className="hero-stat-copy">Google Translate</Typography>
+            <Typography className="hero-stat-copy">Azure Translate Provider</Typography>
           </Box>
           <Box>
             <Typography className="hero-stat-kicker">Pipeline status</Typography>
